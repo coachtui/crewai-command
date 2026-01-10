@@ -7,7 +7,6 @@ import {
   Calendar, 
   CheckSquare,
   LogOut,
-  Building2,
   Menu,
   X
 } from 'lucide-react';
@@ -156,14 +155,13 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
         )}
         {/* Logo */}
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
-              <Building2 size={20} className="text-primary" />
-            </div>
-            <div>
-              <h1 className="font-bold text-lg">CrewAI</h1>
-              <p className="text-xs text-text-secondary">Command</p>
-            </div>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/image/crewai-logo.png" 
+              alt="CrewAI Logo" 
+              className="w-10 h-10 object-contain"
+            />
+            <h1 className="font-bold text-lg">CrewAI Command</h1>
           </div>
         </div>
 
