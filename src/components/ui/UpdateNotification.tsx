@@ -72,9 +72,9 @@ export function UpdateNotification({ registration }: UpdateNotificationProps) {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
-            <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
               <svg
-                className="h-6 w-6 text-orange-600 dark:text-orange-400"
+                className="h-6 w-6 text-primary dark:text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
