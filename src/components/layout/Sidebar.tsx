@@ -157,7 +157,7 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-center">
             <img 
-              src="/image/crewai-command-black.logo.png" 
+              src="/image/crewai-command-black-logo.png" 
               alt="CrewAI Command" 
               className="h-10 w-auto object-contain"
             />
