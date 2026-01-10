@@ -187,8 +187,8 @@ export function Calendar() {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="mt-8 flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg">
+      {/* Legend - Hidden on mobile */}
+      <div className="mt-8 hidden md:flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg">
         <div className="font-medium">Staffing Status:</div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-success"></div>
