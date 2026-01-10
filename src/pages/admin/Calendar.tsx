@@ -74,6 +74,9 @@ export function Calendar() {
   // Get tasks for a specific date
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
+      // Skip tasks without dates
+      if (!task.start_date || !task.end_date) return false;
+      
       const taskStart = parseISO(task.start_date);
       const taskEnd = parseISO(task.end_date);
       return date >= taskStart && date <= taskEnd;

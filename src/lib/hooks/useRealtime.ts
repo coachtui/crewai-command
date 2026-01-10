@@ -14,10 +14,8 @@ export function useRealtimeSubscription(
   useEffect(() => {
     if (!enabled) return;
 
-    let channel: RealtimeChannel;
-
     // Subscribe to all changes on the specified table
-    channel = supabase
+    const channel = supabase
       .channel(`${table}-changes`)
       .on(
         'postgres_changes',

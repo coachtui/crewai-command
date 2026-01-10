@@ -8,9 +8,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getDatesInRange(startDate: string, endDate: string): string[] {
+  // Parse dates as local time to avoid timezone issues
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  
   const dates = eachDayOfInterval({
-    start: new Date(startDate),
-    end: new Date(endDate),
+    start: new Date(startYear, startMonth - 1, startDay),
+    end: new Date(endYear, endMonth - 1, endDay),
   });
   return dates.map((date) => format(date, 'yyyy-MM-dd'));
 }
@@ -41,7 +45,10 @@ export function getStaffingStatus(
 }
 
 export function formatDate(date: string): string {
-  return format(new Date(date), 'MMM d, yyyy');
+  // Parse date string as local time to avoid timezone offset issues
+  // Date strings from database are in YYYY-MM-DD format
+  const [year, month, day] = date.split('-').map(Number);
+  return format(new Date(year, month - 1, day), 'MMM d, yyyy');
 }
 
 export function formatPhone(phone: string): string {

@@ -53,6 +53,12 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
   const handleAssignWorker = async (workerId: string) => {
     if (!task) return;
 
+    // Can't assign workers without dates
+    if (!task.start_date || !task.end_date) {
+      toast.error('Please set task dates before assigning workers');
+      return;
+    }
+
     try {
       // Get all dates in task range
       const dates = getDatesInRange(task.start_date, task.end_date);
@@ -164,9 +170,15 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
               </Badge>
             </div>
             {task.location && <p className="text-sm text-text-secondary mb-1">📍 {task.location}</p>}
-            <p className="text-sm text-text-secondary">
-              📅 {new Date(task.start_date).toLocaleDateString()} - {new Date(task.end_date).toLocaleDateString()}
-            </p>
+            {task.start_date && task.end_date ? (
+              <p className="text-sm text-text-secondary">
+                📅 {new Date(task.start_date).toLocaleDateString()} - {new Date(task.end_date).toLocaleDateString()}
+              </p>
+            ) : (
+              <p className="text-sm text-text-secondary italic">
+                ⚠️ No dates set - add dates before assigning workers
+              </p>
+            )}
           </div>
 
           {/* Operators Section */}

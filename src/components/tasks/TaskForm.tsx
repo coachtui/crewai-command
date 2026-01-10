@@ -1,10 +1,12 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
 import type { Task } from '../../types';
-import { format } from 'date-fns';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
+import { Upload, X, FileIcon, Image as ImageIcon } from 'lucide-react';
 
 interface TaskFormProps {
   task: Task | null;
@@ -16,39 +18,100 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
-    start_date: format(new Date(), 'yyyy-MM-dd'),
-    end_date: format(new Date(), 'yyyy-MM-dd'),
+    start_date: '',
+    end_date: '',
     required_operators: 0,
     required_laborers: 0,
     status: 'planned' as 'planned' | 'active' | 'completed',
     notes: '',
   });
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (task) {
       setFormData({
         name: task.name,
         location: task.location || '',
-        start_date: task.start_date,
-        end_date: task.end_date,
+        start_date: task.start_date || '',
+        end_date: task.end_date || '',
         required_operators: task.required_operators,
         required_laborers: task.required_laborers,
         status: task.status,
         notes: task.notes || '',
       });
+      setAttachments(task.attachments || []);
     }
   }, [task]);
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        // Generate unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('task-files')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}`);
+          continue;
+        }
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('task-files')
+          .getPublicUrl(filePath);
+
+        uploadedUrls.push(publicUrl);
+      }
+
+      setAttachments([...attachments, ...uploadedUrls]);
+      toast.success(`Uploaded ${uploadedUrls.length} file(s)`);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast.error('Failed to upload files');
+    } finally {
+      setUploading(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAttachment = (url: string) => {
+    setAttachments(attachments.filter(a => a !== url));
+  };
+
+  const isImage = (url: string) => {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     
-    // Validate dates
-    if (new Date(formData.end_date) < new Date(formData.start_date)) {
-      alert('End date must be after start date');
-      return;
+    // Validate dates only if both are provided
+    if (formData.start_date && formData.end_date) {
+      if (new Date(formData.end_date) < new Date(formData.start_date)) {
+        alert('End date must be after start date');
+        return;
+      }
     }
     
-    onSave(formData);
+    onSave({ ...formData, attachments });
   };
 
   return (
@@ -70,19 +133,17 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <Input
-          label="Start Date *"
+          label="Start Date"
           type="date"
           value={formData.start_date}
           onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-          required
         />
 
         <Input
-          label="End Date *"
+          label="End Date"
           type="date"
           value={formData.end_date}
           onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-          required
         />
       </div>
 
@@ -123,6 +184,58 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
         placeholder="Additional task details"
       />
+
+      {/* File Upload Section */}
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-2">
+          Files & Images
+        </label>
+        
+        {/* Upload Button */}
+        <label className="inline-flex items-center gap-2 px-4 py-2 bg-bg-secondary border border-border rounded-lg cursor-pointer hover:bg-bg-hover transition-colors">
+          <Upload size={16} />
+          <span className="text-sm">{uploading ? 'Uploading...' : 'Upload Files'}</span>
+          <input
+            type="file"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+            onChange={handleFileUpload}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+        <p className="text-xs text-text-secondary mt-1">
+          Upload images, PDFs, or documents
+        </p>
+
+        {/* Attachments List */}
+        {attachments.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {attachments.map((url, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 p-2 bg-bg-secondary border border-border rounded-lg"
+              >
+                {isImage(url) ? (
+                  <ImageIcon size={16} className="text-primary" />
+                ) : (
+                  <FileIcon size={16} className="text-text-secondary" />
+                )}
+                <span className="text-sm flex-1 truncate">
+                  {url.split('/').pop()?.split('?')[0]}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(url)}
+                  className="p-1 hover:bg-bg-hover rounded transition-colors"
+                >
+                  <X size={14} className="text-error" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-3 pt-4">
         <Button type="submit" className="flex-1">

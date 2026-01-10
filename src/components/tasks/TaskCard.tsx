@@ -1,8 +1,11 @@
-import { Edit2, Trash2, MapPin, Calendar, Users } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Calendar, Users, Paperclip } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import type { Task, Assignment } from '../../types';
 import { formatDate, getStaffingStatus } from '../../lib/utils';
+import { useState } from 'react';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 
 interface TaskCardProps {
   task: Task;
@@ -13,6 +16,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: TaskCardProps) {
+  const [showAttachments, setShowAttachments] = useState(false);
+  
   // Get assignments for this task
   const taskAssignments = assignments.filter(a => a.task_id === task.id);
   
@@ -83,12 +88,19 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
         </div>
       )}
 
-      <div className="flex items-center gap-2 text-sm text-text-secondary mb-3">
-        <Calendar size={14} />
-        <span>
-          {formatDate(task.start_date)} - {formatDate(task.end_date)}
-        </span>
-      </div>
+      {task.start_date && task.end_date ? (
+        <div className="flex items-center gap-2 text-sm text-text-secondary mb-3">
+          <Calendar size={14} />
+          <span>
+            {formatDate(task.start_date)} - {formatDate(task.end_date)}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-text-secondary mb-3">
+          <Calendar size={14} />
+          <span className="italic">No dates set</span>
+        </div>
+      )}
 
       {/* Staffing Info */}
       <div className="space-y-2 pt-3 border-t border-border">
@@ -122,6 +134,69 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
           {task.notes}
         </p>
       )}
+
+      {/* Attachments Button */}
+      {task.attachments && task.attachments.length > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowAttachments(true);
+          }}
+          className="mt-3 flex items-center gap-2 text-sm text-primary hover:text-primary-hover transition-colors"
+        >
+          <Paperclip size={14} />
+          <span>{task.attachments.length} file{task.attachments.length !== 1 ? 's' : ''}</span>
+        </button>
+      )}
+
+      {/* Attachments Modal */}
+      <Modal
+        isOpen={showAttachments}
+        onClose={() => setShowAttachments(false)}
+        title={`${task.name} - Files`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {task.attachments?.map((url, index) => {
+            const fileName = url.split('/').pop()?.split('?')[0] || 'File';
+            const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+
+            return (
+              <div key={index} className="border border-border rounded-lg overflow-hidden">
+                {isImage ? (
+                  <div>
+                    <img 
+                      src={url} 
+                      alt={fileName}
+                      className="w-full h-auto"
+                    />
+                    <div className="p-3 bg-bg-secondary border-t border-border">
+                      <p className="text-sm text-text-secondary truncate">{fileName}</p>
+                      <Button
+                        size="sm"
+                        onClick={() => window.open(url, '_blank')}
+                        className="mt-2"
+                      >
+                        Open in New Tab
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-bg-secondary">
+                    <p className="text-sm font-medium mb-2">{fileName}</p>
+                    <Button
+                      size="sm"
+                      onClick={() => window.open(url, '_blank')}
+                    >
+                      Open File
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
     </Card>
   );
 }

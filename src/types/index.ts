@@ -30,12 +30,13 @@ export interface Task {
   org_id: string;
   name: string;
   location?: string;
-  start_date: string;
-  end_date: string;
+  start_date?: string;
+  end_date?: string;
   required_operators: number;
   required_laborers: number;
   status: 'planned' | 'active' | 'completed';
   notes?: string;
+  attachments?: string[]; // Array of file URLs
   created_by: string;
   created_at: string;
 }

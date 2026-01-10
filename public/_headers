@@ -1,0 +1,40 @@
+# Netlify & Cloudflare Pages Cache Headers
+# https://docs.netlify.com/routing/headers/
+# https://developers.cloudflare.com/pages/platform/headers/
+
+# Never cache the app shell (index.html)
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Never cache service worker
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+# Never cache manifest
+/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Cache fingerprinted assets forever (Vite hashes these)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Cache other static assets with fingerprints
+/*.*.js
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+# Icons and images
+/icon-*.png
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.png
+  Cache-Control: public, max-age=86400
+
+/*.jpg
+  Cache-Control: public, max-age=86400
+
+/*.svg
+  Cache-Control: public, max-age=86400

@@ -25,6 +25,8 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
 
   useEffect(() => {
     if (worker) {
+      // Initialize form with worker data when editing
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         name: worker.name,
         phone: worker.phone || '',

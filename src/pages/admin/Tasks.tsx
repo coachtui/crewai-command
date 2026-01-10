@@ -126,6 +126,9 @@ export function Tasks() {
       const weekEnd = endOfWeek(addWeeks(today, i), { weekStartsOn: 1 });
       
       const weekTasks = tasks.filter(task => {
+        // Skip tasks without dates
+        if (!task.start_date || !task.end_date) return false;
+        
         const taskStart = new Date(task.start_date);
         const taskEnd = new Date(task.end_date);
         return (taskStart >= weekStart && taskStart <= weekEnd) ||
