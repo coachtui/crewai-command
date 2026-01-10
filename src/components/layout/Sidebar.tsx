@@ -155,13 +155,12 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
         )}
         {/* Logo */}
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center">
             <img 
-              src="/image/crewai-logo.png" 
-              alt="CrewAI Logo" 
-              className="w-10 h-10 object-contain"
+              src="/image/crewai-command-logo.png" 
+              alt="CrewAI Command" 
+              className="h-10 w-auto object-contain"
             />
-            <h1 className="font-bold text-lg">CrewAI Command</h1>
           </div>
         </div>
 
