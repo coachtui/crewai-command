@@ -21,13 +21,27 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
   // Get assignments for this task
   const taskAssignments = assignments.filter(a => a.task_id === task.id);
   
-  // Count assigned workers by role
-  const assignedOperators = taskAssignments.filter(
-    a => a.worker?.role === 'operator'
-  ).length;
-  const assignedLaborers = taskAssignments.filter(
-    a => a.worker?.role === 'laborer'
-  ).length;
+  // Count UNIQUE assigned workers by role (same worker can have multiple assignments for multi-day tasks)
+  const uniqueOperators = taskAssignments
+    .filter(a => a.worker?.role === 'operator')
+    .reduce((acc, curr) => {
+      if (!acc.find(a => a.worker?.id === curr.worker?.id)) {
+        acc.push(curr);
+      }
+      return acc;
+    }, [] as Assignment[]);
+    
+  const uniqueLaborers = taskAssignments
+    .filter(a => a.worker?.role === 'laborer')
+    .reduce((acc, curr) => {
+      if (!acc.find(a => a.worker?.id === curr.worker?.id)) {
+        acc.push(curr);
+      }
+      return acc;
+    }, [] as Assignment[]);
+  
+  const assignedOperators = uniqueOperators.length;
+  const assignedLaborers = uniqueLaborers.length;
 
   // Calculate staffing status
   const staffingStatus = getStaffingStatus(task, assignments);
