@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import type { Task, Assignment, Worker } from '../../types';
 import { format } from 'date-fns';
-import { Calendar, Users, ArrowRight } from 'lucide-react';
+import { Calendar, Users } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
