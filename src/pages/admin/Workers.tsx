@@ -3,8 +3,6 @@ import { Plus, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Select } from '../../components/ui/Select';
 import { WorkerCard } from '../../components/workers/WorkerCard';
 import { WorkerForm } from '../../components/workers/WorkerForm';
 import { Modal } from '../../components/ui/Modal';
@@ -112,33 +110,33 @@ export function Workers() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6">
-        <div className="flex-1 min-w-0 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={20} />
-          <Input
+        <div className="relative sm:flex-1 sm:min-w-[300px] w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none z-10" size={20} />
+          <input
+            type="text"
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 w-full h-11"
+            className="w-full h-11 pl-10 pr-3 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
           />
         </div>
 
-        <Select
+        <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          options={[
-            { value: 'all', label: 'All Roles' },
-            { value: 'operator', label: 'Operators' },
-            { value: 'laborer', label: 'Laborers' },
-          ]}
-          className="w-full sm:w-48 flex-shrink-0 h-11"
-        />
+          className="w-full sm:w-48 h-11 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <option value="all">All Roles</option>
+          <option value="operator">Operators</option>
+          <option value="laborer">Laborers</option>
+        </select>
 
         <Button
           onClick={() => {
             setEditingWorker(null);
             setIsModalOpen(true);
           }}
-          className="w-full sm:w-auto flex-shrink-0 h-11"
+          className="w-full sm:w-auto h-11 whitespace-nowrap"
         >
           <Plus size={20} className="mr-2" />
           Add Worker
