@@ -69,9 +69,9 @@ export function Today() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-primary p-4 pb-20">
+    <div className="min-h-screen w-full bg-bg-primary p-4 pb-20" style={{ backgroundColor: '#1A1A1A' }}>
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6 pt-safe">
         <div className="flex items-center gap-2 text-text-secondary mb-2">
           <Calendar size={20} />
           <span className="text-sm font-medium">

@@ -112,7 +112,7 @@ export function Workers() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6">
-        <div className="flex-1 relative">
+        <div className="flex-1 min-w-0 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={20} />
           <Input
             placeholder="Search by name..."
@@ -130,7 +130,7 @@ export function Workers() {
             { value: 'operator', label: 'Operators' },
             { value: 'laborer', label: 'Laborers' },
           ]}
-          className="w-full sm:w-48 h-11"
+          className="w-full sm:w-48 flex-shrink-0 h-11"
         />
 
         <Button
@@ -138,7 +138,7 @@ export function Workers() {
             setEditingWorker(null);
             setIsModalOpen(true);
           }}
-          className="w-full sm:w-auto h-11"
+          className="w-full sm:w-auto flex-shrink-0 h-11"
         >
           <Plus size={20} className="mr-2" />
           Add Worker

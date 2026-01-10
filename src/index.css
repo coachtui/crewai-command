@@ -9,8 +9,17 @@
     @apply border-border;
   }
   
+  html, body, #root {
+    @apply w-full;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+  
   body {
     @apply bg-bg-primary text-text-primary font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
   
   h1 {
@@ -50,4 +59,28 @@
   .input {
     @apply bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary;
   }
+}
+
+/* Mobile safe areas */
+@supports (padding: max(0px)) {
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top), 0px);
+  }
+  
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+  
+  .pl-safe {
+    padding-left: max(env(safe-area-inset-left), 0px);
+  }
+  
+  .pr-safe {
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
+
+/* Ensure mobile compatibility */
+* {
+  -webkit-overflow-scrolling: touch;
 }
