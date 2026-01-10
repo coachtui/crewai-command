@@ -103,22 +103,22 @@ export function Workers() {
   });
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Workers</h1>
-        <p className="text-text-secondary">Manage your construction crew</p>
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">Workers</h1>
+        <p className="text-text-secondary text-sm md:text-base">Manage your construction crew</p>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={20} />
           <Input
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full h-11"
           />
         </div>
 
@@ -130,7 +130,7 @@ export function Workers() {
             { value: 'operator', label: 'Operators' },
             { value: 'laborer', label: 'Laborers' },
           ]}
-          className="w-48"
+          className="w-full sm:w-48 h-11"
         />
 
         <Button
@@ -138,6 +138,7 @@ export function Workers() {
             setEditingWorker(null);
             setIsModalOpen(true);
           }}
+          className="w-full sm:w-auto h-11"
         >
           <Plus size={20} className="mr-2" />
           Add Worker

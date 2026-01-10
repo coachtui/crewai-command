@@ -13,7 +13,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-bg-primary">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto w-full md:w-auto">
         {children}
       </main>
     </div>
