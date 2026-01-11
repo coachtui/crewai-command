@@ -42,7 +42,7 @@ export async function findWorkerByName(partialName: string, orgId: string) {
     const workerNameParts = w.name.toLowerCase().split(' ');
     const searchParts = normalizedSearch.split(' ');
     return searchParts.every(part => 
-      workerNameParts.some(namePart => namePart.includes(part))
+      workerNameParts.some((namePart: string) => namePart.includes(part))
     );
   });
   if (partialMatch) return partialMatch;
@@ -98,7 +98,7 @@ export async function findTaskByName(partialName: string, orgId: string) {
     const taskNameParts = t.name.toLowerCase().split(' ');
     const searchParts = normalizedSearch.split(' ');
     return searchParts.every(part => 
-      taskNameParts.some(namePart => namePart.includes(part))
+      taskNameParts.some((namePart: string) => namePart.includes(part))
     );
   });
   if (partialMatch) return partialMatch;
