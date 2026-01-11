@@ -15,7 +15,7 @@ CREATE POLICY "Users can read own record"
 
 -- For reading other users in the same org, we use a different approach
 -- First, let's create a function that gets the user's org_id without causing recursion
-CREATE OR REPLACE FUNCTION auth.user_org_id()
+CREATE OR REPLACE FUNCTION public.get_user_org_id()
 RETURNS uuid
 LANGUAGE sql
 SECURITY DEFINER
@@ -29,7 +29,7 @@ CREATE POLICY "Users can read org members"
   ON users
   FOR SELECT
   TO authenticated
-  USING (org_id = auth.user_org_id());
+  USING (org_id = public.get_user_org_id());
 
 -- Verify policies
 SELECT tablename, policyname, permissive, roles, cmd
