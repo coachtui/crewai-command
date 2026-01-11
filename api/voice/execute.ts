@@ -224,10 +224,18 @@ async function handleCreateTask(data: any, user: any, client: any) {
 async function handleQueryInfo(data: any, user: any, client: any) {
   const { query_type, worker_name, date } = data;
   
-  if (query_type === 'worker_location') {
-    // Find where worker is assigned today
+  if (query_type === 'worker_location' || query_type === 'worker_assignment') {
+    // Find where worker is assigned
     const worker = await findWorkerByName(worker_name, user.org_id);
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    // Parse the date - could be "today", "tomorrow", "Monday", etc.
+    let targetDate;
+    if (date) {
+      const parsed = parseRelativeDate(date);
+      targetDate = parsed[0]; // Get first date from array
+    } else {
+      targetDate = new Date().toISOString().split('T')[0];
+    }
     
     const { data: assignment, error } = await client
       .from('assignments')
@@ -252,7 +260,41 @@ async function handleQueryInfo(data: any, user: any, client: any) {
     };
   }
   
-  // Add more query types as needed
+  // Default handler - treat any query about a worker as location query
+  if (worker_name) {
+    const worker = await findWorkerByName(worker_name, user.org_id);
+    
+    let targetDate;
+    if (date) {
+      const parsed = parseRelativeDate(date);
+      targetDate = parsed[0];
+    } else {
+      targetDate = new Date().toISOString().split('T')[0];
+    }
+    
+    const { data: assignment, error } = await client
+      .from('assignments')
+      .select(`
+        *,
+        task:tasks(name, location)
+      `)
+      .eq('worker_id', worker.id)
+      .eq('assigned_date', targetDate)
+      .eq('status', 'assigned')
+      .single();
+    
+    if (error || !assignment) {
+      throw new Error(`${worker.name} has no assignment for ${targetDate}`);
+    }
+    
+    return {
+      worker: worker.name,
+      task: assignment.task.name,
+      location: assignment.task.location,
+      date: targetDate,
+    };
+  }
+  
   throw new Error('Query type not implemented');
 }
 
