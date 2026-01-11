@@ -180,17 +180,18 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         body: JSON.stringify({ intent }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to execute command');
-      }
-
       const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.details || result.error || 'Failed to execute command');
+      }
       
       toast.success(result.message || 'Command executed successfully');
       onClose();
     } catch (err) {
       console.error('Execute error:', err);
-      setError('Failed to execute command. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to execute command. Please try again.';
+      setError(errorMessage);
       setState('error');
     }
   };

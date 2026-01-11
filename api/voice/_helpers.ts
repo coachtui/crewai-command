@@ -7,7 +7,19 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// Default client for non-authenticated operations
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Create authenticated client with user token
+export function createAuthenticatedClient(accessToken: string) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  });
+}
 
 // Fuzzy match worker name
 export async function findWorkerByName(partialName: string, orgId: string) {

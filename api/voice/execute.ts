@@ -1,4 +1,4 @@
-import { findWorkerByName, findTaskByName, parseRelativeDate, getCurrentUser, supabase } from './_helpers.js';
+import { findWorkerByName, findTaskByName, parseRelativeDate, createAuthenticatedClient } from './_helpers.js';
 
 export const config = {
   runtime: 'edge',
@@ -41,33 +41,54 @@ export default async function handler(req: Request) {
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
-    // Set auth token for Supabase client
-    supabase.auth.setSession({ access_token: token, refresh_token: '' });
+    // Create authenticated Supabase client
+    const authClient = createAuthenticatedClient(token);
 
     // Get current user
-    const user = await getCurrentUser();
+    const { data: { user: authUser }, error: authError } = await authClient.auth.getUser();
+    
+    if (authError || !authUser) {
+      return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Get user details from users table
+    const { data: user, error: userError } = await authClient
+      .from('users')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
 
     // Execute based on action type
     let result;
     switch (intent.action) {
       case 'reassign_worker':
-        result = await handleReassignWorker(intent.data, user);
+        result = await handleReassignWorker(intent.data, user, authClient);
         break;
       
       case 'create_task':
-        result = await handleCreateTask(intent.data, user);
+        result = await handleCreateTask(intent.data, user, authClient);
         break;
       
       case 'query_info':
-        result = await handleQueryInfo(intent.data, user);
+        result = await handleQueryInfo(intent.data, user, authClient);
         break;
       
       case 'update_timesheet':
-        result = await handleUpdateTimesheet(intent.data, user);
+        result = await handleUpdateTimesheet(intent.data, user, authClient);
         break;
       
       case 'approve_request':
-        result = await handleApproveRequest(intent.data, user);
+        result = await handleApproveRequest(intent.data, user, authClient);
         break;
       
       default:
@@ -102,7 +123,7 @@ export default async function handler(req: Request) {
 }
 
 // Handle worker reassignment
-async function handleReassignWorker(data: any, user: any) {
+async function handleReassignWorker(data: any, user: any, client: any) {
   const { worker_name, to_task_name, dates } = data;
   
   // Find worker
@@ -117,14 +138,14 @@ async function handleReassignWorker(data: any, user: any) {
   // For each date, remove existing assignment and create new one
   for (const date of targetDates) {
     // Delete existing assignments for this worker on this date
-    await supabase
+    await client
       .from('assignments')
       .delete()
       .eq('worker_id', worker.id)
       .eq('assigned_date', date);
     
     // Create new assignment
-    await supabase
+    await client
       .from('assignments')
       .insert({
         org_id: user.org_id,
@@ -144,12 +165,12 @@ async function handleReassignWorker(data: any, user: any) {
 }
 
 // Handle task creation
-async function handleCreateTask(data: any, user: any) {
+async function handleCreateTask(data: any, user: any, client: any) {
   const { task_name, location, required_operators, required_laborers, start_date } = data;
   
   const dates = start_date ? parseRelativeDate(start_date) : parseRelativeDate('tomorrow');
   
-  const { data: task, error } = await supabase
+  const { data: task, error } = await client
     .from('tasks')
     .insert({
       org_id: user.org_id,
@@ -173,7 +194,7 @@ async function handleCreateTask(data: any, user: any) {
 }
 
 // Handle information queries
-async function handleQueryInfo(data: any, user: any) {
+async function handleQueryInfo(data: any, user: any, client: any) {
   const { query_type, worker_name, date } = data;
   
   if (query_type === 'worker_location') {
@@ -181,7 +202,7 @@ async function handleQueryInfo(data: any, user: any) {
     const worker = await findWorkerByName(worker_name, user.org_id);
     const targetDate = date || new Date().toISOString().split('T')[0];
     
-    const { data: assignment, error } = await supabase
+    const { data: assignment, error } = await client
       .from('assignments')
       .select(`
         *,
@@ -209,7 +230,7 @@ async function handleQueryInfo(data: any, user: any) {
 }
 
 // Handle timesheet updates
-async function handleUpdateTimesheet(data: any, user: any) {
+async function handleUpdateTimesheet(data: any, user: any, client: any) {
   const { worker_name, date, hours, status } = data;
   
   const worker = await findWorkerByName(worker_name, user.org_id);
@@ -226,7 +247,7 @@ async function handleUpdateTimesheet(data: any, user: any) {
     updateData.hours_worked = hours;
   }
   
-  const { error } = await supabase
+  const { error } = await client
     .from('assignments')
     .update(updateData)
     .eq('worker_id', worker.id)
@@ -242,13 +263,13 @@ async function handleUpdateTimesheet(data: any, user: any) {
 }
 
 // Handle approval of reassignment requests
-async function handleApproveRequest(data: any, user: any) {
+async function handleApproveRequest(data: any, user: any, client: any) {
   const { worker_name } = data;
   
   // Find pending request for this worker
   const worker = await findWorkerByName(worker_name, user.org_id);
   
-  const { data: request, error: requestError } = await supabase
+  const { data: request, error: requestError } = await client
     .from('assignment_requests')
     .select('*')
     .eq('worker_id', worker.id)
@@ -262,7 +283,7 @@ async function handleApproveRequest(data: any, user: any) {
   }
   
   // Approve the request
-  const { error: updateError } = await supabase
+  const { error: updateError } = await client
     .from('assignment_requests')
     .update({
       status: 'approved',
