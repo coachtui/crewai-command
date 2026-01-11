@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Mic, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
 
 type ModalState = 'idle' | 'listening' | 'processing' | 'confirming' | 'error';
 
@@ -162,10 +163,19 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     setState('processing');
 
     try {
+      // Get session token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch('/api/voice/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ intent }),
       });

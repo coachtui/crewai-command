@@ -30,6 +30,20 @@ export default async function handler(req: Request) {
       });
     }
 
+    // Get auth token from header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    // Set auth token for Supabase client
+    supabase.auth.setSession({ access_token: token, refresh_token: '' });
+
     // Get current user
     const user = await getCurrentUser();
 
