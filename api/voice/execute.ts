@@ -1,4 +1,4 @@
-import { findWorkerByName, findTaskByName, parseRelativeDate, getCurrentUser, supabase } from '../../src/lib/voiceHelpers';
+import { findWorkerByName, findTaskByName, parseRelativeDate, getCurrentUser, supabase } from './_helpers.js';
 
 export const config = {
   runtime: 'edge',
