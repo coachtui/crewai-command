@@ -7,6 +7,7 @@ import { Calendar } from './pages/admin/Calendar';
 import { Activities } from './pages/admin/Activities';
 import { Today } from './pages/foreman/Today';
 import { Sidebar } from './components/layout/Sidebar';
+import { VoiceFloatingButton } from './components/mobile/VoiceFloatingButton';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" richColors />
+      <VoiceFloatingButton />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<Navigate to="/workers" replace />} />
