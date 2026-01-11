@@ -173,6 +173,9 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
                 key={item.path}
                 to={item.path}
                 onClick={() => isMobile && setIsVisible(false)}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
                 className={`
                   flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
                   ${isActive 
@@ -197,6 +200,9 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
         <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
           >
             <LogOut size={20} />
