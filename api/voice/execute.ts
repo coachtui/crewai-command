@@ -44,11 +44,24 @@ export default async function handler(req: Request) {
     // Create authenticated Supabase client
     const authClient = createAuthenticatedClient(token);
 
-    // Get current user
+    // Get current user - this validates the JWT and gets user ID
     const { data: { user: authUser }, error: authError } = await authClient.auth.getUser();
     
-    if (authError || !authUser) {
-      return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
+    if (authError) {
+      console.error('Auth error:', authError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid authentication token',
+        details: authError.message 
+      }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!authUser) {
+      return new Response(JSON.stringify({ 
+        error: 'No user found for token' 
+      }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -61,9 +74,23 @@ export default async function handler(req: Request) {
       .eq('id', authUser.id)
       .single();
 
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 401,
+    if (userError) {
+      console.error('User query error:', userError);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to get user details',
+        details: userError.message 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!user) {
+      return new Response(JSON.stringify({ 
+        error: 'User not found in database',
+        details: `User ID ${authUser.id} exists in auth but not in users table`
+      }), {
+        status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
