@@ -59,6 +59,16 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     recognition.onresult = (event: any) => {
       const resultTranscript = event.results[0][0].transcript;
       setTranscript(resultTranscript);
+      
+      // Immediately stop the recognition after getting result
+      // This releases the microphone right away
+      try {
+        recognition.stop();
+        recognition.abort();
+      } catch (err) {
+        console.error('Error stopping recognition after result:', err);
+      }
+      
       setState('processing');
       parseCommand(resultTranscript);
     };
@@ -128,15 +138,6 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
       }
       recognitionRef.current = null;
     }
-    
-    // Additionally, stop all media streams to ensure mic is released
-    navigator.mediaDevices?.getUserMedia({ audio: true })
-      .then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-      })
-      .catch(() => {
-        // Ignore errors - this is just a cleanup attempt
-      });
   };
 
   // Parse command with Claude API
