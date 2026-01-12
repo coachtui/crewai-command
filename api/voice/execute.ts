@@ -154,10 +154,10 @@ async function handleReassignWorker(data: any, user: any, client: any) {
   const { worker_name, to_task_name, dates } = data;
   
   // Find worker
-  const worker = await findWorkerByName(worker_name, user.org_id);
+  const worker = await findWorkerByName(worker_name, user.org_id, client);
   
   // Find target task
-  const toTask = await findTaskByName(to_task_name, user.org_id);
+  const toTask = await findTaskByName(to_task_name, user.org_id, client);
   
   // Parse dates
   const targetDates = dates || parseRelativeDate('tomorrow');
@@ -226,7 +226,7 @@ async function handleQueryInfo(data: any, user: any, client: any) {
   
   if (query_type === 'worker_location' || query_type === 'worker_assignment') {
     // Find where worker is assigned
-    const worker = await findWorkerByName(worker_name, user.org_id);
+    const worker = await findWorkerByName(worker_name, user.org_id, client);
     
     // Parse the date - could be "today", "tomorrow", "Monday", etc.
     let targetDate;
@@ -262,7 +262,7 @@ async function handleQueryInfo(data: any, user: any, client: any) {
   
   // Default handler - treat any query about a worker as location query
   if (worker_name) {
-    const worker = await findWorkerByName(worker_name, user.org_id);
+    const worker = await findWorkerByName(worker_name, user.org_id, client);
     
     let targetDate;
     if (date) {
@@ -302,7 +302,7 @@ async function handleQueryInfo(data: any, user: any, client: any) {
 async function handleUpdateTimesheet(data: any, user: any, client: any) {
   const { worker_name, date, hours, status } = data;
   
-  const worker = await findWorkerByName(worker_name, user.org_id);
+  const worker = await findWorkerByName(worker_name, user.org_id, client);
   const targetDate = date ? parseRelativeDate(date)[0] : new Date().toISOString().split('T')[0];
   
   // Update assignment status or hours
@@ -336,7 +336,7 @@ async function handleApproveRequest(data: any, user: any, client: any) {
   const { worker_name } = data;
   
   // Find pending request for this worker
-  const worker = await findWorkerByName(worker_name, user.org_id);
+  const worker = await findWorkerByName(worker_name, user.org_id, client);
   
   const { data: request, error: requestError } = await client
     .from('assignment_requests')

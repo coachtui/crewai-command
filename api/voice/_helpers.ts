@@ -22,8 +22,8 @@ export function createAuthenticatedClient(accessToken: string) {
 }
 
 // Fuzzy match worker name
-export async function findWorkerByName(partialName: string, orgId: string) {
-  const { data: workers, error } = await supabase
+export async function findWorkerByName(partialName: string, orgId: string, client: any = supabase) {
+  const { data: workers, error } = await client
     .from('workers')
     .select('*')
     .eq('org_id', orgId)
@@ -78,8 +78,8 @@ export async function findWorkerByName(partialName: string, orgId: string) {
 }
 
 // Fuzzy match task name
-export async function findTaskByName(partialName: string, orgId: string) {
-  const { data: tasks, error } = await supabase
+export async function findTaskByName(partialName: string, orgId: string, client: any = supabase) {
+  const { data: tasks, error} = await client
     .from('tasks')
     .select('*')
     .eq('org_id', orgId)
