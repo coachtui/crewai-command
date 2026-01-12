@@ -1,4 +1,4 @@
-import { differenceInDays, eachDayOfInterval, addDays, format } from 'date-fns';
+import { differenceInDays, eachDayOfInterval, addDays, format, parseISO } from 'date-fns';
 import type { Task, Assignment } from '../types';
 
 export interface GanttTask {
@@ -8,8 +8,11 @@ export interface GanttTask {
   startDate: Date;
   endDate: Date;
   duration: number;
-  assignedCount: number;
-  requiredCount: number;
+  workingDays: number;
+  assignedOperators: number;
+  assignedLaborers: number;
+  requiredOperators: number;
+  requiredLaborers: number;
   staffingStatus: 'full' | 'partial' | 'empty';
   status: 'planned' | 'active' | 'completed';
 }
@@ -21,13 +24,27 @@ export function transformTasksToGantt(
   return tasks
     .filter(task => task.start_date && task.end_date)
     .map(task => {
-      const startDate = new Date(task.start_date!);
-      const endDate = new Date(task.end_date!);
+      // Use parseISO to properly handle date strings without timezone shifts
+      const startDate = parseISO(task.start_date!);
+      const endDate = parseISO(task.end_date!);
+      
+      // Calculate total calendar days (including weekends)
       const duration = differenceInDays(endDate, startDate) + 1;
       
+      // Calculate working days (excluding weekends)
+      const workingDays = calculateWorkingDays(startDate, endDate);
+      
+      // Get assignments for this task
       const taskAssignments = assignments.filter(a => a.task_id === task.id);
-      const assignedCount = taskAssignments.length;
-      const requiredCount = task.required_operators + task.required_laborers;
+      
+      // Count by role (matching calendar logic)
+      const assignedOperators = taskAssignments.filter(
+        a => a.worker?.role === 'operator'
+      ).length;
+      
+      const assignedLaborers = taskAssignments.filter(
+        a => a.worker?.role === 'laborer'
+      ).length;
       
       return {
         id: task.id,
@@ -36,22 +53,46 @@ export function transformTasksToGantt(
         startDate,
         endDate,
         duration,
-        assignedCount,
-        requiredCount,
-        staffingStatus: getStaffingStatus(assignedCount, requiredCount),
+        workingDays,
+        assignedOperators,
+        assignedLaborers,
+        requiredOperators: task.required_operators,
+        requiredLaborers: task.required_laborers,
+        staffingStatus: getStaffingStatus(
+          assignedOperators,
+          assignedLaborers,
+          task.required_operators,
+          task.required_laborers
+        ),
         status: task.status,
       };
     })
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
+export function calculateWorkingDays(startDate: Date, endDate: Date): number {
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
+  // Count only weekdays (Monday-Friday)
+  return days.filter(day => {
+    const dayOfWeek = day.getDay();
+    return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+  }).length;
+}
+
 export function getStaffingStatus(
-  assigned: number,
-  required: number
+  assignedOps: number,
+  assignedLabs: number,
+  requiredOps: number,
+  requiredLabs: number
 ): 'full' | 'partial' | 'empty' {
-  if (assigned >= required) return 'full';
-  if (assigned === 0) return 'empty';
-  return 'partial';
+  // Match calendar logic exactly
+  if (assignedOps >= requiredOps && assignedLabs >= requiredLabs) {
+    return 'full'; // Green - fully staffed
+  }
+  if (assignedOps === 0 || assignedLabs === 0) {
+    return 'empty'; // Red - missing role entirely
+  }
+  return 'partial'; // Orange - understaffed but has some crew
 }
 
 export function getColorByStatus(status: 'full' | 'partial' | 'empty'): string {
@@ -71,11 +112,15 @@ export function calculateTimelineRange(tasks: GanttTask[]): {
   days: Date[];
 } {
   if (tasks.length === 0) {
+    // Start from Monday of current week
     const today = new Date();
+    const dayOfWeek = today.getDay();
+    const monday = addDays(today, -(dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    
     return {
-      startDate: today,
-      endDate: addDays(today, 28),
-      days: eachDayOfInterval({ start: today, end: addDays(today, 28) }),
+      startDate: monday,
+      endDate: addDays(monday, 27), // 4 weeks
+      days: eachDayOfInterval({ start: monday, end: addDays(monday, 27) }),
     };
   }
 
@@ -85,9 +130,12 @@ export function calculateTimelineRange(tasks: GanttTask[]): {
   const minStart = new Date(Math.min(...allStartDates.map(d => d.getTime())));
   const maxEnd = new Date(Math.max(...allEndDates.map(d => d.getTime())));
   
-  // Add some padding
-  const startDate = addDays(minStart, -3);
-  const endDate = addDays(maxEnd, 3);
+  // Add padding, aligning to Monday
+  const startDayOfWeek = minStart.getDay();
+  const startMonday = addDays(minStart, -(startDayOfWeek === 0 ? 6 : startDayOfWeek - 1));
+  const startDate = addDays(startMonday, -7); // One week before
+  
+  const endDate = addDays(maxEnd, 7); // One week after
   
   const days = eachDayOfInterval({ start: startDate, end: endDate });
   

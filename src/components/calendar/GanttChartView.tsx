@@ -243,7 +243,7 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
             {task.status}
           </Badge>
           <span className="text-xs text-text-secondary">
-            {task.assignedCount}/{task.requiredCount} crew
+            {task.assignedOperators + task.assignedLaborers}/{task.requiredOperators + task.requiredLaborers} crew
           </span>
         </div>
       </div>
@@ -284,7 +284,7 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
           title={`${task.name}\n${format(task.startDate, 'MMM d')} - ${format(
             task.endDate,
             'MMM d'
-          )}\n${task.assignedCount}/${task.requiredCount} crew`}
+          )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\nWorking Days: ${task.workingDays} (${task.duration} total)`}
         >
           <span className="text-white text-xs font-medium truncate">
             {width > 100 ? task.name : ''}
