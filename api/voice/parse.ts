@@ -23,7 +23,7 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { transcript } = await req.json();
+    const { transcript, clientDate } = await req.json();
 
     if (!transcript) {
       return new Response(JSON.stringify({ error: 'No transcript provided' }), {
@@ -41,11 +41,12 @@ export default async function handler(req: Request) {
       });
     }
 
-    const today = new Date();
+    // Use client's local date (from Hawaii timezone) instead of server UTC
+    const todayDate = clientDate || new Date().toISOString().split('T')[0];
+    const today = new Date(todayDate + 'T00:00:00');
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowDate = tomorrow.toISOString().split('T')[0];
-    const todayDate = today.toISOString().split('T')[0];
 
     const systemPrompt = `You are parsing voice commands for CrewAI Command, a construction crew scheduling app used by superintendents and foremen in the field.
 

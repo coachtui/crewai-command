@@ -128,12 +128,19 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   // Parse command with Claude API
   const parseCommand = async (text: string) => {
     try {
+      // Get client's local date (not server UTC)
+      const today = new Date();
+      const clientDate = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      
       const response = await fetch('/api/voice/parse', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ transcript: text }),
+        body: JSON.stringify({ 
+          transcript: text,
+          clientDate: clientDate 
+        }),
       });
 
       if (!response.ok) {
