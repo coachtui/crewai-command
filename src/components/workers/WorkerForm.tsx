@@ -16,7 +16,7 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    role: 'laborer' as 'operator' | 'laborer',
+    role: 'laborer' as 'operator' | 'laborer' | 'carpenter' | 'mason',
     skills: [] as string[],
     notes: '',
     status: 'active' as 'active' | 'inactive',
@@ -81,10 +81,12 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
       <Select
         label="Role *"
         value={formData.role}
-        onChange={(e) => setFormData({ ...formData, role: e.target.value as 'operator' | 'laborer' })}
+        onChange={(e) => setFormData({ ...formData, role: e.target.value as 'operator' | 'laborer' | 'carpenter' | 'mason' })}
         options={[
           { value: 'operator', label: 'Operator' },
           { value: 'laborer', label: 'Laborer' },
+          { value: 'carpenter', label: 'Carpenter' },
+          { value: 'mason', label: 'Mason' },
         ]}
       />
 

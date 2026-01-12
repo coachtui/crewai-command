@@ -17,7 +17,7 @@ export interface Worker {
   id: string;
   org_id: string;
   name: string;
-  role: 'operator' | 'laborer';
+  role: 'operator' | 'laborer' | 'carpenter' | 'mason';
   skills: string[];
   phone?: string;
   status: 'active' | 'inactive';

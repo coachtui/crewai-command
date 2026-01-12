@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Phone, Wrench, HardHat } from 'lucide-react';
+import { Edit2, Trash2, Phone, Wrench, HardHat, Hammer } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import type { Worker } from '../../types';
@@ -10,23 +10,54 @@ interface WorkerCardProps {
   onDelete: (workerId: string) => void;
 }
 
+const getRoleConfig = (role: Worker['role']) => {
+  switch (role) {
+    case 'operator':
+      return {
+        bgColor: 'bg-info/20',
+        iconColor: 'text-info',
+        badgeVariant: 'info' as const,
+        icon: Wrench,
+      };
+    case 'carpenter':
+      return {
+        bgColor: 'bg-success/20',
+        iconColor: 'text-success',
+        badgeVariant: 'success' as const,
+        icon: Hammer,
+      };
+    case 'mason':
+      return {
+        bgColor: 'bg-purple-500/20',
+        iconColor: 'text-purple-400',
+        badgeVariant: 'default' as const,
+        icon: HardHat,
+      };
+    case 'laborer':
+    default:
+      return {
+        bgColor: 'bg-warning/20',
+        iconColor: 'text-warning',
+        badgeVariant: 'default' as const,
+        icon: HardHat,
+      };
+  }
+};
+
 export function WorkerCard({ worker, onEdit, onDelete }: WorkerCardProps) {
+  const roleConfig = getRoleConfig(worker.role);
+  const RoleIcon = roleConfig.icon;
+
   return (
     <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-            worker.role === 'operator' ? 'bg-info/20' : 'bg-warning/20'
-          }`}>
-            {worker.role === 'operator' ? (
-              <Wrench className={worker.role === 'operator' ? 'text-info' : 'text-warning'} size={20} />
-            ) : (
-              <HardHat className="text-warning" size={20} />
-            )}
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${roleConfig.bgColor}`}>
+            <RoleIcon className={roleConfig.iconColor} size={20} />
           </div>
           <div>
             <h3 className="font-semibold text-text-primary">{worker.name}</h3>
-            <Badge variant={worker.role === 'operator' ? 'info' : 'default'} className="mt-1">
+            <Badge variant={roleConfig.badgeVariant} className="mt-1">
               {worker.role}
             </Badge>
           </div>
