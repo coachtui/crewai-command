@@ -117,12 +117,26 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     }
   };
 
-  // Stop listening
+  // Stop listening and cleanup
   const stopListening = () => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+        recognitionRef.current.abort(); // Force abort to ensure cleanup
+      } catch (err) {
+        console.error('Error stopping recognition:', err);
+      }
       recognitionRef.current = null;
     }
+    
+    // Additionally, stop all media streams to ensure mic is released
+    navigator.mediaDevices?.getUserMedia({ audio: true })
+      .then(stream => {
+        stream.getTracks().forEach(track => track.stop());
+      })
+      .catch(() => {
+        // Ignore errors - this is just a cleanup attempt
+      });
   };
 
   // Parse command with Claude API
@@ -204,7 +218,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         toast.success(result.message || 'Command executed successfully');
       }
       
-      onClose();
+      handleClose();
     } catch (err) {
       console.error('Execute error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to execute command. Please try again.';
@@ -221,12 +235,54 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     setState('idle');
   };
 
+  // Enhanced close handler to ensure cleanup
+  const handleClose = () => {
+    stopListening();
+    onClose();
+  };
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopListening();
     };
   }, []);
+
+  // Cleanup when app goes to background or loses visibility
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // App went to background, stop microphone immediately
+        stopListening();
+        if (state === 'listening') {
+          setState('idle');
+        }
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      stopListening();
+    };
+
+    const handlePause = () => {
+      stopListening();
+      if (state === 'listening') {
+        setState('idle');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    window.addEventListener('blur', handlePause);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      window.removeEventListener('blur', handlePause);
+    };
+  }, [state]);
 
   // Example commands
   const exampleCommands = [
@@ -242,7 +298,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-xl font-bold">Voice Command</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 hover:bg-bg-hover rounded-lg transition-colors"
             aria-label="Close"
           >
