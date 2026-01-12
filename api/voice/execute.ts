@@ -193,9 +193,16 @@ async function handleReassignWorker(data: any, user: any, client: any) {
 
 // Handle task creation
 async function handleCreateTask(data: any, user: any, client: any) {
-  const { task_name, location, required_operators, required_laborers, start_date } = data;
+  const { task_name, location, required_operators, required_laborers, start_date, end_date } = data;
   
   const dates = start_date ? parseRelativeDate(start_date) : parseRelativeDate('tomorrow');
+  
+  // If no end_date provided, default to same as start_date (single-day task)
+  let taskEndDate = dates[0];
+  if (end_date) {
+    const endDates = parseRelativeDate(end_date);
+    taskEndDate = endDates[0];
+  }
   
   const { data: task, error } = await client
     .from('tasks')
@@ -204,6 +211,7 @@ async function handleCreateTask(data: any, user: any, client: any) {
       name: task_name,
       location: location || null,
       start_date: dates[0],
+      end_date: taskEndDate,
       required_operators: required_operators || 0,
       required_laborers: required_laborers || 0,
       status: 'planned',

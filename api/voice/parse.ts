@@ -128,7 +128,17 @@ If unclear or confidence < 0.7:
       throw new Error('Unexpected response type');
     }
 
-    const intent: VoiceIntent = JSON.parse(content.text);
+    // Strip markdown code fences if present (```json ... ```)
+    let jsonText = content.text.trim();
+    if (jsonText.startsWith('```')) {
+      // Remove opening ```json or ```
+      jsonText = jsonText.replace(/^```(?:json)?\n?/, '');
+      // Remove closing ```
+      jsonText = jsonText.replace(/\n?```$/, '');
+      jsonText = jsonText.trim();
+    }
+
+    const intent: VoiceIntent = JSON.parse(jsonText);
 
     return new Response(JSON.stringify(intent), {
       status: 200,
