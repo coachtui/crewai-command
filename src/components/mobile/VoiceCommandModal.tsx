@@ -193,7 +193,17 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         throw new Error(result.details || result.error || 'Failed to execute command');
       }
       
-      toast.success(result.message || 'Command executed successfully');
+      // For query results, show detailed information
+      if (result.data && intent.action === 'query_info') {
+        const { worker, task, location, date } = result.data;
+        toast.success(
+          `${worker} is working at ${task}${location ? ` (${location})` : ''} on ${date}`,
+          { duration: 6000 }
+        );
+      } else {
+        toast.success(result.message || 'Command executed successfully');
+      }
+      
       onClose();
     } catch (err) {
       console.error('Execute error:', err);
