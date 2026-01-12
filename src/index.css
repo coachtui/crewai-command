@@ -84,3 +84,56 @@
 * {
   -webkit-overflow-scrolling: touch;
 }
+
+/* Print styles for Gantt chart */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+  
+  body {
+    @apply bg-white text-black;
+  }
+  
+  /* Hide non-printable elements */
+  .no-print,
+  nav,
+  aside,
+  button,
+  .sidebar,
+  header {
+    display: none !important;
+  }
+  
+  /* Show only the main content */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Optimize Gantt chart for print */
+  .gantt-chart,
+  .gantt-container {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Ensure borders are visible in print */
+  .border,
+  .border-border {
+    border-color: #000 !important;
+  }
+  
+  /* Make text readable */
+  .text-text-primary,
+  .text-text-secondary {
+    @apply text-black;
+  }
+  
+  /* Keep backgrounds for task bars */
+  [style*="backgroundColor"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

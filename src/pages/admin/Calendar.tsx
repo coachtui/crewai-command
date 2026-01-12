@@ -14,11 +14,15 @@ import {
 import { toast } from 'sonner';
 import { Badge } from '../../components/ui/Badge';
 import { getStaffingStatus } from '../../lib/utils';
+import { GanttChartView } from '../../components/calendar/GanttChartView';
+
+type ViewMode = 'calendar' | 'gantt';
 
 export function Calendar() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
 
   useEffect(() => {
     fetchData();
@@ -89,14 +93,54 @@ export function Calendar() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Calendar</h1>
-        <p className="text-text-secondary">4-week task schedule overview</p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Calendar</h1>
+            <p className="text-text-secondary">
+              {viewMode === 'calendar' 
+                ? '4-week task schedule overview' 
+                : 'Professional Gantt chart timeline view'}
+            </p>
+          </div>
+          
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 bg-bg-secondary border border-border rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                viewMode === 'calendar'
+                  ? 'bg-primary text-white'
+                  : 'hover:bg-bg-hover'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Calendar
+            </button>
+            <button
+              onClick={() => setViewMode('gantt')}
+              className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                viewMode === 'gantt'
+                  ? 'bg-primary text-white'
+                  : 'hover:bg-bg-hover'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Gantt Chart
+            </button>
+          </div>
+        </div>
       </div>
 
       {loading ? (
         <div className="text-center py-12">
           <p className="text-text-secondary">Loading calendar...</p>
         </div>
+      ) : viewMode === 'gantt' ? (
+        <GanttChartView tasks={tasks} assignments={assignments} />
       ) : (
         <div className="overflow-x-auto">
           <div className="flex gap-4 min-w-max">
@@ -190,22 +234,24 @@ export function Calendar() {
         </div>
       )}
 
-      {/* Legend - Hidden on mobile */}
-      <div className="mt-8 hidden md:flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg">
-        <div className="font-medium">Staffing Status:</div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-success"></div>
-          <span className="text-sm">Fully Staffed</span>
+      {/* Legend - Only show for calendar view, hidden on mobile */}
+      {viewMode === 'calendar' && (
+        <div className="mt-8 hidden md:flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg">
+          <div className="font-medium">Staffing Status:</div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-success"></div>
+            <span className="text-sm">Fully Staffed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-warning"></div>
+            <span className="text-sm">Partially Staffed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-error"></div>
+            <span className="text-sm">Understaffed</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-warning"></div>
-          <span className="text-sm">Partially Staffed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-error"></div>
-          <span className="text-sm">Understaffed</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
