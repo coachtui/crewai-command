@@ -6,6 +6,7 @@ import {
   Briefcase, 
   Calendar, 
   CheckSquare,
+  Clock,
   LogOut,
   Menu,
   X
@@ -109,6 +110,7 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
     { path: '/workers', icon: Users, label: 'Workers' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/calendar', icon: Calendar, label: 'Calendar' },
+    { path: '/daily-hours', icon: Clock, label: 'Daily Hours' },
     { path: '/activities', icon: CheckSquare, label: 'Activities', badge: pendingCount },
   ];
 

@@ -114,4 +114,22 @@ export interface Holiday {
   created_at: string;
 }
 
+export interface DailyHours {
+  id: string;
+  org_id: string;
+  worker_id: string;
+  log_date: string;
+  status: 'worked' | 'off' | 'transferred';
+  hours_worked: number;
+  task_id?: string;
+  transferred_to_task_id?: string;
+  notes?: string;
+  logged_by?: string;
+  created_at: string;
+  updated_at: string;
+  worker?: Worker;
+  task?: Task;
+  transferred_to_task?: Task;
+}
+
 export type StaffingStatus = 'success' | 'warning' | 'error';
