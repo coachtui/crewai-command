@@ -467,7 +467,7 @@ export function DailyHours() {
     
     // Draw totals row
     yPosition += 2;
-    doc.setFont(undefined, 'bold');
+    doc.setFont('helvetica', 'bold');
     xPosition = 14;
     
     const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex => 
