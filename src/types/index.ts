@@ -9,7 +9,7 @@ export interface User {
   org_id: string;
   email: string;
   name: string;
-  role: 'admin' | 'foreman';
+  role: 'admin' | 'foreman' | 'viewer';
   created_at: string;
 }
 

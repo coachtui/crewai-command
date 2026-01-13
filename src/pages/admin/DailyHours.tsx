@@ -16,8 +16,16 @@ interface WorkerDayStatus {
 }
 
 export function DailyHours() {
+  // Use local date instead of UTC to avoid timezone issues
+  const getLocalDateString = (date: Date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
+    getLocalDateString()
   );
   const [workers, setWorkers] = useState<WorkerDayStatus[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -128,21 +136,20 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Calculate start of week (Sunday)
-      const date = new Date(selectedDate);
+      // Calculate start of week (Sunday) using local dates
+      const [year, month, day] = selectedDate.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
       const dayOfWeek = date.getDay();
-      const startOfWeek = new Date(date);
-      startOfWeek.setDate(date.getDate() - dayOfWeek);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
+      const endOfWeek = new Date(year, month - 1, day - dayOfWeek + 6);
 
       // Load all daily hours for the week
       const { data: weeklyHours, error } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*)')
         .eq('org_id', userData.org_id)
-        .gte('log_date', startOfWeek.toISOString().split('T')[0])
-        .lte('log_date', endOfWeek.toISOString().split('T')[0]);
+        .gte('log_date', getLocalDateString(startOfWeek))
+        .lte('log_date', getLocalDateString(endOfWeek));
 
       if (error) throw error;
 
@@ -172,9 +179,8 @@ export function DailyHours() {
         
         // Generate all 7 days of the week
         for (let i = 0; i < 7; i++) {
-          const currentDate = new Date(startOfWeek);
-          currentDate.setDate(startOfWeek.getDate() + i);
-          const dateStr = currentDate.toISOString().split('T')[0];
+          const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
+          const dateStr = getLocalDateString(currentDate);
           const hoursForDay = data.hoursByDate.get(dateStr) || 0;
           hours.push({ date: dateStr, hours: hoursForDay });
           totalHours += hoursForDay;
@@ -357,11 +363,11 @@ export function DailyHours() {
       return;
     }
 
-    // Calculate start of week for the filename
-    const date = new Date(selectedDate);
+    // Calculate start of week for the filename using local dates
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay();
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - dayOfWeek);
+    const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
 
     // Create CSV content
     const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total'];
@@ -389,7 +395,7 @@ export function DailyHours() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `weekly_hours_${startOfWeek.toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `weekly_hours_${getLocalDateString(startOfWeek)}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -404,13 +410,12 @@ export function DailyHours() {
       return;
     }
 
-    // Calculate start of week for the filename
-    const date = new Date(selectedDate);
+    // Calculate start of week for the filename using local dates
+    const [year, month, day] = selectedDate.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     const dayOfWeek = date.getDay();
-    const startOfWeek = new Date(date);
-    startOfWeek.setDate(date.getDate() - dayOfWeek);
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
+    const endOfWeek = new Date(year, month - 1, day - dayOfWeek + 6);
 
     const doc = new jsPDF();
     
@@ -419,24 +424,45 @@ export function DailyHours() {
     doc.text('Weekly Hours Summary', 14, 15);
     
     doc.setFontSize(10);
-    doc.text(`Week: ${startOfWeek.toLocaleDateString()} - ${endOfWeek.toLocaleDateString()}`, 14, 22);
+    const formatDate = (d: Date) => {
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const y = String(d.getFullYear()).slice(-2);
+      return `${m}/${day}/${y}`;
+    };
+    doc.text(`Week: ${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`, 14, 22);
     
-    // Table headers
-    const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total'];
+    // Table headers with dates
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const headers = ['Worker', 'Role'];
+    
+    // Add day headers with dates in MM/DD/YY format
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
+      const dateStr = formatDate(currentDate);
+      headers.push(`${dayNames[i]}\n${dateStr}`);
+    }
+    headers.push('Total');
     let yPosition = 32;
     
     // Draw header row
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
     const colWidths = [35, 20, 12, 12, 12, 12, 12, 12, 12, 15];
     let xPosition = 14;
     
     headers.forEach((header, i) => {
-      doc.text(header, xPosition, yPosition);
+      const lines = header.split('\n');
+      doc.text(lines[0], xPosition, yPosition);
+      if (lines[1]) {
+        doc.setFontSize(7);
+        doc.text(lines[1], xPosition, yPosition + 3);
+        doc.setFontSize(8);
+      }
       xPosition += colWidths[i];
     });
     
-    yPosition += 6;
+    yPosition += 9;
     doc.setFont('helvetica', 'normal');
     
     // Draw data rows
@@ -482,7 +508,7 @@ export function DailyHours() {
     });
     
     // Save the PDF
-    doc.save(`weekly_hours_${startOfWeek.toISOString().split('T')[0]}.pdf`);
+    doc.save(`weekly_hours_${getLocalDateString(startOfWeek)}.pdf`);
     toast.success('Weekly hours exported to PDF');
   };
 
@@ -760,13 +786,28 @@ export function DailyHours() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left p-2 font-semibold sticky left-0 bg-bg-secondary">Worker</th>
-                  <th className="text-center p-2 font-semibold">Sun</th>
-                  <th className="text-center p-2 font-semibold">Mon</th>
-                  <th className="text-center p-2 font-semibold">Tue</th>
-                  <th className="text-center p-2 font-semibold">Wed</th>
-                  <th className="text-center p-2 font-semibold">Thu</th>
-                  <th className="text-center p-2 font-semibold">Fri</th>
-                  <th className="text-center p-2 font-semibold">Sat</th>
+                  {(() => {
+                    const [year, month, day] = selectedDate.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    const dayOfWeek = date.getDay();
+                    const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
+                    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    
+                    return dayNames.map((dayName, i) => {
+                      const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
+                      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+                      const d = String(currentDate.getDate()).padStart(2, '0');
+                      const y = String(currentDate.getFullYear()).slice(-2);
+                      const dateStr = `${m}/${d}/${y}`;
+                      
+                      return (
+                        <th key={i} className="text-center p-2 font-semibold">
+                          <div>{dayName}</div>
+                          <div className="text-xs font-normal text-text-secondary">{dateStr}</div>
+                        </th>
+                      );
+                    });
+                  })()}
                   <th className="text-right p-2 font-semibold">Total</th>
                 </tr>
               </thead>
