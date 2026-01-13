@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import type { Worker, DailyHours as DailyHoursType, Task } from '../../types';
+import type { Worker, DailyHours as DailyHoursType, Task, User } from '../../types';
+import { canEdit, isViewer } from '../../lib/roleHelpers';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
@@ -31,6 +32,7 @@ export function DailyHours() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Modal states
   const [offModalOpen, setOffModalOpen] = useState(false);
@@ -57,10 +59,22 @@ export function DailyHours() {
   }, [selectedDate]);
 
   useEffect(() => {
-    // Get current user ID
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
-    });
+    // Get current user ID and role
+    const loadCurrentUser = async () => {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        setUserId(authUser.id);
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+        if (userData) {
+          setCurrentUser(userData);
+        }
+      }
+    };
+    loadCurrentUser();
   }, []);
 
   const loadData = async () => {
@@ -544,6 +558,15 @@ export function DailyHours() {
         <p className="text-text-secondary">Track worker hours, days off, and job transfers</p>
       </div>
 
+      {/* Read-only notice for viewers */}
+      {isViewer(currentUser) && (
+        <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+            You are viewing in read-only mode. You can view hours and export reports, but cannot log or modify hours.
+          </p>
+        </div>
+      )}
+
       <div className="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarIcon size={20} className="text-text-secondary" />
@@ -596,32 +619,36 @@ export function DailyHours() {
                       : dailyHours?.notes || '-'}
                   </td>
                   <td className="p-4">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleLogHours(worker)}
-                        title="Log hours"
-                      >
-                        <Clock size={16} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleMarkOff(worker)}
-                        title="Mark as off"
-                      >
-                        <UserX size={16} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleMarkTransferred(worker)}
-                        title="Mark as transferred"
-                      >
-                        <ArrowRightLeft size={16} />
-                      </Button>
-                    </div>
+                    {canEdit(currentUser) ? (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleLogHours(worker)}
+                          title="Log hours"
+                        >
+                          <Clock size={16} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleMarkOff(worker)}
+                          title="Mark as off"
+                        >
+                          <UserX size={16} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleMarkTransferred(worker)}
+                          title="Mark as transferred"
+                        >
+                          <ArrowRightLeft size={16} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-text-secondary text-sm text-right">View only</div>
+                    )}
                   </td>
                 </tr>
               ))}
