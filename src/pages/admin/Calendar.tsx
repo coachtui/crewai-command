@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
-import type { Task, Assignment } from '../../types';
+import type { Task, Assignment, Holiday } from '../../types';
 import { 
   format, 
   addWeeks, 
@@ -22,6 +22,7 @@ type ViewMode = 'calendar' | 'gantt';
 export function Calendar() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -39,22 +40,56 @@ export function Calendar() {
 
   const fetchData = async () => {
     try {
-      const [tasksData, assignmentsData] = await Promise.all([
+      const [tasksData, assignmentsData, holidaysData] = await Promise.all([
         supabase.from('tasks').select('*').order('start_date'),
         supabase.from('assignments').select(`*, worker:workers(*)`),
+        supabase.from('holidays').select('*').eq('year', 2026).order('date'),
       ]);
 
       if (tasksData.error) throw tasksData.error;
       if (assignmentsData.error) throw assignmentsData.error;
+      if (holidaysData.error) throw holidaysData.error;
 
       setTasks(tasksData.data || []);
       setAssignments(assignmentsData.data || []);
+      setHolidays(holidaysData.data || []);
     } catch (error) {
       toast.error('Failed to load calendar data');
       console.error(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Check if a date is a working day for a specific task
+  const isWorkingDayForTask = (date: Date, task: Task): boolean => {
+    const dayOfWeek = date.getDay();
+    
+    // Check if it's a holiday
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const isHoliday = holidays.some(h => h.date === dateStr);
+    
+    // If it's a holiday and task doesn't include holidays, it's not a working day
+    if (isHoliday && !task.include_holidays) {
+      return false;
+    }
+    
+    // Monday-Friday are always working days (unless it's a holiday and include_holidays is false)
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      return true;
+    }
+    
+    // Saturday: only if task includes Saturday
+    if (dayOfWeek === 6) {
+      return task.include_saturday || false;
+    }
+    
+    // Sunday: only if task includes Sunday
+    if (dayOfWeek === 0) {
+      return task.include_sunday || false;
+    }
+    
+    return false;
   };
 
   // Generate 4 weeks of calendar data
@@ -78,7 +113,7 @@ export function Calendar() {
     return weeks;
   };
 
-  // Get tasks for a specific date
+  // Get tasks for a specific date - only show if it's a working day for that task
   const getTasksForDate = (date: Date) => {
     return tasks.filter(task => {
       // Skip tasks without dates
@@ -86,7 +121,12 @@ export function Calendar() {
       
       const taskStart = parseISO(task.start_date);
       const taskEnd = parseISO(task.end_date);
-      return date >= taskStart && date <= taskEnd;
+      
+      // Check if date is within task range
+      if (date < taskStart || date > taskEnd) return false;
+      
+      // Check if it's a working day for this specific task
+      return isWorkingDayForTask(date, task);
     });
   };
 
