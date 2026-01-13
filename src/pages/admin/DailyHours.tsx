@@ -261,8 +261,8 @@ export function DailyHours() {
   };
 
   const saveTransferStatus = async () => {
-    if (!selectedWorker || !transferTaskId) {
-      toast.error('Please select a task to transfer to');
+    if (!selectedWorker) {
+      toast.error('Please select a worker');
       return;
     }
 
@@ -561,8 +561,10 @@ export function DailyHours() {
                       : '-'}
                   </td>
                   <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
-                    {dailyHours?.status === 'transferred' && dailyHours.transferred_to_task
-                      ? `→ ${dailyHours.transferred_to_task.name}`
+                    {dailyHours?.status === 'transferred'
+                      ? dailyHours.transferred_to_task
+                        ? `→ ${dailyHours.transferred_to_task.name}`
+                        : `→ ${dailyHours.notes || 'Transferred to another project'}`
                       : dailyHours?.task
                       ? dailyHours.task.name
                       : dailyHours?.notes || '-'}
@@ -639,14 +641,19 @@ export function DailyHours() {
         size="sm"
       >
         <div className="space-y-4">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p className="text-sm text-text-secondary">
+              Transfer worker to another project for the day or week. Task selection is optional.
+            </p>
+          </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Transfer To Task *</label>
+            <label className="block text-sm font-medium mb-2">Transfer To Task (Optional)</label>
             <select
               value={transferTaskId}
               onChange={(e) => setTransferTaskId(e.target.value)}
               className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             >
-              <option value="">Select a task</option>
+              <option value="">No specific task - Transferred to another project</option>
               {tasks.map((task) => (
                 <option key={task.id} value={task.id}>
                   {task.name} {task.location ? `- ${task.location}` : ''}
@@ -655,11 +662,11 @@ export function DailyHours() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
+            <label className="block text-sm font-medium mb-2">Notes</label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Reason for transfer"
+              placeholder="Where are they being transferred? (e.g., 'Working at XYZ project', 'Helping ABC Construction')"
               rows={3}
             />
           </div>
