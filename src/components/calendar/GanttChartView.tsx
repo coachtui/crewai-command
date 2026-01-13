@@ -307,7 +307,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
             {/* Header */}
             <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
               {/* Task names column */}
-              <div className="task-name-column flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary" style={{ minWidth: '250px', maxWidth: '400px' }}>
+              <div className="task-name-column flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary" style={{ width: '300px' }}>
                 Task
               </div>
               
@@ -462,7 +462,7 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
       } hover:bg-bg-hover transition-colors`}
     >
       {/* Task name */}
-      <div className="task-name-column flex-shrink-0 p-4 border-r border-border" style={{ minWidth: '250px', maxWidth: '400px', minHeight: '80px' }}>
+      <div className="task-name-column flex-shrink-0 p-4 border-r border-border" style={{ width: '300px', minHeight: '80px' }}>
         <div className="font-medium text-sm" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
           {task.name}
         </div>

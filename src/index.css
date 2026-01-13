@@ -32,10 +32,9 @@
   color: #ffffff !important;
 }
 
-/* Task name column - prevent vertical cutoff */
+/* Task name column - consistent width, prevent vertical cutoff */
 .pdf-export-mode .task-name-column {
-  min-width: 250px !important;
-  max-width: 400px !important;
+  width: 300px !important;
   min-height: 80px !important;
   white-space: normal !important;
   word-break: break-word !important;
@@ -100,10 +99,9 @@
     color: #ffffff !important;
   }
 
-  /* Task name column - prevent vertical cutoff */
+  /* Task name column - consistent width, prevent vertical cutoff */
   .gantt-chart-export .task-name-column {
-    min-width: 250px !important;
-    max-width: 400px !important;
+    width: 300px !important;
     min-height: 80px !important;
     white-space: normal !important;
     word-break: break-word !important;
