@@ -5,25 +5,37 @@
 @tailwind utilities;
 
 /* PDF Export Mode - White background for clean PDFs */
-.pdf-export-mode,
-.pdf-export-mode * {
+.pdf-export-mode {
   background-color: #ffffff !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-/* Keep task bar colors in PDF */
-.pdf-export-mode .absolute[style*="backgroundColor"] {
-  background-color: inherit !important;
-}
-
-/* Text should be black in PDF */
-.pdf-export-mode {
+.pdf-export-mode * {
+  background-color: transparent !important;
   color: #000000 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
 }
 
-.pdf-export-mode .text-white {
+/* CRITICAL: Keep task bar colors visible in PDF - blue bars */
+.pdf-export-mode .task-bar {
+  background-color: #2563eb !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Keep white text on task bars */
+.pdf-export-mode .task-bar * {
   color: #ffffff !important;
+}
+
+/* Task name column should have proper width and wrapping */
+.pdf-export-mode .task-name-column {
+  min-width: 250px !important;
+  max-width: 400px !important;
+  white-space: normal !important;
+  word-break: break-word !important;
 }
 
 /* Borders in PDF */
@@ -70,16 +82,25 @@
     print-color-adjust: exact !important;
   }
 
-  /* Keep task bar colors visible */
-  .gantt-chart-export .absolute[style*="backgroundColor"] {
-    background-color: inherit !important;
+  /* CRITICAL: Task bars must be blue in print */
+  .gantt-chart-export .task-bar {
+    background-color: #2563eb !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* White text on colored bars */
-  .gantt-chart-export .absolute .text-white {
+  /* White text on task bars */
+  .gantt-chart-export .task-bar * {
     color: #ffffff !important;
+  }
+
+  /* Task name column width and wrapping */
+  .gantt-chart-export .task-name-column {
+    min-width: 250px !important;
+    max-width: 400px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow: visible !important;
   }
 
   /* Borders should be visible and gray */
@@ -87,20 +108,6 @@
     border-color: #cccccc !important;
   }
 
-  /* Ensure task names are fully visible - NO CUTOFF */
-  .gantt-chart-export .w-64 {
-    overflow: visible !important;
-    white-space: normal !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    min-height: fit-content !important;
-  }
-
-  .gantt-chart-export .break-words {
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
-    white-space: normal !important;
-  }
 
   /* Prevent page breaks within task rows */
   .gantt-chart-export > div > div {

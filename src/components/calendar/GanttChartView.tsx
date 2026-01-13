@@ -307,7 +307,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
             {/* Header */}
             <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
               {/* Task names column */}
-              <div className="w-64 flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary">
+              <div className="task-name-column flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary" style={{ minWidth: '250px', maxWidth: '400px' }}>
                 Task
               </div>
               
@@ -462,12 +462,12 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
       } hover:bg-bg-hover transition-colors`}
     >
       {/* Task name */}
-      <div className="w-64 flex-shrink-0 p-4 border-r border-border">
-        <div className="font-medium text-sm break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+      <div className="task-name-column flex-shrink-0 p-4 border-r border-border" style={{ minWidth: '250px', maxWidth: '400px' }}>
+        <div className="font-medium text-sm" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>
           {task.name}
         </div>
         {task.location && (
-          <div className="text-xs text-text-secondary break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+          <div className="text-xs text-text-secondary" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>
             {task.location}
           </div>
         )}
@@ -510,13 +510,14 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
 
         {/* Task bar */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-8 rounded cursor-pointer hover:opacity-90 hover:shadow-lg transition-all flex items-center px-2"
+          className="task-bar absolute top-1/2 -translate-y-1/2 h-8 rounded cursor-pointer hover:opacity-90 hover:shadow-lg transition-all flex items-center px-2"
           style={{
             left: `${left}px`,
             width: `${width}px`,
-            backgroundColor: color,
+            backgroundColor: '#2563eb', // Professional blue color
             minWidth: '20px',
           }}
+          data-original-color={color}
           onClick={() => onTaskClick?.(task.id)}
           title={`${task.name}\n${format(task.startDate, 'MMM d')} - ${format(
             task.endDate,
