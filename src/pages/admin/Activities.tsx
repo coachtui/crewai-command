@@ -58,7 +58,7 @@ export function Activities() {
         task_name: assignment.task?.name || 'Unknown Task',
         date: assignment.assigned_date,
         created_at: assignment.created_at,
-        acknowledged: false, // We'll track this separately in production
+        acknowledged: assignment.acknowledged || false,
       }));
 
       setActivities(logs);
@@ -71,19 +71,52 @@ export function Activities() {
   };
 
   const handleAcknowledge = async (activityId: string) => {
-    // In production, this would update an 'acknowledged' field
-    // For now, we'll just show a toast
-    toast.success('Activity acknowledged');
-    
-    // Update local state
-    setActivities(prev => prev.map(a => 
-      a.id === activityId ? { ...a, acknowledged: true } : a
-    ));
+    try {
+      // Update the acknowledged status in the database
+      const { error } = await supabase
+        .from('assignments')
+        .update({ acknowledged: true })
+        .eq('id', activityId);
+
+      if (error) throw error;
+
+      toast.success('Activity acknowledged');
+      
+      // Update local state
+      setActivities(prev => prev.map(a => 
+        a.id === activityId ? { ...a, acknowledged: true } : a
+      ));
+    } catch (error) {
+      toast.error('Failed to acknowledge activity');
+      console.error(error);
+    }
   };
 
-  const handleAcknowledgeAll = () => {
-    toast.success('All activities acknowledged');
-    setActivities(prev => prev.map(a => ({ ...a, acknowledged: true })));
+  const handleAcknowledgeAll = async () => {
+    try {
+      // Get all pending activity IDs
+      const pendingIds = activities
+        .filter(a => !a.acknowledged)
+        .map(a => a.id);
+
+      if (pendingIds.length === 0) return;
+
+      // Update all pending activities in the database
+      const { error } = await supabase
+        .from('assignments')
+        .update({ acknowledged: true })
+        .in('id', pendingIds);
+
+      if (error) throw error;
+
+      toast.success('All activities acknowledged');
+      
+      // Update local state
+      setActivities(prev => prev.map(a => ({ ...a, acknowledged: true })));
+    } catch (error) {
+      toast.error('Failed to acknowledge all activities');
+      console.error(error);
+    }
   };
 
   const filteredActivities = activities.filter(a => {
