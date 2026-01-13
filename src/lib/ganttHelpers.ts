@@ -1,5 +1,5 @@
 import { differenceInDays, eachDayOfInterval, addDays, format, parseISO } from 'date-fns';
-import type { Task, Assignment } from '../types';
+import type { Task, Assignment, Holiday } from '../types';
 
 export interface GanttTask {
   id: string;
@@ -23,6 +23,7 @@ export interface GanttTask {
   status: 'planned' | 'active' | 'completed';
   include_saturday?: boolean;
   include_sunday?: boolean;
+  include_holidays?: boolean;
 }
 
 export function transformTasksToGantt(
@@ -113,9 +114,48 @@ export function transformTasksToGantt(
         status: task.status,
         include_saturday: task.include_saturday,
         include_sunday: task.include_sunday,
+        include_holidays: task.include_holidays,
       };
     })
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+}
+
+/**
+ * Checks if a specific date is a working day for a given task
+ * Takes into account the task's weekend and holiday settings
+ */
+export function isWorkingDayForTask(
+  date: Date,
+  task: GanttTask,
+  holidays: Holiday[]
+): boolean {
+  const dayOfWeek = date.getDay();
+  
+  // Check if it's a holiday
+  const dateStr = format(date, 'yyyy-MM-dd');
+  const isHoliday = holidays.some(h => h.date === dateStr);
+  
+  // If it's a holiday and task doesn't include holidays, it's not a working day
+  if (isHoliday && !task.include_holidays) {
+    return false;
+  }
+  
+  // Monday-Friday are always working days (unless it's a holiday and include_holidays is false)
+  if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    return true;
+  }
+  
+  // Saturday: only if task includes Saturday
+  if (dayOfWeek === 6) {
+    return task.include_saturday || false;
+  }
+  
+  // Sunday: only if task includes Sunday
+  if (dayOfWeek === 0) {
+    return task.include_sunday || false;
+  }
+  
+  return false;
 }
 
 export function calculateWorkingDays(

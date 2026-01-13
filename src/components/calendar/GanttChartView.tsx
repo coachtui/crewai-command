@@ -3,11 +3,11 @@ import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import type { Task, Assignment, Holiday } from '../../types';
 import {
   transformTasksToGantt,
-  calculateTaskBarPosition,
   formatDateHeader,
   isWeekend,
   isToday,
   getColorByStatus,
+  isWorkingDayForTask,
   type GanttTask,
 } from '../../lib/ganttHelpers';
 import { Badge } from '../ui/Badge';
@@ -388,7 +388,6 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
                 <GanttRow
                   key={task.id}
                   task={task}
-                  startDate={windowStartDate}
                   days={days}
                   dayWidth={dayWidth}
                   isEven={taskIndex % 2 === 0}
@@ -470,7 +469,6 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
 
 interface GanttRowProps {
   task: GanttTask;
-  startDate: Date;
   days: Date[];
   dayWidth: number;
   isEven: boolean;
@@ -478,9 +476,23 @@ interface GanttRowProps {
   holidays: Holiday[];
 }
 
-function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holidays }: GanttRowProps) {
-  const { left, width } = calculateTaskBarPosition(task, startDate, dayWidth);
+function GanttRow({ task, days, dayWidth, isEven, onTaskClick, holidays }: GanttRowProps) {
   const color = getColorByStatus(task.staffingStatus);
+  
+  // Check if task is active on a specific day and if it's a working day
+  const isTaskActiveOnDay = (day: Date): boolean => {
+    // Check if day is within task's date range
+    const dayTime = day.getTime();
+    const taskStartTime = task.startDate.getTime();
+    const taskEndTime = task.endDate.getTime();
+    
+    if (dayTime < taskStartTime || dayTime > taskEndTime) {
+      return false;
+    }
+    
+    // Check if it's a working day for this task
+    return isWorkingDayForTask(day, task, holidays);
+  };
 
   return (
     <div
@@ -510,12 +522,14 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
 
       {/* Timeline */}
       <div className="relative flex">
-        {/* Background grid */}
-        {days.map((day) => {
+        {/* Background grid and task bars rendered day-by-day */}
+        {days.map((day, dayIndex) => {
           const weekend = isWeekend(day);
           const today = isToday(day);
           const dateStr = format(day, 'yyyy-MM-dd');
           const holiday = holidays.find(h => h.date === dateStr);
+          const isActive = isTaskActiveOnDay(day);
+          
           return (
             <div
               key={day.toISOString()}
@@ -529,43 +543,54 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
                   : weekend
                   ? 'bg-gray-800/50'
                   : ''
-              }`}
-              style={{ width: `${dayWidth}px`, height: '100%' }}
-            />
+              } relative`}
+              style={{ width: `${dayWidth}px`, minHeight: '80px' }}
+            >
+              {/* Render task bar segment only on working days */}
+              {isActive && (
+                <div
+                  className="task-bar-segment"
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '2px',
+                    right: '2px',
+                    transform: 'translateY(-50%)',
+                    height: '32px',
+                    backgroundColor: color,
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact',
+                  }}
+                  onClick={() => onTaskClick?.(task.id)}
+                  title={`${task.name}\n${format(task.startDate, 'MMM d')} - ${format(
+                    task.endDate,
+                    'MMM d'
+                  )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\n${task.requiredCarpenters > 0 ? `Carpenters: ${task.assignedCarpenters}/${task.requiredCarpenters}\n` : ''}${task.requiredMasons > 0 ? `Masons: ${task.assignedMasons}/${task.requiredMasons}\n` : ''}Total: ${task.totalAssigned}/${task.totalRequired} workers\nWorking Days: ${task.workingDays}\nClick for details`}
+                >
+                  {/* Show task name only on first day or if wide enough */}
+                  {dayIndex === days.findIndex(d => isTaskActiveOnDay(d)) && dayWidth > 40 && (
+                    <span style={{ 
+                      color: '#ffffff', 
+                      fontSize: '11px', 
+                      fontWeight: 500, 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap',
+                      padding: '0 4px'
+                    }}>
+                      {task.name.length > 12 ? task.name.substring(0, 12) + '...' : task.name}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
-
-        {/* Task bar - MUST be visible in PDF */}
-        <div
-          className="task-bar"
-          style={{
-            position: 'absolute',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            left: `${left}px`,
-            width: `${width}px`,
-            height: '32px',
-            backgroundColor: '#2563eb',
-            minWidth: '20px',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 8px',
-            WebkitPrintColorAdjust: 'exact',
-            printColorAdjust: 'exact',
-          }}
-          data-original-color={color}
-          onClick={() => onTaskClick?.(task.id)}
-          title={`${task.name}\n${format(task.startDate, 'MMM d')} - ${format(
-            task.endDate,
-            'MMM d'
-          )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\n${task.requiredCarpenters > 0 ? `Carpenters: ${task.assignedCarpenters}/${task.requiredCarpenters}\n` : ''}${task.requiredMasons > 0 ? `Masons: ${task.assignedMasons}/${task.requiredMasons}\n` : ''}Total: ${task.totalAssigned}/${task.totalRequired} workers\nWorking Days: ${task.workingDays}\nClick for details`}
-        >
-          <span style={{ color: '#ffffff', fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {width > 100 ? task.name : ''}
-          </span>
-        </div>
       </div>
     </div>
   );
