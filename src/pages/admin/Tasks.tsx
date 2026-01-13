@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { Button } from '../../components/ui/Button';
@@ -14,10 +14,13 @@ import { format, addWeeks, startOfWeek, endOfWeek } from 'date-fns';
 export function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [drafts, setDrafts] = useState<TaskDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDraftsModalOpen, setIsDraftsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -60,6 +63,21 @@ export function Tasks() {
       setAssignments(data || []);
     } catch (error) {
       console.error('Failed to load assignments:', error);
+    }
+  };
+
+  const fetchDrafts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('task_drafts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDrafts(data || []);
+    } catch (error) {
+      console.error('Failed to load drafts:', error);
+      toast.error('Failed to load drafts');
     }
   };
 
@@ -164,6 +182,35 @@ export function Tasks() {
     }
   };
 
+  const handleLoadDraft = (draft: TaskDraft) => {
+    setLoadingDraft(draft);
+    setIsDraftsModalOpen(false);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteDraft = async (draftId: string) => {
+    if (!confirm('Are you sure you want to delete this draft?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('task_drafts')
+        .delete()
+        .eq('id', draftId);
+
+      if (error) throw error;
+      toast.success('Draft deleted successfully');
+      fetchDrafts();
+    } catch (error) {
+      toast.error('Failed to delete draft');
+      console.error(error);
+    }
+  };
+
+  const handleOpenDrafts = async () => {
+    await fetchDrafts();
+    setIsDraftsModalOpen(true);
+  };
+
   // Group tasks by week (next 4 weeks)
   const groupedTasks = () => {
     const weeks = [];
@@ -204,15 +251,25 @@ export function Tasks() {
           <p className="text-text-secondary">Manage project tasks and assignments</p>
         </div>
 
-        <Button
-          onClick={() => {
-            setEditingTask(null);
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus size={20} className="mr-2" />
-          New Task
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={handleOpenDrafts}
+          >
+            <FileText size={20} className="mr-2" />
+            Saved Drafts
+          </Button>
+          <Button
+            onClick={() => {
+              setEditingTask(null);
+              setLoadingDraft(null);
+              setIsModalOpen(true);
+            }}
+          >
+            <Plus size={20} className="mr-2" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       {/* Tasks by Week */}
@@ -265,19 +322,105 @@ export function Tasks() {
         onClose={() => {
           setIsModalOpen(false);
           setEditingTask(null);
+          setLoadingDraft(null);
         }}
-        title={editingTask ? 'Edit Task' : 'Create New Task'}
+        title={editingTask ? 'Edit Task' : loadingDraft ? 'Create Task from Draft' : 'Create New Task'}
       >
         <TaskForm
           task={editingTask}
-          draft={null}
+          draft={loadingDraft}
           onSave={handleSaveTask}
           onSaveDraft={handleSaveDraft}
           onCancel={() => {
             setIsModalOpen(false);
             setEditingTask(null);
+            setLoadingDraft(null);
           }}
         />
+      </Modal>
+
+      {/* Drafts Modal */}
+      <Modal
+        isOpen={isDraftsModalOpen}
+        onClose={() => setIsDraftsModalOpen(false)}
+        title="Saved Drafts"
+      >
+        <div className="space-y-4">
+          {drafts.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText size={48} className="mx-auto mb-4 text-text-secondary" />
+              <p className="text-text-secondary">No saved drafts</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {drafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className="p-4 border border-border rounded-lg hover:bg-bg-secondary transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-2">{draft.name}</h3>
+                      {draft.location && (
+                        <p className="text-sm text-text-secondary mb-2">
+                          📍 {draft.location}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2 text-sm text-text-secondary">
+                        {draft.start_date && (
+                          <span>Start: {format(new Date(draft.start_date), 'MMM d, yyyy')}</span>
+                        )}
+                        {draft.end_date && (
+                          <span>End: {format(new Date(draft.end_date), 'MMM d, yyyy')}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-2 text-sm">
+                        {draft.required_operators > 0 && (
+                          <span className="px-2 py-1 bg-bg-secondary rounded">
+                            {draft.required_operators} Operators
+                          </span>
+                        )}
+                        {draft.required_laborers > 0 && (
+                          <span className="px-2 py-1 bg-bg-secondary rounded">
+                            {draft.required_laborers} Laborers
+                          </span>
+                        )}
+                        {draft.required_carpenters > 0 && (
+                          <span className="px-2 py-1 bg-bg-secondary rounded">
+                            {draft.required_carpenters} Carpenters
+                          </span>
+                        )}
+                        {draft.required_masons > 0 && (
+                          <span className="px-2 py-1 bg-bg-secondary rounded">
+                            {draft.required_masons} Masons
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-text-secondary mt-2">
+                        Saved: {format(new Date(draft.created_at), 'MMM d, yyyy h:mm a')}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 ml-4">
+                      <Button
+                        size="sm"
+                        onClick={() => handleLoadDraft(draft)}
+                      >
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDeleteDraft(draft.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );
