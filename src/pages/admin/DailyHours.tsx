@@ -82,7 +82,7 @@ export function DailyHours() {
       // Load daily hours for selected date
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
         .from('daily_hours')
-        .select('*, worker:workers(*), task:tasks(*), transferred_to_task:tasks!transferred_to_task_id(*)')
+        .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*)')
         .eq('org_id', userData.org_id)
         .eq('log_date', selectedDate);
 
