@@ -287,7 +287,7 @@ export function DailyHours() {
           log_date: selectedDate,
           status: 'transferred',
           notes,
-          transferred_to_task_id: transferTaskId,
+          transferred_to_task_id: transferTaskId || null,
           hours_worked: 8,
           task_id: null,
           logged_by: userId,
