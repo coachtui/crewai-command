@@ -25,9 +25,14 @@ interface GanttChartViewProps {
 
 export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
   const [dayWidth, setDayWidth] = useState(40); // pixels per day
-  const [includeWeekends, setIncludeWeekends] = useState(() => {
+  const [includeSaturday, setIncludeSaturday] = useState(() => {
     // Load from localStorage
-    const saved = localStorage.getItem('gantt_include_weekends');
+    const saved = localStorage.getItem('gantt_include_saturday');
+    return saved === 'true';
+  });
+  const [includeSunday, setIncludeSunday] = useState(() => {
+    // Load from localStorage
+    const saved = localStorage.getItem('gantt_include_sunday');
     return saved === 'true';
   });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -52,10 +57,13 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
   const windowEndDate = addDays(windowStartDate, 27); // 4 weeks = 28 days
   let days = eachDayOfInterval({ start: windowStartDate, end: windowEndDate });
   
-  // Filter out weekends if toggle is off
-  if (!includeWeekends) {
-    days = days.filter(day => !isWeekend(day));
-  }
+  // Filter out Saturday and/or Sunday based on toggles
+  days = days.filter(day => {
+    const dayOfWeek = day.getDay();
+    if (dayOfWeek === 6 && !includeSaturday) return false; // Saturday
+    if (dayOfWeek === 0 && !includeSunday) return false; // Sunday
+    return true;
+  });
 
   // Load holidays
   useEffect(() => {
@@ -77,10 +85,14 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
     }
   };
 
-  // Save weekend preference to localStorage
+  // Save weekend preferences to localStorage
   useEffect(() => {
-    localStorage.setItem('gantt_include_weekends', includeWeekends.toString());
-  }, [includeWeekends]);
+    localStorage.setItem('gantt_include_saturday', includeSaturday.toString());
+  }, [includeSaturday]);
+
+  useEffect(() => {
+    localStorage.setItem('gantt_include_sunday', includeSunday.toString());
+  }, [includeSunday]);
 
   const handleExportPDF = async () => {
     if (!ganttRef.current) return;
@@ -184,19 +196,34 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
       {/* Controls */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-wrap">
-          {/* Weekend Toggle */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeWeekends}
-              onChange={(e) => setIncludeWeekends(e.target.checked)}
-              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
-            />
-            <span className="font-medium">Include Weekends in Schedule</span>
-            <Badge variant={includeWeekends ? 'success' : 'default'}>
-              {includeWeekends ? 'ON' : 'OFF'}
-            </Badge>
-          </label>
+          {/* Weekend Toggles */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeSaturday}
+                onChange={(e) => setIncludeSaturday(e.target.checked)}
+                className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+              />
+              <span className="font-medium">Saturday</span>
+              <Badge variant={includeSaturday ? 'success' : 'default'}>
+                {includeSaturday ? 'ON' : 'OFF'}
+              </Badge>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeSunday}
+                onChange={(e) => setIncludeSunday(e.target.checked)}
+                className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+              />
+              <span className="font-medium">Sunday</span>
+              <Badge variant={includeSunday ? 'success' : 'default'}>
+                {includeSunday ? 'ON' : 'OFF'}
+              </Badge>
+            </label>
+          </div>
 
           {/* Zoom Control */}
           <label className="flex items-center gap-2 text-sm">
@@ -407,9 +434,9 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
         </div>
         <div>
           <span className="text-text-secondary">Weekends:</span>{' '}
-          <Badge variant={includeWeekends ? 'success' : 'default'}>
-            {includeWeekends ? 'Shown' : 'Hidden'}
-          </Badge>
+          {includeSaturday && <Badge variant="success">Sat</Badge>}
+          {includeSunday && <Badge variant="success">Sun</Badge>}
+          {!includeSaturday && !includeSunday && <Badge variant="default">Hidden</Badge>}
         </div>
       </div>
 
