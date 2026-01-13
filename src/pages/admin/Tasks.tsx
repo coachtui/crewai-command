@@ -64,23 +64,35 @@ export function Tasks() {
   };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
     try {
       if (editingTask) {
-        // Update existing task
+        // Update existing task with modified_by and modified_at
         const { error } = await supabase
           .from('tasks')
-          .update(taskData)
+          .update({
+            ...taskData,
+            modified_by: user.id,
+            modified_at: new Date().toISOString()
+          })
           .eq('id', editingTask.id);
 
         if (error) throw error;
         toast.success('Task updated successfully');
       } else {
-        // Create new task with default org_id
+        // Create new task with required fields
         const { error } = await supabase
           .from('tasks')
           .insert([{
             ...taskData,
-            org_id: '550e8400-e29b-41d4-a716-446655440000'
+            org_id: '550e8400-e29b-41d4-a716-446655440000',
+            created_by: user.id
           }]);
 
         if (error) throw error;

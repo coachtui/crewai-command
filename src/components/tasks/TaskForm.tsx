@@ -22,6 +22,8 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     end_date: '',
     required_operators: 0,
     required_laborers: 0,
+    required_carpenters: 0,
+    required_masons: 0,
     status: 'planned' as 'planned' | 'active' | 'completed',
     notes: '',
     include_saturday: false,
@@ -40,6 +42,8 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         end_date: task.end_date || '',
         required_operators: task.required_operators,
         required_laborers: task.required_laborers,
+        required_carpenters: task.required_carpenters || 0,
+        required_masons: task.required_masons || 0,
         status: task.status,
         notes: task.notes || '',
         include_saturday: task.include_saturday || false,
@@ -211,6 +215,22 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           value={formData.required_laborers}
           onChange={(e) => setFormData({ ...formData, required_laborers: parseInt(e.target.value) || 0 })}
           required
+        />
+
+        <Input
+          label="Required Carpenters"
+          type="number"
+          min="0"
+          value={formData.required_carpenters}
+          onChange={(e) => setFormData({ ...formData, required_carpenters: parseInt(e.target.value) || 0 })}
+        />
+
+        <Input
+          label="Required Masons"
+          type="number"
+          min="0"
+          value={formData.required_masons}
+          onChange={(e) => setFormData({ ...formData, required_masons: parseInt(e.target.value) || 0 })}
         />
       </div>
 

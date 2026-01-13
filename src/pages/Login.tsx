@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
-import { Building2 } from 'lucide-react';
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -49,50 +48,70 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-primary p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/20 rounded-full mb-4">
-            <Building2 size={32} className="text-primary" />
+    <div className="min-h-screen flex flex-col bg-bg-primary">
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              <img 
+                src="/image/crewai-command-logo.png" 
+                alt="CrewAI Command" 
+                className="h-24 w-auto"
+              />
+            </div>
           </div>
-          <h1 className="text-3xl font-bold mb-2">CrewAI Command</h1>
-          <p className="text-text-secondary">Real-time crew scheduling platform</p>
+
+          <div className="bg-bg-secondary border border-border rounded-lg p-8">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <Input
+                type="email"
+                label="Email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+
+              <Input
+                type="password"
+                label="Password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading}
+              >
+                {loading ? 'Logging in...' : 'Login'}
+              </Button>
+            </form>
+          </div>
+
+          <p className="text-center text-sm text-text-secondary mt-4">
+            Demo: admin@demo.com / foreman@demo.com
+          </p>
         </div>
-
-        <div className="bg-bg-secondary border border-border rounded-lg p-8">
-          <form onSubmit={handleLogin} className="space-y-4">
-            <Input
-              type="email"
-              label="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            <Input
-              type="password"
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Logging in...' : 'Login'}
-            </Button>
-          </form>
-        </div>
-
-        <p className="text-center text-sm text-text-secondary mt-4">
-          Demo: admin@demo.com / foreman@demo.com
-        </p>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-bg-secondary border-t border-border py-6 mt-8">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex justify-center mb-3">
+            <img 
+              src="/image/aiga-logo.png" 
+              alt="AIGA" 
+              className="h-12 w-auto"
+            />
+          </div>
+          <p className="text-sm font-medium text-text-primary mb-2">Powered by AIGA</p>
+          <p className="text-xs text-text-secondary mb-1">&copy; 2025 AIGA LLC. All rights reserved.</p>
+          <p className="text-xs text-text-secondary">AIGA® and related product names and logos are trademarks of AIGA LLC.</p>
+        </div>
+      </footer>
     </div>
   );
 }
