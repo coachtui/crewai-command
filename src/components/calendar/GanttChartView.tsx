@@ -88,11 +88,21 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
     try {
       toast.loading('Generating PDF...');
       
+      // Temporarily add white background class for PDF capture
+      ganttRef.current.classList.add('pdf-export-mode');
+      
       const canvas = await html2canvas(ganttRef.current, {
         scale: 2,
         backgroundColor: '#ffffff', // WHITE background for PDF
         logging: false,
+        useCORS: true,
+        allowTaint: true,
+        windowWidth: ganttRef.current.scrollWidth,
+        windowHeight: ganttRef.current.scrollHeight,
       });
+
+      // Remove temporary class
+      ganttRef.current.classList.remove('pdf-export-mode');
 
       // ALWAYS landscape orientation (non-negotiable)
       const pdf = new jsPDF('landscape', 'mm', 'a4');
@@ -290,10 +300,10 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
       <div className="relative">
         <div
           ref={scrollContainerRef}
-          className="bg-bg-secondary border border-border rounded-lg overflow-x-auto relative"
+          className="bg-bg-secondary border border-border rounded-lg overflow-x-auto relative gantt-scroll-container"
           style={{ maxHeight: '70vh', overflowY: 'auto' }}
         >
-          <div ref={ganttRef} className="min-w-max print-gantt">
+          <div ref={ganttRef} className="min-w-max gantt-chart-export">
             {/* Header */}
             <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
               {/* Task names column */}
@@ -453,9 +463,13 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
     >
       {/* Task name */}
       <div className="w-64 flex-shrink-0 p-4 border-r border-border">
-        <div className="font-medium text-sm truncate">{task.name}</div>
+        <div className="font-medium text-sm break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+          {task.name}
+        </div>
         {task.location && (
-          <div className="text-xs text-text-secondary truncate">{task.location}</div>
+          <div className="text-xs text-text-secondary break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+            {task.location}
+          </div>
         )}
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge variant={task.status === 'completed' ? 'success' : 'info'} className="text-xs">

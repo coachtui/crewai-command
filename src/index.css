@@ -4,6 +4,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PDF Export Mode - White background for clean PDFs */
+.pdf-export-mode,
+.pdf-export-mode * {
+  background-color: #ffffff !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Keep task bar colors in PDF */
+.pdf-export-mode .absolute[style*="backgroundColor"] {
+  background-color: inherit !important;
+}
+
+/* Text should be black in PDF */
+.pdf-export-mode {
+  color: #000000 !important;
+}
+
+.pdf-export-mode .text-white {
+  color: #ffffff !important;
+}
+
+/* Borders in PDF */
+.pdf-export-mode [class*="border"] {
+  border-color: #cccccc !important;
+}
+
 /* Print styles for Gantt chart PDF export */
 @media print {
   /* Hide non-printable elements */
@@ -11,51 +38,87 @@
     display: none !important;
   }
 
-  /* Ensure white background for print */
-  body, html {
-    background-color: #ffffff !important;
-  }
-
-  /* Gantt chart specific print styles */
-  .print-gantt {
-    background-color: #ffffff !important;
-  }
-
-  .print-gantt * {
-    background-color: transparent !important;
-  }
-
-  /* Keep task bar colors */
-  .print-gantt .absolute {
-    background-color: inherit !important;
-  }
-
-  /* Borders should be visible */
-  .print-gantt [class*="border"] {
-    border-color: #e0e0e0 !important;
-  }
-
-  /* Text should be black for readability */
-  .print-gantt * {
-    color: #000000 !important;
-  }
-
-  /* Ensure task names are fully visible - prevent cutoff */
-  .print-gantt .w-64 {
-    overflow: visible !important;
-    white-space: normal !important;
-  }
-
-  .print-gantt .truncate {
-    overflow: visible !important;
-    white-space: normal !important;
-    text-overflow: clip !important;
-  }
-
-  /* Page breaks */
+  /* Force landscape orientation */
   @page {
     size: landscape;
     margin: 0.5cm;
+  }
+
+  /* Ensure white background for print */
+  body, html {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Make Gantt chart container take full width */
+  .gantt-scroll-container {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Gantt chart export area */
+  .gantt-chart-export {
+    background-color: #ffffff !important;
+    min-width: 100% !important;
+  }
+
+  .gantt-chart-export * {
+    background-color: transparent !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Keep task bar colors visible */
+  .gantt-chart-export .absolute[style*="backgroundColor"] {
+    background-color: inherit !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* White text on colored bars */
+  .gantt-chart-export .absolute .text-white {
+    color: #ffffff !important;
+  }
+
+  /* Borders should be visible and gray */
+  .gantt-chart-export [class*="border"] {
+    border-color: #cccccc !important;
+  }
+
+  /* Ensure task names are fully visible - NO CUTOFF */
+  .gantt-chart-export .w-64 {
+    overflow: visible !important;
+    white-space: normal !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    min-height: fit-content !important;
+  }
+
+  .gantt-chart-export .break-words {
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+  }
+
+  /* Prevent page breaks within task rows */
+  .gantt-chart-export > div > div {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ensure all text is black and readable */
+  .gantt-chart-export .font-semibold,
+  .gantt-chart-export .font-medium {
+    color: #000000 !important;
+  }
+
+  /* Holiday and weekend backgrounds should be visible */
+  .gantt-chart-export [class*="bg-purple"],
+  .gantt-chart-export [class*="bg-gray"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 
