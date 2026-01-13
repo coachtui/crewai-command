@@ -39,6 +39,8 @@ export interface Task {
   status: 'planned' | 'active' | 'completed';
   notes?: string;
   attachments?: string[]; // Array of file URLs
+  include_saturday?: boolean; // Whether this task includes Saturday work
+  include_sunday?: boolean; // Whether this task includes Sunday work
   created_by: string;
   created_at: string;
   modified_by?: string;

@@ -24,6 +24,8 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     required_laborers: 0,
     status: 'planned' as 'planned' | 'active' | 'completed',
     notes: '',
+    include_saturday: false,
+    include_sunday: false,
   });
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -39,6 +41,8 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         required_laborers: task.required_laborers,
         status: task.status,
         notes: task.notes || '',
+        include_saturday: task.include_saturday || false,
+        include_sunday: task.include_sunday || false,
       });
       setAttachments(task.attachments || []);
     }
@@ -145,6 +149,37 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
           value={formData.end_date}
           onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
         />
+      </div>
+
+      {/* Weekend Work Options */}
+      <div>
+        <label className="block text-sm font-medium text-text-primary mb-3">
+          Weekend Work
+        </label>
+        <div className="flex items-center gap-6">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.include_saturday}
+              onChange={(e) => setFormData({ ...formData, include_saturday: e.target.checked })}
+              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Include Saturday</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.include_sunday}
+              onChange={(e) => setFormData({ ...formData, include_sunday: e.target.checked })}
+              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Include Sunday</span>
+          </label>
+        </div>
+        <p className="text-xs text-text-secondary mt-1">
+          Check if this task requires work on weekends
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
