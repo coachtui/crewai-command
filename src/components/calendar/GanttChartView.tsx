@@ -462,12 +462,12 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
       } hover:bg-bg-hover transition-colors`}
     >
       {/* Task name */}
-      <div className="task-name-column flex-shrink-0 p-4 border-r border-border" style={{ minWidth: '250px', maxWidth: '400px' }}>
-        <div className="font-medium text-sm" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>
+      <div className="task-name-column flex-shrink-0 p-4 border-r border-border" style={{ minWidth: '250px', maxWidth: '400px', minHeight: '80px' }}>
+        <div className="font-medium text-sm" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', lineHeight: '1.4' }}>
           {task.name}
         </div>
         {task.location && (
-          <div className="text-xs text-text-secondary" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal' }}>
+          <div className="text-xs text-text-secondary" style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'normal', lineHeight: '1.3' }}>
             {task.location}
           </div>
         )}
@@ -508,14 +508,25 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
           );
         })}
 
-        {/* Task bar */}
+        {/* Task bar - MUST be visible in PDF */}
         <div
-          className="task-bar absolute top-1/2 -translate-y-1/2 h-8 rounded cursor-pointer hover:opacity-90 hover:shadow-lg transition-all flex items-center px-2"
+          className="task-bar"
           style={{
+            position: 'absolute',
+            top: '50%',
+            transform: 'translateY(-50%)',
             left: `${left}px`,
             width: `${width}px`,
-            backgroundColor: '#2563eb', // Professional blue color
+            height: '32px',
+            backgroundColor: '#2563eb',
             minWidth: '20px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 8px',
+            WebkitPrintColorAdjust: 'exact',
+            printColorAdjust: 'exact',
           }}
           data-original-color={color}
           onClick={() => onTaskClick?.(task.id)}
@@ -524,7 +535,7 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holida
             'MMM d'
           )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\n${task.requiredCarpenters > 0 ? `Carpenters: ${task.assignedCarpenters}/${task.requiredCarpenters}\n` : ''}${task.requiredMasons > 0 ? `Masons: ${task.assignedMasons}/${task.requiredMasons}\n` : ''}Total: ${task.totalAssigned}/${task.totalRequired} workers\nWorking Days: ${task.workingDays}\nClick for details`}
         >
-          <span className="text-white text-xs font-medium truncate">
+          <span style={{ color: '#ffffff', fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {width > 100 ? task.name : ''}
           </span>
         </div>

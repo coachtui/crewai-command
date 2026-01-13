@@ -18,11 +18,13 @@
   print-color-adjust: exact !important;
 }
 
-/* CRITICAL: Keep task bar colors visible in PDF - blue bars */
+/* CRITICAL: Task bars MUST be blue in PDF export */
 .pdf-export-mode .task-bar {
   background-color: #2563eb !important;
+  background: #2563eb !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 
 /* Keep white text on task bars */
@@ -30,12 +32,14 @@
   color: #ffffff !important;
 }
 
-/* Task name column should have proper width and wrapping */
+/* Task name column - prevent vertical cutoff */
 .pdf-export-mode .task-name-column {
   min-width: 250px !important;
   max-width: 400px !important;
+  min-height: 80px !important;
   white-space: normal !important;
   word-break: break-word !important;
+  padding: 16px !important;
 }
 
 /* Borders in PDF */
@@ -82,11 +86,13 @@
     print-color-adjust: exact !important;
   }
 
-  /* CRITICAL: Task bars must be blue in print */
+  /* CRITICAL: Task bars MUST be blue with exact color */
   .gantt-chart-export .task-bar {
     background-color: #2563eb !important;
+    background: #2563eb !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   /* White text on task bars */
@@ -94,13 +100,22 @@
     color: #ffffff !important;
   }
 
-  /* Task name column width and wrapping */
+  /* Task name column - prevent vertical cutoff */
   .gantt-chart-export .task-name-column {
     min-width: 250px !important;
     max-width: 400px !important;
+    min-height: 80px !important;
     white-space: normal !important;
     word-break: break-word !important;
     overflow: visible !important;
+    padding: 16px !important;
+  }
+  
+  /* Ensure task rows have minimum height */
+  .gantt-chart-export > div > div {
+    min-height: 80px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Borders should be visible and gray */
@@ -109,11 +124,6 @@
   }
 
 
-  /* Prevent page breaks within task rows */
-  .gantt-chart-export > div > div {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
 
   /* Ensure all text is black and readable */
   .gantt-chart-export .font-semibold,
