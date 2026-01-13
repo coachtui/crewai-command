@@ -145,30 +145,46 @@ export function DailyHours() {
 
       if (error) throw error;
 
-      // Group by worker
-      const workerHoursMap = new Map<string, { worker: Worker; hours: { date: string; hours: number }[] }>();
+      // Create a map to store hours by worker and date
+      const workerHoursMap = new Map<string, { worker: Worker; hoursByDate: Map<string, number> }>();
       
       workers.forEach(({ worker }) => {
-        workerHoursMap.set(worker.id, { worker, hours: [] });
+        workerHoursMap.set(worker.id, { 
+          worker, 
+          hoursByDate: new Map()
+        });
       });
 
       (weeklyHours || []).forEach((dh) => {
         if (dh.worker && dh.status === 'worked') {
           const workerData = workerHoursMap.get(dh.worker_id);
           if (workerData) {
-            workerData.hours.push({
-              date: dh.log_date,
-              hours: dh.hours_worked || 0,
-            });
+            workerData.hoursByDate.set(dh.log_date, dh.hours_worked || 0);
           }
         }
       });
 
-      const weeklyDataArray = Array.from(workerHoursMap.values()).map((data) => ({
-        worker: data.worker,
-        hours: data.hours,
-        totalHours: data.hours.reduce((sum, h) => sum + h.hours, 0),
-      }));
+      // Convert to array format with all 7 days
+      const weeklyDataArray = Array.from(workerHoursMap.values()).map((data) => {
+        const hours: { date: string; hours: number }[] = [];
+        let totalHours = 0;
+        
+        // Generate all 7 days of the week
+        for (let i = 0; i < 7; i++) {
+          const currentDate = new Date(startOfWeek);
+          currentDate.setDate(startOfWeek.getDate() + i);
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const hoursForDay = data.hoursByDate.get(dateStr) || 0;
+          hours.push({ date: dateStr, hours: hoursForDay });
+          totalHours += hoursForDay;
+        }
+        
+        return {
+          worker: data.worker,
+          hours,
+          totalHours,
+        };
+      });
 
       setWeeklyData(weeklyDataArray);
       setShowWeeklyChart(true);
@@ -215,39 +231,24 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Check if entry exists
-      const existing = workers.find((w) => w.worker.id === selectedWorker.id)?.dailyHours;
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
+        .from('daily_hours')
+        .upsert({
+          worker_id: selectedWorker.id,
+          org_id: userData.org_id,
+          log_date: selectedDate,
+          status: 'off',
+          notes,
+          hours_worked: 0,
+          task_id: null,
+          transferred_to_task_id: null,
+          logged_by: userId,
+        }, {
+          onConflict: 'worker_id,log_date,org_id'
+        });
 
-      if (existing) {
-        // Update existing
-        const { error } = await supabase
-          .from('daily_hours')
-          .update({
-            status: 'off',
-            notes,
-            hours_worked: 0,
-            task_id: null,
-            transferred_to_task_id: null,
-          })
-          .eq('id', existing.id);
-
-        if (error) throw error;
-      } else {
-        // Insert new
-        const { error } = await supabase
-          .from('daily_hours')
-          .insert({
-            org_id: userData.org_id,
-            worker_id: selectedWorker.id,
-            log_date: selectedDate,
-            status: 'off',
-            notes,
-            hours_worked: 0,
-            logged_by: userId,
-          });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast.success(`${selectedWorker.name} marked as off`);
       setOffModalOpen(false);
@@ -276,36 +277,24 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      const existing = workers.find((w) => w.worker.id === selectedWorker.id)?.dailyHours;
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
+        .from('daily_hours')
+        .upsert({
+          worker_id: selectedWorker.id,
+          org_id: userData.org_id,
+          log_date: selectedDate,
+          status: 'transferred',
+          notes,
+          transferred_to_task_id: transferTaskId,
+          hours_worked: 8,
+          task_id: null,
+          logged_by: userId,
+        }, {
+          onConflict: 'worker_id,log_date,org_id'
+        });
 
-      if (existing) {
-        const { error } = await supabase
-          .from('daily_hours')
-          .update({
-            status: 'transferred',
-            notes,
-            transferred_to_task_id: transferTaskId,
-            hours_worked: 8,
-          })
-          .eq('id', existing.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('daily_hours')
-          .insert({
-            org_id: userData.org_id,
-            worker_id: selectedWorker.id,
-            log_date: selectedDate,
-            status: 'transferred',
-            notes,
-            transferred_to_task_id: transferTaskId,
-            hours_worked: 8,
-            logged_by: userId,
-          });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast.success(`${selectedWorker.name} marked as transferred`);
       setTransferModalOpen(false);
@@ -331,38 +320,26 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      const existing = workers.find((w) => w.worker.id === selectedWorker.id)?.dailyHours;
       const hours = parseFloat(hoursWorked) || 8;
 
-      if (existing) {
-        const { error } = await supabase
-          .from('daily_hours')
-          .update({
-            status: 'worked',
-            notes,
-            task_id: workTaskId || null,
-            hours_worked: hours,
-            transferred_to_task_id: null,
-          })
-          .eq('id', existing.id);
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
+        .from('daily_hours')
+        .upsert({
+          worker_id: selectedWorker.id,
+          org_id: userData.org_id,
+          log_date: selectedDate,
+          status: 'worked',
+          notes,
+          task_id: workTaskId || null,
+          hours_worked: hours,
+          transferred_to_task_id: null,
+          logged_by: userId,
+        }, {
+          onConflict: 'worker_id,log_date,org_id'
+        });
 
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('daily_hours')
-          .insert({
-            org_id: userData.org_id,
-            worker_id: selectedWorker.id,
-            log_date: selectedDate,
-            status: 'worked',
-            notes,
-            task_id: workTaskId || null,
-            hours_worked: hours,
-            logged_by: userId,
-          });
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast.success(`Hours logged for ${selectedWorker.name}`);
       setHoursModalOpen(false);
@@ -623,27 +600,35 @@ export function DailyHours() {
       >
         <div className="space-y-4">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left p-3 font-semibold">Worker</th>
-                  <th className="text-left p-3 font-semibold">Role</th>
-                  <th className="text-center p-3 font-semibold">Days Worked</th>
-                  <th className="text-right p-3 font-semibold">Total Hours</th>
+                  <th className="text-left p-2 font-semibold sticky left-0 bg-bg-secondary">Worker</th>
+                  <th className="text-center p-2 font-semibold">Sun</th>
+                  <th className="text-center p-2 font-semibold">Mon</th>
+                  <th className="text-center p-2 font-semibold">Tue</th>
+                  <th className="text-center p-2 font-semibold">Wed</th>
+                  <th className="text-center p-2 font-semibold">Thu</th>
+                  <th className="text-center p-2 font-semibold">Fri</th>
+                  <th className="text-center p-2 font-semibold">Sat</th>
+                  <th className="text-right p-2 font-semibold">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {weeklyData.map(({ worker, hours, totalHours }) => (
                   <tr key={worker.id} className="border-b border-border">
-                    <td className="p-3 font-medium">{worker.name}</td>
-                    <td className="p-3 text-text-secondary capitalize">{worker.role}</td>
-                    <td className="p-3 text-center">{hours.length}</td>
-                    <td className="p-3 text-right font-semibold">{totalHours.toFixed(1)}h</td>
+                    <td className="p-2 font-medium sticky left-0 bg-bg-secondary">{worker.name}</td>
+                    {hours.map((day, index) => (
+                      <td key={index} className="p-2 text-center">
+                        {day.hours > 0 ? day.hours.toFixed(1) : '-'}
+                      </td>
+                    ))}
+                    <td className="p-2 text-right font-semibold">{totalHours.toFixed(1)}h</td>
                   </tr>
                 ))}
                 {weeklyData.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-text-secondary">
+                    <td colSpan={9} className="p-8 text-center text-text-secondary">
                       No hours logged this week
                     </td>
                   </tr>
@@ -652,8 +637,16 @@ export function DailyHours() {
               {weeklyData.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-border font-bold">
-                    <td colSpan={3} className="p-3 text-right">Total:</td>
-                    <td className="p-3 text-right">
+                    <td className="p-2 text-right">Total:</td>
+                    {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+                      const dayTotal = weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0);
+                      return (
+                        <td key={dayIndex} className="p-2 text-center">
+                          {dayTotal > 0 ? dayTotal.toFixed(1) : '-'}
+                        </td>
+                      );
+                    })}
+                    <td className="p-2 text-right">
                       {weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1)}h
                     </td>
                   </tr>
