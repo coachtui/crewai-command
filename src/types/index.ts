@@ -41,6 +41,7 @@ export interface Task {
   attachments?: string[]; // Array of file URLs
   include_saturday?: boolean; // Whether this task includes Saturday work
   include_sunday?: boolean; // Whether this task includes Sunday work
+  include_holidays?: boolean; // Whether this task includes holiday work
   created_by: string;
   created_at: string;
   modified_by?: string;

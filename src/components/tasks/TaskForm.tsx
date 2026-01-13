@@ -26,6 +26,7 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     notes: '',
     include_saturday: false,
     include_sunday: false,
+    include_holidays: false,
   });
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -43,6 +44,7 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         notes: task.notes || '',
         include_saturday: task.include_saturday || false,
         include_sunday: task.include_sunday || false,
+        include_holidays: task.include_holidays || false,
       });
       setAttachments(task.attachments || []);
     }
@@ -151,12 +153,12 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         />
       </div>
 
-      {/* Weekend Work Options */}
+      {/* Work Schedule Options */}
       <div>
         <label className="block text-sm font-medium text-text-primary mb-3">
-          Weekend Work
+          Work Schedule
         </label>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -176,9 +178,19 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
             />
             <span className="text-sm">Include Sunday</span>
           </label>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={formData.include_holidays}
+              onChange={(e) => setFormData({ ...formData, include_holidays: e.target.checked })}
+              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+            />
+            <span className="text-sm">Include Holidays</span>
+          </label>
         </div>
         <p className="text-xs text-text-secondary mt-1">
-          Check if this task requires work on weekends
+          Check if this task requires work on weekends or Hawaii GCA holidays (premium pay applies)
         </p>
       </div>
 
