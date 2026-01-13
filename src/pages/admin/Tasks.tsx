@@ -7,7 +7,7 @@ import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskForm } from '../../components/tasks/TaskForm';
 import { AssignmentModal } from '../../components/assignments/AssignmentModal';
 import { Modal } from '../../components/ui/Modal';
-import type { Task, Assignment } from '../../types';
+import type { Task, Assignment, TaskDraft } from '../../types';
 import { toast } from 'sonner';
 import { format, addWeeks, startOfWeek, endOfWeek } from 'date-fns';
 
@@ -104,6 +104,34 @@ export function Tasks() {
       setEditingTask(null);
     } catch (error) {
       toast.error('Failed to save task');
+      console.error(error);
+    }
+  };
+
+  const handleSaveDraft = async (draftData: Partial<TaskDraft>) => {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    try {
+      // Save to task_drafts table
+      const { error } = await supabase
+        .from('task_drafts')
+        .insert([{
+          ...draftData,
+          org_id: '550e8400-e29b-41d4-a716-446655440000',
+          created_by: user.id
+        }]);
+
+      if (error) throw error;
+      toast.success('Draft saved successfully');
+      
+      setIsModalOpen(false);
+    } catch (error) {
+      toast.error('Failed to save draft');
       console.error(error);
     }
   };
@@ -237,7 +265,9 @@ export function Tasks() {
       >
         <TaskForm
           task={editingTask}
+          draft={null}
           onSave={handleSaveTask}
+          onSaveDraft={handleSaveDraft}
           onCancel={() => {
             setIsModalOpen(false);
             setEditingTask(null);
