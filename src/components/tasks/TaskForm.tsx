@@ -3,18 +3,20 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
-import type { Task } from '../../types';
+import type { Task, TaskDraft } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Upload, X, FileIcon, Image as ImageIcon } from 'lucide-react';
 
 interface TaskFormProps {
   task: Task | null;
+  draft: TaskDraft | null;
   onSave: (taskData: Partial<Task>) => void;
+  onSaveDraft: (draftData: Partial<TaskDraft>) => void;
   onCancel: () => void;
 }
 
-export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
+export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
@@ -24,7 +26,7 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     required_laborers: 0,
     required_carpenters: 0,
     required_masons: 0,
-    status: 'planned' as 'draft' | 'planned' | 'active' | 'completed',
+    status: 'planned' as 'planned' | 'active' | 'completed',
     notes: '',
     include_saturday: false,
     include_sunday: false,
@@ -51,8 +53,25 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
         include_holidays: task.include_holidays || false,
       });
       setAttachments(task.attachments || []);
+    } else if (draft) {
+      setFormData({
+        name: draft.name,
+        location: draft.location || '',
+        start_date: draft.start_date || '',
+        end_date: draft.end_date || '',
+        required_operators: draft.required_operators,
+        required_laborers: draft.required_laborers,
+        required_carpenters: draft.required_carpenters,
+        required_masons: draft.required_masons,
+        status: 'planned', // Default status when converting draft to task
+        notes: draft.notes || '',
+        include_saturday: draft.include_saturday || false,
+        include_sunday: draft.include_sunday || false,
+        include_holidays: draft.include_holidays || false,
+      });
+      setAttachments(draft.attachments || []);
     }
-  }, [task]);
+  }, [task, draft]);
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -133,8 +152,9 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       }
     }
     
-    // Save with draft status
-    onSave({ ...formData, status: 'draft', attachments });
+    // Save to drafts table (without status field)
+    const { status, ...draftData } = formData;
+    onSaveDraft({ ...draftData, attachments });
   };
 
   return (
@@ -250,9 +270,8 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       <Select
         label="Status *"
         value={formData.status}
-        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'planned' | 'active' | 'completed' })}
+        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'planned' | 'active' | 'completed' })}
         options={[
-          { value: 'draft', label: 'Draft' },
           { value: 'planned', label: 'Planned' },
           { value: 'active', label: 'Active' },
           { value: 'completed', label: 'Completed' },
