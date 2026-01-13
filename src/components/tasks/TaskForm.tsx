@@ -24,7 +24,7 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     required_laborers: 0,
     required_carpenters: 0,
     required_masons: 0,
-    status: 'planned' as 'planned' | 'active' | 'completed',
+    status: 'planned' as 'draft' | 'planned' | 'active' | 'completed',
     notes: '',
     include_saturday: false,
     include_sunday: false,
@@ -122,6 +122,19 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
     }
     
     onSave({ ...formData, attachments });
+  };
+
+  const handleSaveAsDraft = () => {
+    // Validate dates only if both are provided
+    if (formData.start_date && formData.end_date) {
+      if (new Date(formData.end_date) < new Date(formData.start_date)) {
+        alert('End date must be after start date');
+        return;
+      }
+    }
+    
+    // Save with draft status
+    onSave({ ...formData, status: 'draft', attachments });
   };
 
   return (
@@ -237,8 +250,9 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       <Select
         label="Status *"
         value={formData.status}
-        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'planned' | 'active' | 'completed' })}
+        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'draft' | 'planned' | 'active' | 'completed' })}
         options={[
+          { value: 'draft', label: 'Draft' },
           { value: 'planned', label: 'Planned' },
           { value: 'active', label: 'Active' },
           { value: 'completed', label: 'Completed' },
@@ -305,6 +319,16 @@ export function TaskForm({ task, onSave, onCancel }: TaskFormProps) {
       </div>
 
       <div className="flex gap-3 pt-4">
+        {!task && (
+          <Button 
+            type="button" 
+            variant="secondary" 
+            onClick={handleSaveAsDraft}
+            className="flex-1"
+          >
+            Save as Draft
+          </Button>
+        )}
         <Button type="submit" className="flex-1">
           {task ? 'Update Task' : 'Create Task'}
         </Button>

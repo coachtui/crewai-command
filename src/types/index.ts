@@ -36,7 +36,7 @@ export interface Task {
   required_laborers: number;
   required_carpenters?: number;
   required_masons?: number;
-  status: 'planned' | 'active' | 'completed';
+  status: 'draft' | 'planned' | 'active' | 'completed';
   notes?: string;
   attachments?: string[]; // Array of file URLs
   include_saturday?: boolean; // Whether this task includes Saturday work
