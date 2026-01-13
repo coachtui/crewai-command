@@ -305,7 +305,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
         >
           <div ref={ganttRef} className="min-w-max gantt-chart-export">
             {/* Header */}
-            <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
+            <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10 gantt-header">
               {/* Task names column */}
               <div className="task-name-column flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary" style={{ width: '300px' }}>
                 Task

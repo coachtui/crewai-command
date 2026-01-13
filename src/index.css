@@ -18,6 +18,12 @@
   print-color-adjust: exact !important;
 }
 
+/* Remove sticky positioning for PDF export - header should be at top */
+.pdf-export-mode .gantt-header {
+  position: static !important;
+  top: auto !important;
+}
+
 /* CRITICAL: Task bars MUST be blue in PDF export */
 .pdf-export-mode .task-bar {
   background-color: #2563eb !important;
@@ -83,6 +89,12 @@
     color: #000000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Remove sticky positioning for print - header should be at top */
+  .gantt-chart-export .gantt-header {
+    position: static !important;
+    top: auto !important;
   }
 
   /* CRITICAL: Task bars MUST be blue with exact color */
