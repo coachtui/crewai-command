@@ -1,3 +1,8 @@
+// ============================================================================
+// CrewAI Command: Sidebar Navigation
+// Includes Job Site Selector for multi-tenant navigation
+// ============================================================================
+
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { 
@@ -9,10 +14,12 @@ import {
   Clock,
   LogOut,
   Menu,
-  X
+  X,
+  Building2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
+import { JobSiteSelector, JobSiteSelectorMobile } from '../navigation/JobSiteSelector';
 import { toast } from 'sonner';
 
 interface SidebarProps {
@@ -107,6 +114,7 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
 
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/job-sites', icon: Building2, label: 'Job Sites' },
     { path: '/workers', icon: Users, label: 'Workers' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/calendar', icon: Calendar, label: 'Calendar' },
@@ -118,12 +126,17 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
     <>
       {/* Mobile menu button - shows when sidebar is hidden */}
       {isMobile && !isVisible && (
-        <button
-          onClick={() => setIsVisible(true)}
-          className="fixed top-4 left-4 z-50 w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg"
-        >
-          <Menu size={20} className="text-white" />
-        </button>
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-bg-secondary border-b border-border">
+          <button
+            onClick={() => setIsVisible(true)}
+            className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg"
+          >
+            <Menu size={20} className="text-white" />
+          </button>
+          
+          {/* Mobile Job Site Selector */}
+          <JobSiteSelectorMobile />
+        </div>
       )}
 
       {/* Overlay for mobile when sidebar is visible */}
@@ -155,6 +168,7 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
             <X size={16} className="text-text-secondary" />
           </button>
         )}
+
         {/* Logo */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-center">
@@ -166,8 +180,13 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
           </div>
         </div>
 
+        {/* Job Site Selector (Desktop) */}
+        <div className="px-4 py-3 border-b border-border">
+          <JobSiteSelector compact={false} />
+        </div>
+
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (

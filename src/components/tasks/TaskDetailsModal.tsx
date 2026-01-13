@@ -73,11 +73,24 @@ export function TaskDetailsModal({
 
   const taskAssignments = assignments.filter(a => a.task_id === task.id);
   
-  // Group workers by role
-  const operators = taskAssignments.filter(a => a.worker?.role === 'operator');
-  const laborers = taskAssignments.filter(a => a.worker?.role === 'laborer');
-  const carpenters = taskAssignments.filter(a => a.worker?.role === 'carpenter');
-  const masons = taskAssignments.filter(a => a.worker?.role === 'mason');
+  // Group workers by role - GET UNIQUE WORKERS ONLY
+  // If a worker is assigned for multiple days, only show them once
+  const getUniqueWorkersByRole = (role: string) => {
+    const workerMap = new Map();
+    taskAssignments
+      .filter(a => a.worker?.role === role)
+      .forEach(a => {
+        if (a.worker && !workerMap.has(a.worker.id)) {
+          workerMap.set(a.worker.id, a);
+        }
+      });
+    return Array.from(workerMap.values());
+  };
+  
+  const operators = getUniqueWorkersByRole('operator');
+  const laborers = getUniqueWorkersByRole('laborer');
+  const carpenters = getUniqueWorkersByRole('carpenter');
+  const masons = getUniqueWorkersByRole('mason');
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Task Details" size="lg">
