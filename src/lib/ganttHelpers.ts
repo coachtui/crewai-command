@@ -20,7 +20,7 @@ export interface GanttTask {
   totalAssigned: number;
   totalRequired: number;
   staffingStatus: 'full' | 'partial' | 'empty';
-  status: 'planned' | 'active' | 'completed';
+  status: 'draft' | 'planned' | 'active' | 'completed';
   include_saturday?: boolean;
   include_sunday?: boolean;
   include_holidays?: boolean;
