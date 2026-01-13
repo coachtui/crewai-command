@@ -21,6 +21,8 @@ export interface GanttTask {
   totalRequired: number;
   staffingStatus: 'full' | 'partial' | 'empty';
   status: 'planned' | 'active' | 'completed';
+  include_saturday?: boolean;
+  include_sunday?: boolean;
 }
 
 export function transformTasksToGantt(
@@ -37,8 +39,13 @@ export function transformTasksToGantt(
       // Calculate total calendar days (including weekends)
       const duration = differenceInDays(endDate, startDate) + 1;
       
-      // Calculate working days (excluding weekends)
-      const workingDays = calculateWorkingDays(startDate, endDate);
+      // Calculate working days (respecting task-specific weekend work settings)
+      const workingDays = calculateWorkingDays(
+        startDate, 
+        endDate,
+        task.include_saturday || false,
+        task.include_sunday || false
+      );
       
       // Get assignments for this task
       const taskAssignments = assignments.filter(a => a.task_id === task.id);
@@ -91,17 +98,34 @@ export function transformTasksToGantt(
           task.required_laborers
         ),
         status: task.status,
+        include_saturday: task.include_saturday,
+        include_sunday: task.include_sunday,
       };
     })
     .sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 }
 
-export function calculateWorkingDays(startDate: Date, endDate: Date): number {
+export function calculateWorkingDays(
+  startDate: Date, 
+  endDate: Date,
+  includeSaturday: boolean = false,
+  includeSunday: boolean = false
+): number {
   const days = eachDayOfInterval({ start: startDate, end: endDate });
-  // Count only weekdays (Monday-Friday)
+  
   return days.filter(day => {
     const dayOfWeek = day.getDay();
-    return dayOfWeek !== 0 && dayOfWeek !== 6; // Exclude Sunday (0) and Saturday (6)
+    
+    // Always include Monday-Friday
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) return true;
+    
+    // Include Saturday if specified
+    if (dayOfWeek === 6 && includeSaturday) return true;
+    
+    // Include Sunday if specified
+    if (dayOfWeek === 0 && includeSunday) return true;
+    
+    return false;
   }).length;
 }
 
