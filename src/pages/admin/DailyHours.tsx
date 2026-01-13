@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Worker, DailyHours as DailyHoursType, Task } from '../../types';
 import { Card } from '../../components/ui/Card';
@@ -8,6 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
 
 interface WorkerDayStatus {
   worker: Worker;
@@ -397,6 +398,94 @@ export function DailyHours() {
     toast.success('Weekly hours exported to CSV');
   };
 
+  const exportToPDF = () => {
+    if (weeklyData.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    // Calculate start of week for the filename
+    const date = new Date(selectedDate);
+    const dayOfWeek = date.getDay();
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - dayOfWeek);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(16);
+    doc.text('Weekly Hours Summary', 14, 15);
+    
+    doc.setFontSize(10);
+    doc.text(`Week: ${startOfWeek.toLocaleDateString()} - ${endOfWeek.toLocaleDateString()}`, 14, 22);
+    
+    // Table headers
+    const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total'];
+    let yPosition = 32;
+    
+    // Draw header row
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    const colWidths = [35, 20, 12, 12, 12, 12, 12, 12, 12, 15];
+    let xPosition = 14;
+    
+    headers.forEach((header, i) => {
+      doc.text(header, xPosition, yPosition);
+      xPosition += colWidths[i];
+    });
+    
+    yPosition += 6;
+    doc.setFont('helvetica', 'normal');
+    
+    // Draw data rows
+    weeklyData.forEach(({ worker, hours, totalHours }) => {
+      xPosition = 14;
+      
+      // Check if we need a new page
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      const row = [
+        worker.name,
+        worker.role,
+        ...hours.map(h => h.hours > 0 ? h.hours.toFixed(1) : '-'),
+        totalHours.toFixed(1)
+      ];
+      
+      row.forEach((cell, i) => {
+        const text = String(cell);
+        doc.text(text, xPosition, yPosition);
+        xPosition += colWidths[i];
+      });
+      
+      yPosition += 6;
+    });
+    
+    // Draw totals row
+    yPosition += 2;
+    doc.setFont(undefined, 'bold');
+    xPosition = 14;
+    
+    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex => 
+      weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0).toFixed(1)
+    );
+    const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
+    
+    const totalRow = ['TOTAL', '', ...dayTotals, grandTotal];
+    totalRow.forEach((cell, i) => {
+      doc.text(String(cell), xPosition, yPosition);
+      xPosition += colWidths[i];
+    });
+    
+    // Save the PDF
+    doc.save(`weekly_hours_${startOfWeek.toISOString().split('T')[0]}.pdf`);
+    toast.success('Weekly hours exported to PDF');
+  };
+
   const getStatusBadge = (status?: DailyHoursType) => {
     if (!status) {
       return <span className="px-2 py-1 text-xs rounded bg-gray-500 text-white">Not Logged</span>;
@@ -649,10 +738,14 @@ export function DailyHours() {
         size="lg"
       >
         <div className="space-y-4">
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-end gap-2 mb-4">
             <Button onClick={exportToCSV} variant="secondary">
               <Download size={16} className="mr-2" />
-              Export to CSV
+              CSV
+            </Button>
+            <Button onClick={exportToPDF} variant="secondary">
+              <FileText size={16} className="mr-2" />
+              PDF
             </Button>
           </div>
           <div className="overflow-x-auto">
