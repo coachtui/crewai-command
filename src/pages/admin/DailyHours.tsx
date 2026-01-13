@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save } from 'lucide-react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { Worker, DailyHours as DailyHoursType, Task } from '../../types';
 import { Card } from '../../components/ui/Card';
@@ -350,6 +350,53 @@ export function DailyHours() {
     }
   };
 
+  const exportToCSV = () => {
+    if (weeklyData.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    // Calculate start of week for the filename
+    const date = new Date(selectedDate);
+    const dayOfWeek = date.getDay();
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - dayOfWeek);
+
+    // Create CSV content
+    const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total'];
+    const rows = weeklyData.map(({ worker, hours, totalHours }) => [
+      worker.name,
+      worker.role,
+      ...hours.map(h => h.hours > 0 ? h.hours.toFixed(1) : '0'),
+      totalHours.toFixed(1)
+    ]);
+
+    // Add totals row
+    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex => 
+      weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0).toFixed(1)
+    );
+    const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
+    rows.push(['TOTAL', '', ...dayTotals, grandTotal]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `weekly_hours_${startOfWeek.toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success('Weekly hours exported to CSV');
+  };
+
   const getStatusBadge = (status?: DailyHoursType) => {
     if (!status) {
       return <span className="px-2 py-1 text-xs rounded bg-gray-500 text-white">Not Logged</span>;
@@ -391,6 +438,9 @@ export function DailyHours() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-auto"
           />
+          <Button onClick={loadData} variant="ghost" title="Refresh worker list">
+            <RefreshCw size={16} />
+          </Button>
         </div>
         <Button onClick={loadWeeklyData} variant="secondary">
           View Weekly Summary
@@ -599,6 +649,12 @@ export function DailyHours() {
         size="lg"
       >
         <div className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <Button onClick={exportToCSV} variant="secondary">
+              <Download size={16} className="mr-2" />
+              Export to CSV
+            </Button>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
