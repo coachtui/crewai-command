@@ -117,14 +117,19 @@ export function Tasks() {
     }
 
     try {
+      // Clean data: convert empty strings to null for date fields
+      const cleanedData = {
+        ...draftData,
+        start_date: draftData.start_date || null,
+        end_date: draftData.end_date || null,
+        org_id: '550e8400-e29b-41d4-a716-446655440000',
+        created_by: user.id
+      };
+
       // Save to task_drafts table
       const { error } = await supabase
         .from('task_drafts')
-        .insert([{
-          ...draftData,
-          org_id: '550e8400-e29b-41d4-a716-446655440000',
-          created_by: user.id
-        }]);
+        .insert([cleanedData]);
 
       if (error) throw error;
       toast.success('Draft saved successfully');
