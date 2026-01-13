@@ -75,10 +75,13 @@ export function Tasks() {
         if (error) throw error;
         toast.success('Task updated successfully');
       } else {
-        // Create new task
+        // Create new task with default org_id
         const { error } = await supabase
           .from('tasks')
-          .insert([taskData]);
+          .insert([{
+            ...taskData,
+            org_id: '550e8400-e29b-41d4-a716-446655440000'
+          }]);
 
         if (error) throw error;
         toast.success('Task created successfully');

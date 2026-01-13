@@ -53,10 +53,13 @@ export function Workers() {
         if (error) throw error;
         toast.success('Worker updated successfully');
       } else {
-        // Create new worker
+        // Create new worker with default org_id
         const { error } = await supabase
           .from('workers')
-          .insert([workerData]);
+          .insert([{
+            ...workerData,
+            org_id: '550e8400-e29b-41d4-a716-446655440000'
+          }]);
 
         if (error) throw error;
         toast.success('Worker created successfully');
