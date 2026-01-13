@@ -50,22 +50,35 @@ export function transformTasksToGantt(
       // Get assignments for this task
       const taskAssignments = assignments.filter(a => a.task_id === task.id);
       
-      // Count by role (matching calendar logic)
-      const assignedOperators = taskAssignments.filter(
-        a => a.worker?.role === 'operator'
-      ).length;
+      // Count UNIQUE workers by role (not total assignment records)
+      // A worker assigned for multiple days should only be counted once
+      const uniqueOperatorIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'operator')
+          .map(a => a.worker?.id)
+      );
+      const assignedOperators = uniqueOperatorIds.size;
       
-      const assignedLaborers = taskAssignments.filter(
-        a => a.worker?.role === 'laborer'
-      ).length;
+      const uniqueLaborerIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'laborer')
+          .map(a => a.worker?.id)
+      );
+      const assignedLaborers = uniqueLaborerIds.size;
       
-      const assignedCarpenters = taskAssignments.filter(
-        a => a.worker?.role === 'carpenter'
-      ).length;
+      const uniqueCarpenterIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'carpenter')
+          .map(a => a.worker?.id)
+      );
+      const assignedCarpenters = uniqueCarpenterIds.size;
       
-      const assignedMasons = taskAssignments.filter(
-        a => a.worker?.role === 'mason'
-      ).length;
+      const uniqueMasonIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'mason')
+          .map(a => a.worker?.id)
+      );
+      const assignedMasons = uniqueMasonIds.size;
       
       const requiredCarpenters = task.required_carpenters || 0;
       const requiredMasons = task.required_masons || 0;
