@@ -11,8 +11,14 @@ export interface GanttTask {
   workingDays: number;
   assignedOperators: number;
   assignedLaborers: number;
+  assignedCarpenters: number;
+  assignedMasons: number;
   requiredOperators: number;
   requiredLaborers: number;
+  requiredCarpenters: number;
+  requiredMasons: number;
+  totalAssigned: number;
+  totalRequired: number;
   staffingStatus: 'full' | 'partial' | 'empty';
   status: 'planned' | 'active' | 'completed';
 }
@@ -46,6 +52,20 @@ export function transformTasksToGantt(
         a => a.worker?.role === 'laborer'
       ).length;
       
+      const assignedCarpenters = taskAssignments.filter(
+        a => a.worker?.role === 'carpenter'
+      ).length;
+      
+      const assignedMasons = taskAssignments.filter(
+        a => a.worker?.role === 'mason'
+      ).length;
+      
+      const requiredCarpenters = task.required_carpenters || 0;
+      const requiredMasons = task.required_masons || 0;
+      
+      const totalAssigned = assignedOperators + assignedLaborers + assignedCarpenters + assignedMasons;
+      const totalRequired = task.required_operators + task.required_laborers + requiredCarpenters + requiredMasons;
+      
       return {
         id: task.id,
         name: task.name,
@@ -56,8 +76,14 @@ export function transformTasksToGantt(
         workingDays,
         assignedOperators,
         assignedLaborers,
+        assignedCarpenters,
+        assignedMasons,
         requiredOperators: task.required_operators,
         requiredLaborers: task.required_laborers,
+        requiredCarpenters,
+        requiredMasons,
+        totalAssigned,
+        totalRequired,
         staffingStatus: getStaffingStatus(
           assignedOperators,
           assignedLaborers,

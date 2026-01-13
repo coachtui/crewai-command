@@ -4,6 +4,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Print styles for Gantt chart PDF export */
+@media print {
+  /* Hide non-printable elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure white background for print */
+  body, html {
+    background-color: #ffffff !important;
+  }
+
+  /* Gantt chart specific print styles */
+  .print-gantt {
+    background-color: #ffffff !important;
+  }
+
+  .print-gantt * {
+    background-color: transparent !important;
+  }
+
+  /* Keep task bar colors */
+  .print-gantt .absolute {
+    background-color: inherit !important;
+  }
+
+  /* Borders should be visible */
+  .print-gantt [class*="border"] {
+    border-color: #e0e0e0 !important;
+  }
+
+  /* Text should be black for readability */
+  .print-gantt * {
+    color: #000000 !important;
+  }
+
+  /* Ensure task names are fully visible - prevent cutoff */
+  .print-gantt .w-64 {
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+
+  .print-gantt .truncate {
+    overflow: visible !important;
+    white-space: normal !important;
+    text-overflow: clip !important;
+  }
+
+  /* Page breaks */
+  @page {
+    size: landscape;
+    margin: 0.5cm;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

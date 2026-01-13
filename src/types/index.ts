@@ -34,11 +34,15 @@ export interface Task {
   end_date?: string;
   required_operators: number;
   required_laborers: number;
+  required_carpenters?: number;
+  required_masons?: number;
   status: 'planned' | 'active' | 'completed';
   notes?: string;
   attachments?: string[]; // Array of file URLs
   created_by: string;
   created_at: string;
+  modified_by?: string;
+  modified_at?: string;
 }
 
 export interface Assignment {
@@ -70,6 +74,41 @@ export interface AssignmentRequest {
   from_task?: Task;
   to_task?: Task;
   foreman?: User;
+}
+
+export interface TaskHistory {
+  id: string;
+  task_id: string;
+  org_id: string;
+  action: 'created' | 'modified' | 'completed' | 'reopened';
+  performed_by?: string;
+  performed_at: string;
+  notes?: string;
+  previous_status?: string;
+  new_status?: string;
+  changes?: Record<string, unknown>;
+  user?: User;
+}
+
+export interface Holiday {
+  id: string;
+  name: string;
+  date: string;
+  year: number;
+  state_county: boolean;
+  federal: boolean;
+  gcla: boolean;
+  four_basic_trades: boolean;
+  pay_rates: {
+    carpenters?: string;
+    laborers?: string;
+    masons?: string;
+    operators?: string;
+    federal?: string;
+    state_county?: string;
+  };
+  notes?: string;
+  created_at: string;
 }
 
 export type StaffingStatus = 'success' | 'warning' | 'error';

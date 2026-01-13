@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Badge } from '../../components/ui/Badge';
 import { getStaffingStatus } from '../../lib/utils';
 import { GanttChartView } from '../../components/calendar/GanttChartView';
+import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 
 type ViewMode = 'calendar' | 'gantt';
 
@@ -23,6 +24,8 @@ export function Calendar() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -85,6 +88,11 @@ export function Calendar() {
       const taskEnd = parseISO(task.end_date);
       return date >= taskStart && date <= taskEnd;
     });
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setShowTaskDetails(true);
   };
 
   const weeks = generateWeeks();
@@ -203,7 +211,8 @@ export function Calendar() {
                               return (
                                 <div
                                   key={task.id}
-                                  className={`p-2 rounded border-l-2 text-xs ${
+                                  onClick={() => handleTaskClick(task)}
+                                  className={`p-2 rounded border-l-2 text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                                     status === 'success'
                                       ? 'bg-success/10 border-success'
                                       : status === 'warning'
@@ -251,6 +260,19 @@ export function Calendar() {
             <span className="text-sm">Understaffed</span>
           </div>
         </div>
+      )}
+
+      {/* Task Details Modal */}
+      {selectedTask && (
+        <TaskDetailsModal
+          isOpen={showTaskDetails}
+          onClose={() => {
+            setShowTaskDetails(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          assignments={assignments}
+        />
       )}
     </div>
   );

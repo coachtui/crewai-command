@@ -1,9 +1,8 @@
-import { useState, useRef } from 'react';
-import { format } from 'date-fns';
-import type { Task, Assignment } from '../../types';
+import { useState, useRef, useEffect } from 'react';
+import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
+import type { Task, Assignment, Holiday } from '../../types';
 import {
   transformTasksToGantt,
-  calculateTimelineRange,
   calculateTaskBarPosition,
   formatDateHeader,
   isWeekend,
@@ -12,22 +11,76 @@ import {
   type GanttTask,
 } from '../../lib/ganttHelpers';
 import { Badge } from '../ui/Badge';
+import { TaskDetailsModal } from '../tasks/TaskDetailsModal';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
+import { eachDayOfInterval } from 'date-fns';
 
 interface GanttChartViewProps {
   tasks: Task[];
   assignments: Assignment[];
-  onTaskClick?: (taskId: string) => void;
 }
 
-export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartViewProps) {
+export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
   const [dayWidth, setDayWidth] = useState(40); // pixels per day
+  const [includeWeekends, setIncludeWeekends] = useState(() => {
+    // Load from localStorage
+    const saved = localStorage.getItem('gantt_include_weekends');
+    return saved === 'true';
+  });
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [selectedHoliday, setSelectedHoliday] = useState<Holiday | null>(null);
+  const [showHolidayDetails, setShowHolidayDetails] = useState(false);
+  
+  // Time window controls - 4 weeks starting from Sunday
+  const [windowStartDate, setWindowStartDate] = useState(() => {
+    const today = new Date();
+    // Get Sunday of current week
+    return startOfWeek(today, { weekStartsOn: 0 });
+  });
+  
   const ganttRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const ganttTasks = transformTasksToGantt(tasks, assignments);
-  const { startDate, endDate, days } = calculateTimelineRange(ganttTasks);
+  
+  // Calculate 4-week window
+  const windowEndDate = addDays(windowStartDate, 27); // 4 weeks = 28 days
+  let days = eachDayOfInterval({ start: windowStartDate, end: windowEndDate });
+  
+  // Filter out weekends if toggle is off
+  if (!includeWeekends) {
+    days = days.filter(day => !isWeekend(day));
+  }
+
+  // Load holidays
+  useEffect(() => {
+    fetchHolidays();
+  }, []);
+
+  const fetchHolidays = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('holidays')
+        .select('*')
+        .eq('year', 2026)
+        .order('date');
+      
+      if (error) throw error;
+      setHolidays(data || []);
+    } catch (error) {
+      console.error('Error fetching holidays:', error);
+    }
+  };
+
+  // Save weekend preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('gantt_include_weekends', includeWeekends.toString());
+  }, [includeWeekends]);
 
   const handleExportPDF = async () => {
     if (!ganttRef.current) return;
@@ -37,16 +90,30 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
       
       const canvas = await html2canvas(ganttRef.current, {
         scale: 2,
-        backgroundColor: '#121212',
+        backgroundColor: '#ffffff', // WHITE background for PDF
         logging: false,
       });
 
+      // ALWAYS landscape orientation (non-negotiable)
       const pdf = new jsPDF('landscape', 'mm', 'a4');
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      // Handle multi-page if content is too tall
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pdf.internal.pageSize.getHeight();
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pdf.internal.pageSize.getHeight();
+      }
+
       pdf.save(`gantt-chart-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       
       toast.dismiss();
@@ -62,6 +129,38 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
     window.print();
   };
 
+  const handleTaskClick = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setShowTaskDetails(true);
+    }
+  };
+
+  const handleHolidayClick = (holiday: Holiday) => {
+    setSelectedHoliday(holiday);
+    setShowHolidayDetails(true);
+  };
+
+  const navigateWindow = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      setWindowStartDate(addWeeks(windowStartDate, -4));
+    } else {
+      setWindowStartDate(addWeeks(windowStartDate, 4));
+    }
+  };
+
+  const jumpToToday = () => {
+    const today = new Date();
+    setWindowStartDate(startOfWeek(today, { weekStartsOn: 0 }));
+  };
+
+  // Check if a date is a holiday
+  const getHolidayForDate = (date: Date): Holiday | undefined => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return holidays.find(h => h.date === dateStr);
+  };
+
   if (ganttTasks.length === 0) {
     return (
       <div className="text-center py-12">
@@ -73,8 +172,23 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4 no-print">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 flex-wrap">
+          {/* Weekend Toggle */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeWeekends}
+              onChange={(e) => setIncludeWeekends(e.target.checked)}
+              className="w-5 h-5 rounded border-border text-primary focus:ring-primary"
+            />
+            <span className="font-medium">Include Weekends in Schedule</span>
+            <Badge variant={includeWeekends ? 'success' : 'default'}>
+              {includeWeekends ? 'ON' : 'OFF'}
+            </Badge>
+          </label>
+
+          {/* Zoom Control */}
           <label className="flex items-center gap-2 text-sm">
             <span className="text-text-secondary">Zoom:</span>
             <input
@@ -89,7 +203,7 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
           </label>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handlePrint}
             className="px-4 py-2 bg-bg-secondary border border-border rounded-lg hover:bg-bg-hover transition-colors flex items-center gap-2"
@@ -111,8 +225,48 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
         </div>
       </div>
 
+      {/* Time Window Navigation */}
+      <div className="flex items-center justify-between p-4 bg-bg-secondary border border-border rounded-lg no-print">
+        <button
+          onClick={() => navigateWindow('prev')}
+          className="px-4 py-2 bg-bg-primary border border-border rounded-lg hover:bg-bg-hover transition-colors flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Previous 4 Weeks
+        </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-center">
+            <div className="font-semibold text-lg">
+              {format(windowStartDate, 'MMM d')} - {format(windowEndDate, 'MMM d, yyyy')}
+            </div>
+            <div className="text-sm text-text-secondary">
+              4-week window • {days.length} days displayed
+            </div>
+          </div>
+          <button
+            onClick={jumpToToday}
+            className="px-3 py-1 bg-primary text-white text-sm rounded hover:bg-primary-dark transition-colors"
+          >
+            Today
+          </button>
+        </div>
+        
+        <button
+          onClick={() => navigateWindow('next')}
+          className="px-4 py-2 bg-bg-primary border border-border rounded-lg hover:bg-bg-hover transition-colors flex items-center gap-2"
+        >
+          Next 4 Weeks
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
       {/* Legend */}
-      <div className="flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg no-print">
+      <div className="flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg flex-wrap no-print">
         <div className="font-medium text-sm">Staffing Status:</div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }}></div>
@@ -126,89 +280,153 @@ export function GanttChartView({ tasks, assignments, onTaskClick }: GanttChartVi
           <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }}></div>
           <span className="text-sm">Not Staffed</span>
         </div>
+        <div className="flex items-center gap-2 ml-4">
+          <div className="w-4 h-4 rounded bg-purple-600"></div>
+          <span className="text-sm">Holiday</span>
+        </div>
       </div>
 
-      {/* Gantt Chart */}
-      <div
-        ref={ganttRef}
-        className="bg-bg-secondary border border-border rounded-lg overflow-x-auto"
-      >
-        <div className="min-w-max">
-          {/* Header */}
-          <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
-            {/* Task names column */}
-            <div className="w-64 flex-shrink-0 p-4 border-r border-border font-semibold">
-              Task
-            </div>
-            
-            {/* Timeline header */}
-            <div className="flex">
-              {days.map((day, index) => {
-                const weekend = isWeekend(day);
-                const today = isToday(day);
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className={`flex-shrink-0 p-2 border-r border-border text-center ${
-                      today
-                        ? 'bg-primary/20 font-bold'
-                        : weekend
-                        ? 'bg-gray-800/50'
-                        : ''
-                    }`}
-                    style={{ width: `${dayWidth}px` }}
-                  >
-                    <div className={`text-xs font-medium ${weekend ? 'text-gray-500' : ''}`}>
-                      {formatDateHeader(day, index)}
-                    </div>
-                    <div className={`text-xs ${weekend ? 'text-gray-600' : 'text-text-secondary'}`}>
-                      {format(day, 'EEE')[0]}
-                    </div>
-                    {weekend && (
-                      <div className="text-[8px] text-gray-600 uppercase tracking-wider mt-0.5">
-                        Off
+      {/* Gantt Chart - with sticky scroll bar */}
+      <div className="relative">
+        <div
+          ref={scrollContainerRef}
+          className="bg-bg-secondary border border-border rounded-lg overflow-x-auto relative"
+          style={{ maxHeight: '70vh', overflowY: 'auto' }}
+        >
+          <div ref={ganttRef} className="min-w-max print-gantt">
+            {/* Header */}
+            <div className="flex border-b border-border sticky top-0 bg-bg-secondary z-10">
+              {/* Task names column */}
+              <div className="w-64 flex-shrink-0 p-4 border-r border-border font-semibold bg-bg-secondary">
+                Task
+              </div>
+              
+              {/* Timeline header */}
+              <div className="flex">
+                {days.map((day, index) => {
+                  const weekend = isWeekend(day);
+                  const today = isToday(day);
+                  const holiday = getHolidayForDate(day);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`flex-shrink-0 p-2 border-r border-border text-center cursor-pointer ${
+                        today
+                          ? 'bg-primary/20 font-bold'
+                          : holiday
+                          ? 'bg-purple-900/30'
+                          : weekend
+                          ? 'bg-gray-800/50'
+                          : ''
+                      }`}
+                      style={{ width: `${dayWidth}px` }}
+                      onClick={() => holiday && handleHolidayClick(holiday)}
+                      title={holiday ? `${holiday.name} - Click for details` : ''}
+                    >
+                      <div className={`text-xs font-medium ${weekend ? 'text-gray-500' : holiday ? 'text-purple-400' : ''}`}>
+                        {formatDateHeader(day, index)}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                      <div className={`text-xs ${weekend ? 'text-gray-600' : holiday ? 'text-purple-500' : 'text-text-secondary'}`}>
+                        {format(day, 'EEE')[0]}
+                      </div>
+                      {holiday && (
+                        <div className="text-[8px] text-purple-400 uppercase tracking-wider mt-0.5">
+                          Holiday
+                        </div>
+                      )}
+                      {weekend && !holiday && (
+                        <div className="text-[8px] text-gray-600 uppercase tracking-wider mt-0.5">
+                          Off
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Task rows */}
+            <div className="relative">
+              {ganttTasks.map((task, taskIndex) => (
+                <GanttRow
+                  key={task.id}
+                  task={task}
+                  startDate={windowStartDate}
+                  days={days}
+                  dayWidth={dayWidth}
+                  isEven={taskIndex % 2 === 0}
+                  onTaskClick={handleTaskClick}
+                  holidays={holidays}
+                />
+              ))}
             </div>
           </div>
+        </div>
 
-          {/* Task rows */}
-          <div className="relative">
-            {ganttTasks.map((task, taskIndex) => (
-              <GanttRow
-                key={task.id}
-                task={task}
-                startDate={startDate}
-                days={days}
-                dayWidth={dayWidth}
-                isEven={taskIndex % 2 === 0}
-                onTaskClick={onTaskClick}
-              />
-            ))}
-          </div>
+        {/* Floating scroll bar - always visible at bottom */}
+        <div className="sticky bottom-0 left-0 right-0 overflow-x-auto bg-bg-secondary border-t-2 border-primary no-print"
+          style={{ 
+            boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.3)',
+            zIndex: 20
+          }}
+          onScroll={(e) => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+            }
+          }}
+        >
+          <div style={{ width: `${264 + (days.length * dayWidth)}px`, height: '20px' }}></div>
         </div>
       </div>
 
       {/* Summary */}
-      <div className="flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg text-sm no-print">
+      <div className="flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg text-sm flex-wrap no-print">
         <div>
           <span className="text-text-secondary">Total Tasks:</span>{' '}
           <span className="font-semibold">{ganttTasks.length}</span>
         </div>
         <div>
-          <span className="text-text-secondary">Date Range:</span>{' '}
+          <span className="text-text-secondary">Window:</span>{' '}
           <span className="font-semibold">
-            {format(startDate, 'MMM d')} - {format(endDate, 'MMM d, yyyy')}
+            {format(windowStartDate, 'MMM d')} - {format(windowEndDate, 'MMM d, yyyy')}
           </span>
         </div>
         <div>
           <span className="text-text-secondary">Duration:</span>{' '}
           <span className="font-semibold">{days.length} days</span>
         </div>
+        <div>
+          <span className="text-text-secondary">Weekends:</span>{' '}
+          <Badge variant={includeWeekends ? 'success' : 'default'}>
+            {includeWeekends ? 'Shown' : 'Hidden'}
+          </Badge>
+        </div>
       </div>
+
+      {/* Task Details Modal */}
+      {selectedTask && (
+        <TaskDetailsModal
+          isOpen={showTaskDetails}
+          onClose={() => {
+            setShowTaskDetails(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          assignments={assignments}
+        />
+      )}
+
+      {/* Holiday Details Modal */}
+      {selectedHoliday && (
+        <HolidayDetailsModal
+          isOpen={showHolidayDetails}
+          onClose={() => {
+            setShowHolidayDetails(false);
+            setSelectedHoliday(null);
+          }}
+          holiday={selectedHoliday}
+        />
+      )}
     </div>
   );
 }
@@ -220,9 +438,10 @@ interface GanttRowProps {
   dayWidth: number;
   isEven: boolean;
   onTaskClick?: (taskId: string) => void;
+  holidays: Holiday[];
 }
 
-function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: GanttRowProps) {
+function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick, holidays }: GanttRowProps) {
   const { left, width } = calculateTaskBarPosition(task, startDate, dayWidth);
   const color = getColorByStatus(task.staffingStatus);
 
@@ -238,12 +457,12 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
         {task.location && (
           <div className="text-xs text-text-secondary truncate">{task.location}</div>
         )}
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge variant={task.status === 'completed' ? 'success' : 'info'} className="text-xs">
             {task.status}
           </Badge>
           <span className="text-xs text-text-secondary">
-            {task.assignedOperators + task.assignedLaborers}/{task.requiredOperators + task.requiredLaborers} crew
+            {task.totalAssigned}/{task.totalRequired} workers
           </span>
         </div>
       </div>
@@ -254,6 +473,8 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
         {days.map((day) => {
           const weekend = isWeekend(day);
           const today = isToday(day);
+          const dateStr = format(day, 'yyyy-MM-dd');
+          const holiday = holidays.find(h => h.date === dateStr);
           return (
             <div
               key={day.toISOString()}
@@ -262,6 +483,8 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
               } ${
                 today
                   ? 'bg-primary/10'
+                  : holiday
+                  ? 'bg-purple-900/20'
                   : weekend
                   ? 'bg-gray-800/50'
                   : ''
@@ -273,7 +496,7 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
 
         {/* Task bar */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-8 rounded cursor-pointer hover:opacity-80 transition-opacity flex items-center px-2"
+          className="absolute top-1/2 -translate-y-1/2 h-8 rounded cursor-pointer hover:opacity-90 hover:shadow-lg transition-all flex items-center px-2"
           style={{
             left: `${left}px`,
             width: `${width}px`,
@@ -284,11 +507,113 @@ function GanttRow({ task, startDate, days, dayWidth, isEven, onTaskClick }: Gant
           title={`${task.name}\n${format(task.startDate, 'MMM d')} - ${format(
             task.endDate,
             'MMM d'
-          )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\nWorking Days: ${task.workingDays} (${task.duration} total)`}
+          )}\nOperators: ${task.assignedOperators}/${task.requiredOperators}\nLaborers: ${task.assignedLaborers}/${task.requiredLaborers}\n${task.requiredCarpenters > 0 ? `Carpenters: ${task.assignedCarpenters}/${task.requiredCarpenters}\n` : ''}${task.requiredMasons > 0 ? `Masons: ${task.assignedMasons}/${task.requiredMasons}\n` : ''}Total: ${task.totalAssigned}/${task.totalRequired} workers\nWorking Days: ${task.workingDays}\nClick for details`}
         >
           <span className="text-white text-xs font-medium truncate">
             {width > 100 ? task.name : ''}
           </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface HolidayDetailsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  holiday: Holiday;
+}
+
+function HolidayDetailsModal({ isOpen, onClose, holiday }: HolidayDetailsModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-bg-secondary border border-border rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-xl font-bold">{holiday.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-purple-900/30 rounded-lg">
+              <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{format(new Date(holiday.date + 'T00:00:00'), 'MMMM d, yyyy')}</div>
+              <div className="text-text-secondary">{format(new Date(holiday.date + 'T00:00:00'), 'EEEE')}</div>
+            </div>
+          </div>
+
+          {holiday.notes && (
+            <div className="p-4 bg-bg-primary rounded-lg border border-border">
+              <div className="text-sm text-text-secondary">{holiday.notes}</div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="font-semibold mb-3">Pay Rates</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {holiday.pay_rates.carpenters && (
+                <div className="p-3 bg-bg-primary rounded-lg border border-border">
+                  <div className="text-sm font-medium">Carpenters</div>
+                  <div className="text-lg font-bold text-primary">{holiday.pay_rates.carpenters}</div>
+                </div>
+              )}
+              {holiday.pay_rates.laborers && (
+                <div className="p-3 bg-bg-primary rounded-lg border border-border">
+                  <div className="text-sm font-medium">Laborers</div>
+                  <div className="text-lg font-bold text-primary">{holiday.pay_rates.laborers}</div>
+                </div>
+              )}
+              {holiday.pay_rates.masons && (
+                <div className="p-3 bg-bg-primary rounded-lg border border-border">
+                  <div className="text-sm font-medium">Masons</div>
+                  <div className="text-lg font-bold text-primary">{holiday.pay_rates.masons}</div>
+                </div>
+              )}
+              {holiday.pay_rates.operators && (
+                <div className="p-3 bg-bg-primary rounded-lg border border-border">
+                  <div className="text-sm font-medium">Operating Engineers</div>
+                  <div className="text-lg font-bold text-primary">{holiday.pay_rates.operators}</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold mb-3">Applies To</h3>
+            <div className="flex flex-wrap gap-2">
+              {holiday.state_county && <Badge variant="info">State & County</Badge>}
+              {holiday.federal && <Badge variant="info">Federal</Badge>}
+              {holiday.gcla && <Badge variant="info">GCLA</Badge>}
+              {holiday.four_basic_trades && <Badge variant="info">Four Basic Trades</Badge>}
+            </div>
+          </div>
+
+          <div className="p-4 bg-warning/10 border border-warning rounded-lg">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <div className="font-medium text-warning mb-1">Optional Work Day</div>
+                <div className="text-sm text-text-secondary">
+                  This is a holiday but you can still schedule work. Pay rates shown apply if work is performed.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
