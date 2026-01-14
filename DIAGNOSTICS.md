@@ -387,3 +387,44 @@ Update your deployment docs to include:
 
 **Report Generated:** 2026-01-14
 **Diagnostic Version:** 1.0
+
+
+## 🔄 UPDATE: Production Testing Revealed Second Issue
+
+### Issue #2: Database Schema Missing (CONFIRMED IN PRODUCTION)
+
+After setting environment variables correctly, production testing revealed:
+
+**Error from Supabase API Gateway:**
+```
+GET /rest/v1/users?select=role,base_role&id=eq.2db0aaa7-1414-4562-ad43-b67a456eb797
+Status: 400
+Error: PostgREST; error=42703 (undefined_column)
+```
+
+**PostgreSQL Error 42703** = `undefined_column` - The table/columns don't exist.
+
+**Root Cause #2:** The Supabase database is **missing required tables**:
+- `users` table with `role` and `base_role` columns
+- `user_profiles` table
+- `organizations` table
+- Other application tables
+
+**Solution:** Run the complete database schema setup.
+
+**📋 See:** [`DATABASE_SETUP.md`](./DATABASE_SETUP.md) for step-by-step instructions.
+
+**Quick Fix:**
+1. Open Supabase SQL Editor
+2. Run the SQL from [`supabase-schema.sql`](./supabase-schema.sql)
+3. Create your user profile with the authenticated user ID: `2db0aaa7-1414-4562-ad43-b67a456eb797`
+4. Verify tables exist
+5. Test app - should load successfully
+
+**Timeline:** ~4 minutes to create schema and user profile.
+
+---
+
+**Report Generated:** 2026-01-14
+**Diagnostic Version:** 1.1 (Updated with production findings)
+
