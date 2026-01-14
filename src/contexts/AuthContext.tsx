@@ -227,10 +227,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             if (profile) {
               setUser(profile);
               setIsAuthenticated(true);
+            } else {
+              console.warn('[Auth] Profile fetch returned null - user profile may not exist in database');
             }
           } catch (error) {
             console.error('[Auth] Profile fetch failed/timed out:', error);
-            localStorage.clear();
+            // Don't clear localStorage - the session might still be valid
+            // Just leave user in not-authenticated state and let them try again
           }
 
           setIsLoadingWithLog(false, `auth state change complete: ${event}`);
