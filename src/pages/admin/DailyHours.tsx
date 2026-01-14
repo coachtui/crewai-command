@@ -257,7 +257,7 @@ export function DailyHours() {
         .from('daily_hours')
         .upsert({
           worker_id: selectedWorker.id,
-          org_id: userData.org_id,
+          organization_id: userData.org_id,
           log_date: selectedDate,
           status: 'off',
           notes,
@@ -266,7 +266,7 @@ export function DailyHours() {
           transferred_to_task_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,org_id'
+          onConflict: 'worker_id,log_date,organization_id'
         });
 
       if (error) throw error;
@@ -303,7 +303,7 @@ export function DailyHours() {
         .from('daily_hours')
         .upsert({
           worker_id: selectedWorker.id,
-          org_id: userData.org_id,
+          organization_id: userData.org_id,
           log_date: selectedDate,
           status: 'transferred',
           notes,
@@ -312,7 +312,7 @@ export function DailyHours() {
           task_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,org_id'
+          onConflict: 'worker_id,log_date,organization_id'
         });
 
       if (error) throw error;
@@ -348,7 +348,7 @@ export function DailyHours() {
         .from('daily_hours')
         .upsert({
           worker_id: selectedWorker.id,
-          org_id: userData.org_id,
+          organization_id: userData.org_id,
           log_date: selectedDate,
           status: 'worked',
           notes,
@@ -357,7 +357,7 @@ export function DailyHours() {
           transferred_to_task_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,org_id'
+          onConflict: 'worker_id,log_date,organization_id'
         });
 
       if (error) throw error;
