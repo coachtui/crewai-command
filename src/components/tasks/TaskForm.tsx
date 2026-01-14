@@ -3,7 +3,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
-import type { Task, TaskDraft } from '../../types';
+import type { Task, TaskDraft, TaskStatus } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Upload, X, FileIcon, Image as ImageIcon } from 'lucide-react';
@@ -26,7 +26,7 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
     required_laborers: 0,
     required_carpenters: 0,
     required_masons: 0,
-    status: 'planned' as 'planned' | 'active' | 'completed',
+    status: 'planned' as TaskStatus,
     notes: '',
     include_saturday: false,
     include_sunday: false,
@@ -153,6 +153,7 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
     }
     
     // Save to drafts table (without status field)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { status, ...draftData } = formData;
     onSaveDraft({ ...draftData, attachments });
   };

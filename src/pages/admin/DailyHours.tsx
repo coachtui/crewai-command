@@ -92,11 +92,11 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Load workers
+      // Load workers (use organization_id as column was renamed)
       const { data: workersData, error: workersError } = await supabase
         .from('workers')
         .select('*')
-        .eq('org_id', userData.org_id)
+        .eq('organization_id', userData.org_id)
         .eq('status', 'active')
         .order('name');
 
@@ -106,16 +106,16 @@ export function DailyHours() {
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*)')
-        .eq('org_id', userData.org_id)
+        .eq('organization_id', userData.org_id)
         .eq('log_date', selectedDate);
 
       if (dailyHoursError) throw dailyHoursError;
 
-      // Load tasks
+      // Load tasks (use organization_id as column was renamed)
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('org_id', userData.org_id)
+        .eq('organization_id', userData.org_id)
         .in('status', ['active', 'planned'])
         .order('name');
 
@@ -161,7 +161,7 @@ export function DailyHours() {
       const { data: weeklyHours, error } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*)')
-        .eq('org_id', userData.org_id)
+        .eq('organization_id', userData.org_id)
         .gte('log_date', getLocalDateString(startOfWeek))
         .lte('log_date', getLocalDateString(endOfWeek));
 

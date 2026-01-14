@@ -1,5 +1,5 @@
 import { differenceInDays, eachDayOfInterval, addDays, format, parseISO } from 'date-fns';
-import type { Task, Assignment, Holiday } from '../types';
+import type { Task, Assignment, Holiday, TaskStatus } from '../types';
 
 export interface GanttTask {
   id: string;
@@ -20,7 +20,7 @@ export interface GanttTask {
   totalAssigned: number;
   totalRequired: number;
   staffingStatus: 'full' | 'partial' | 'empty';
-  status: 'planned' | 'active' | 'completed';
+  status: TaskStatus;
   include_saturday?: boolean;
   include_sunday?: boolean;
   include_holidays?: boolean;
