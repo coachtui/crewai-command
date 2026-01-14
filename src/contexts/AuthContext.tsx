@@ -215,18 +215,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!isAuthenticated || !user) {
           console.log('[Auth] SIGNED_IN event - showing loading (not currently authenticated)');
           setIsLoadingWithLog(true, `auth state change: ${event}`);
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
-            setIsAuthenticated(true);
+
+          // Add 10-second timeout to profile fetch
+          try {
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+            );
+            const profilePromise = fetchUserProfile(session.user.id);
+            const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
+
+            if (profile) {
+              setUser(profile);
+              setIsAuthenticated(true);
+            }
+          } catch (error) {
+            console.error('[Auth] Profile fetch failed/timed out:', error);
+            localStorage.clear();
           }
+
           setIsLoadingWithLog(false, `auth state change complete: ${event}`);
         } else {
           console.log('[Auth] SIGNED_IN event - already authenticated, silently refreshing profile');
-          // Already authenticated, just refresh profile in background
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
+          // Already authenticated, just refresh profile in background with timeout
+          try {
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+            );
+            const profilePromise = fetchUserProfile(session.user.id);
+            const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
+
+            if (profile) {
+              setUser(profile);
+            }
+          } catch (error) {
+            console.error('[Auth] Background profile refresh failed:', error);
           }
         }
       } else if (event === 'SIGNED_OUT') {
@@ -238,9 +260,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
         console.log('[Auth] TOKEN_REFRESHED event - silently refreshing profile');
         // Token refresh should be completely silent - don't unmount anything
-        const profile = await fetchUserProfile(session.user.id);
-        if (profile) {
-          setUser(profile);
+        try {
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+          );
+          const profilePromise = fetchUserProfile(session.user.id);
+          const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
+
+          if (profile) {
+            setUser(profile);
+          }
+        } catch (error) {
+          console.error('[Auth] TOKEN_REFRESHED profile fetch failed:', error);
         }
       }
     });
