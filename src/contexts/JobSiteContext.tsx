@@ -11,6 +11,12 @@ import type { JobSite, JobSiteRole, JobSiteContextType } from '../types';
 // Create the context
 const JobSiteContext = createContext<JobSiteContextType | undefined>(undefined);
 
+// Development logging helper
+const isDev = import.meta.env.DEV;
+const devLog = (...args: unknown[]) => {
+  if (isDev) console.log('[JobSite]', ...args);
+};
+
 // Storage key for persisting last selected job site
 const LAST_JOB_SITE_KEY = 'crewai_last_job_site_id';
 
@@ -42,7 +48,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
           .order('name');
 
         if (error) {
-          console.error('Error fetching job sites:', error);
+          if (isDev) console.error('[JobSite] Error fetching job sites:', error);
           return [];
         }
 
@@ -69,7 +75,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
             .eq('is_active', true);
 
           if (error) {
-            console.error('Error fetching job site assignments:', error);
+            if (isDev) console.error('[JobSite] Error fetching job site assignments:', error);
             return [];
           }
 
@@ -80,13 +86,13 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
           }
         } catch {
           // Table might not exist yet
-          console.log('Job site assignments not available');
+          devLog('Job site assignments not available');
         }
 
         return [];
       }
     } catch (error) {
-      console.error('Error in fetchJobSites:', error);
+      if (isDev) console.error('[JobSite] Error in fetchJobSites:', error);
       return [];
     }
   }, [user, isAdmin]);
@@ -120,7 +126,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
         return data.role as JobSiteRole;
       }
     } catch {
-      console.log('Could not fetch user site role');
+      devLog('Could not fetch user site role');
     }
 
     return null;
@@ -132,7 +138,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
     const site = availableJobSites.find(s => s.id === siteId);
     
     if (!site) {
-      console.error('Job site not found:', siteId);
+      if (isDev) console.error('[JobSite] Job site not found:', siteId);
       return;
     }
 
@@ -211,7 +217,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
           setUserSiteRole(null);
         }
       } catch (error) {
-        console.error('Error initializing job sites:', error);
+        if (isDev) console.error('[JobSite] Error initializing job sites:', error);
       } finally {
         setIsLoading(false);
       }

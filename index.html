@@ -32,26 +32,27 @@
   </head>
   <body>
     <script>
-      // EMERGENCY FIX: Unregister all service workers and clear caches
-      // This runs immediately on page load before React loads
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (let registration of registrations) {
-            registration.unregister();
-            console.log('[Emergency] Service Worker unregistered');
-          }
-        });
-      }
-      
-      // Clear all caches
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          for (let name of names) {
-            caches.delete(name);
-            console.log('[Emergency] Cache deleted:', name);
-          }
-        });
-      }
+      // Cache cleanup: Ensures fresh content on every load
+      // Prevents stale cached content from affecting app behavior
+      (function() {
+        // Unregister any service workers
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            registrations.forEach(function(registration) {
+              registration.unregister();
+            });
+          });
+        }
+
+        // Clear all browser caches
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) {
+              caches.delete(name);
+            });
+          });
+        }
+      })();
     </script>
     
     <div id="root"></div>

@@ -10,6 +10,12 @@ import type { UserProfile, Organization, JobSiteAssignment, AuthContextType } fr
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Development logging helper
+const isDev = import.meta.env.DEV;
+const devLog = (...args: unknown[]) => {
+  if (isDev) console.log('[Auth]', ...args);
+};
+
 // Storage keys
 const STORAGE_KEYS = {
   LAST_JOB_SITE: 'crewai_last_job_site_id',
@@ -55,7 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (userError || !userData) {
-        console.error('Error fetching user profile:', userError);
+        if (isDev) console.error('[Auth] Error fetching user profile:', userError);
         return null;
       }
 
@@ -93,7 +99,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } catch {
         // Table might not exist yet, that's okay
-        console.log('Job site assignments table not available yet');
+        devLog('Job site assignments table not available yet');
       }
 
       // Construct user profile
@@ -114,7 +120,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       return userProfile;
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      if (isDev) console.error('[Auth] Error in fetchUserProfile:', error);
       return null;
     }
   }, []);
@@ -127,7 +133,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
-          console.error('Session error:', sessionError);
+          if (isDev) console.error('[Auth] Session error:', sessionError);
           setIsLoading(false);
           return;
         }
@@ -140,7 +146,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        if (isDev) console.error('[Auth] Initialization error:', error);
       } finally {
         setIsLoading(false);
       }
@@ -150,7 +156,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event);
+      devLog('Auth state changed:', event);
       
       if (event === 'SIGNED_IN' && session?.user) {
         setIsLoading(true);
