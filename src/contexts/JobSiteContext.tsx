@@ -133,28 +133,30 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
   }, [user, isAdmin]);
 
   // Switch to a different job site
-  const switchJobSite = async (siteId: string): Promise<void> => {
+  const switchJobSite = useCallback(async (siteId: string): Promise<void> => {
     // Find the site in available sites
     const site = availableJobSites.find(s => s.id === siteId);
-    
+
     if (!site) {
-      if (isDev) console.error('[JobSite] Job site not found:', siteId);
+      console.error('[JobSite] Job site not found:', siteId);
       return;
     }
 
+    console.log('[JobSite] Switching to job site:', site.name);
     // Update current site
     setCurrentJobSite(site);
-    
+
     // Get user's role on this site
     const role = await getUserSiteRole(siteId);
     setUserSiteRole(role);
-    
+
     // Persist selection
     localStorage.setItem(LAST_JOB_SITE_KEY, siteId);
-  };
+  }, [availableJobSites, getUserSiteRole]);
 
   // Refresh job sites
-  const refreshJobSites = async (): Promise<void> => {
+  const refreshJobSites = useCallback(async (): Promise<void> => {
+    console.log('[JobSite] Refreshing job sites...');
     setIsLoading(true);
     try {
       const sites = await fetchJobSites();
@@ -172,12 +174,15 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchJobSites, currentJobSite, switchJobSite]);
 
   // Initialize job sites when user changes
   useEffect(() => {
     const initJobSites = async () => {
+      console.log('[JobSite] Initializing job sites...', { isAuthenticated, hasUser: !!user });
+
       if (!isAuthenticated || !user) {
+        console.log('[JobSite] Not authenticated or no user, clearing state');
         setAvailableJobSites([]);
         setCurrentJobSite(null);
         setUserSiteRole(null);
@@ -185,9 +190,13 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
         return;
       }
 
+      console.log('[JobSite] Setting loading = true');
       setIsLoading(true);
+
       try {
+        console.log('[JobSite] Fetching job sites...');
         const sites = await fetchJobSites();
+        console.log('[JobSite] Job sites fetched:', sites.length);
         setAvailableJobSites(sites);
 
         if (sites.length > 0) {
@@ -204,27 +213,31 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
             selectedSite = sites[0];
           }
 
+          console.log('[JobSite] Setting current job site:', selectedSite?.name);
           setCurrentJobSite(selectedSite);
-          
+
           // Get user's role on selected site
           if (selectedSite) {
             const role = await getUserSiteRole(selectedSite.id);
+            console.log('[JobSite] User site role:', role);
             setUserSiteRole(role);
             localStorage.setItem(LAST_JOB_SITE_KEY, selectedSite.id);
           }
         } else {
+          console.log('[JobSite] No job sites available');
           setCurrentJobSite(null);
           setUserSiteRole(null);
         }
       } catch (error) {
-        if (isDev) console.error('[JobSite] Error initializing job sites:', error);
+        console.error('[JobSite] Error initializing job sites:', error);
       } finally {
+        console.log('[JobSite] Setting loading = false');
         setIsLoading(false);
       }
     };
 
     initJobSites();
-  }, [isAuthenticated, user, fetchJobSites, getUserSiteRole]);
+  }, [isAuthenticated, user?.id, user?.org_id]);
 
   // Subscribe to job site changes
   useEffect(() => {
