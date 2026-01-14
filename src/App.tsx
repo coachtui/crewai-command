@@ -24,44 +24,29 @@ import { supabase } from './lib/supabase';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    let timeoutId: ReturnType<typeof setTimeout>;
 
     const checkAuth = async () => {
       try {
         console.log('[ProtectedRoute] Checking auth state...');
         
-        // Set a timeout to prevent infinite loading
-        timeoutId = setTimeout(() => {
-          if (mounted && isAuthenticated === null) {
-            console.error('[ProtectedRoute] Auth check timeout - assuming not authenticated');
-            setAuthError('Authentication check timed out');
-            setIsAuthenticated(false);
-          }
-        }, 10000); // 10 second timeout
-
-        // Check initial auth state
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('[ProtectedRoute] Auth error:', error);
-          setAuthError(error.message);
           if (mounted) setIsAuthenticated(false);
           return;
         }
 
-        console.log('[ProtectedRoute] Session check complete:', !!session);
+        console.log('[ProtectedRoute] Session:', !!session);
         if (mounted) {
           setIsAuthenticated(!!session);
-          clearTimeout(timeoutId);
         }
       } catch (error) {
         console.error('[ProtectedRoute] Auth check failed:', error);
         if (mounted) {
-          setAuthError(error instanceof Error ? error.message : 'Auth check failed');
           setIsAuthenticated(false);
         }
       }
@@ -76,13 +61,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       console.log('[ProtectedRoute] Auth state changed:', _event, !!session);
       if (mounted) {
         setIsAuthenticated(!!session);
-        setAuthError(null);
       }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -93,12 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-center h-screen bg-bg-primary">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-text-secondary">Checking authentication...</span>
-          {authError && (
-            <span className="text-error text-sm mt-2">
-              {authError}
-            </span>
-          )}
+          <span className="text-text-secondary">Loading...</span>
         </div>
       </div>
     );
