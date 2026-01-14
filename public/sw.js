@@ -1,6 +1,6 @@
 // Service Worker for CrewAI Command PWA
-const CACHE_NAME = 'crewai-v2'; // Increment version to trigger update
-const RUNTIME_CACHE = 'crewai-runtime-v2';
+const CACHE_NAME = 'crewai-v3'; // Increment version to trigger update
+const RUNTIME_CACHE = 'crewai-runtime-v3';
 
 const PRECACHE_ASSETS = [
   '/manifest.json',
@@ -54,31 +54,63 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First strategy for HTML/navigation requests
+  // Network-ONLY strategy for HTML/navigation requests (no caching to avoid stale HTML issues)
   if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone and cache the response
-          const responseToCache = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseToCache);
-          });
+          // Always return fresh HTML from network
+          // Do NOT cache HTML to avoid hard refresh issues
           return response;
         })
         .catch(() => {
-          // Network failed, try cache
-          return caches.match(request).then((cached) => {
-            if (cached) {
-              console.log('[SW] Serving cached HTML (offline):', request.url);
-              return cached;
-            }
-            // Return a simple offline page
-            return new Response('Offline - Please check your connection', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: { 'Content-Type': 'text/html' }
-            });
+          // Network failed - show offline message
+          return new Response(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Offline - CrewAI Command</title>
+                <style>
+                  body { 
+                    font-family: system-ui; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    height: 100vh; 
+                    margin: 0;
+                    background: #f3f4f6;
+                  }
+                  .container {
+                    text-align: center;
+                    padding: 2rem;
+                  }
+                  h1 { color: #374151; }
+                  p { color: #6b7280; }
+                  button {
+                    background: #eab308;
+                    color: white;
+                    border: none;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 0.5rem;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    margin-top: 1rem;
+                  }
+                  button:hover { background: #ca8a04; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <h1>You're Offline</h1>
+                  <p>Please check your internet connection and try again.</p>
+                  <button onclick="location.reload()">Retry</button>
+                </div>
+              </body>
+            </html>
+          `, {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/html' }
           });
         })
     );
