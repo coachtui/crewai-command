@@ -31,6 +31,29 @@
     <meta name="format-detection" content="telephone=no" />
   </head>
   <body>
+    <script>
+      // EMERGENCY FIX: Unregister all service workers and clear caches
+      // This runs immediately on page load before React loads
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+            console.log('[Emergency] Service Worker unregistered');
+          }
+        });
+      }
+      
+      // Clear all caches
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (let name of names) {
+            caches.delete(name);
+            console.log('[Emergency] Cache deleted:', name);
+          }
+        });
+      }
+    </script>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
