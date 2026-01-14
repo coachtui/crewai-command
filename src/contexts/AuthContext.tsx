@@ -140,9 +140,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         logCheckpoint('AuthProvider initializing');
 
-        // Check for existing session
+        // Check for existing session with timeout
         logCheckpoint('Checking for existing session');
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+        // Create a timeout promise (10 seconds)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session check timeout - clearing session')), 10000);
+        });
+
+        // Race between getSession and timeout
+        const sessionPromise = supabase.auth.getSession();
+
+        let sessionData;
+        try {
+          sessionData = await Promise.race([sessionPromise, timeoutPromise]);
+        } catch (timeoutError) {
+          // Timeout occurred - clear localStorage and force re-login
+          logCheckpoint('Session check timed out - clearing corrupted session');
+          console.warn('[Auth] Session check timed out, clearing localStorage');
+          localStorage.clear();
+          setIsLoading(false);
+          setIsAuthenticated(false);
+          return;
+        }
+
+        const { data: { session }, error: sessionError } = sessionData as any;
 
         if (sessionError) {
           if (isDev) console.error('[Auth] Session error:', sessionError);
