@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Input } from '../components/ui/Input';
@@ -9,43 +9,97 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          console.log('[Login] Already authenticated, redirecting...');
+          navigate('/workers', { replace: true });
+        }
+      } catch (error) {
+        console.error('[Login] Session check error:', error);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkSession();
+  }, [navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      console.log('[Login] Attempting login...');
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        console.error('[Login] Auth error:', authError);
+        throw authError;
+      }
 
-      // Fetch user role from users table
-      const { data: userData, error: userError } = await supabase
+      console.log('[Login] Auth successful, fetching user role...');
+
+      // Try to fetch user role from users table (with timeout)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('User data fetch timeout')), 5000)
+      );
+
+      const userDataPromise = supabase
         .from('users')
-        .select('role')
+        .select('role, base_role')
         .eq('id', authData.user.id)
         .single();
 
-      if (userError) throw userError;
+      try {
+        const result = await Promise.race([userDataPromise, timeoutPromise]);
+        const userData = (result as { data: { role?: string; base_role?: string } | null }).data;
 
-      // Redirect based on role
-      if (userData.role === 'admin') {
-        navigate('/dashboard');
-      } else {
-        navigate('/today');
+        console.log('[Login] User data fetched:', userData);
+
+        // Redirect based on role (with fallback to /workers)
+        if (userData?.role === 'admin' || userData?.base_role === 'admin') {
+          console.log('[Login] Redirecting admin to /workers');
+          navigate('/workers', { replace: true });
+        } else {
+          console.log('[Login] Redirecting user to /workers');
+          navigate('/workers', { replace: true });
+        }
+      } catch (userError) {
+        // If user data fetch fails, still redirect to default page
+        console.warn('[Login] User data fetch failed, redirecting to default:', userError);
+        navigate('/workers', { replace: true });
       }
 
       toast.success('Login successful!');
     } catch (error) {
+      console.error('[Login] Login failed:', error);
       toast.error((error as Error).message || 'Login failed');
-    } finally {
       setLoading(false);
     }
+    // Don't setLoading(false) on success - let the redirect happen
   };
+
+  // Show loading while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-text-secondary">Checking authentication...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
