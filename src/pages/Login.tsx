@@ -16,7 +16,24 @@ export function Login() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Add 5-second timeout for login page session check
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Login session check timeout')), 5000)
+        );
+
+        const sessionPromise = supabase.auth.getSession();
+
+        let result;
+        try {
+          result = await Promise.race([sessionPromise, timeoutPromise]);
+        } catch (timeoutError) {
+          console.warn('[Login] Session check timed out, clearing session');
+          localStorage.clear();
+          setCheckingAuth(false);
+          return;
+        }
+
+        const { data: { session } } = result as any;
         if (session) {
           console.log('[Login] Already authenticated, redirecting...');
           navigate('/workers', { replace: true });
