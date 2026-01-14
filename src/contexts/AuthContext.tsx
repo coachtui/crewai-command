@@ -40,6 +40,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Wrapper for setIsLoading with diagnostic logging
+  const setIsLoadingWithLog = useCallback((value: boolean, reason: string) => {
+    console.log(`[Auth] isLoading changing: ${!value} → ${value} (${reason})`);
+    setIsLoading(value);
+  }, []);
+
   // Fetch user profile with organization and job site assignments
   const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
@@ -159,7 +165,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           logCheckpoint('Session check timed out - clearing corrupted session');
           console.warn('[Auth] Session check timed out, clearing localStorage');
           localStorage.clear();
-          setIsLoading(false);
+          setIsLoadingWithLog(false, 'session timeout');
           setIsAuthenticated(false);
           return;
         }
@@ -169,7 +175,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (sessionError) {
           if (isDev) console.error('[Auth] Session error:', sessionError);
           logCheckpoint('Session check failed');
-          setIsLoading(false);
+          setIsLoadingWithLog(false, 'session error');
           return;
         }
 
@@ -192,7 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (isDev) console.error('[Auth] Initialization error:', error);
         logCheckpoint('Auth initialization error: ' + String(error));
       } finally {
-        setIsLoading(false);
+        setIsLoadingWithLog(false, 'initialization complete');
         logCheckpoint('AuthProvider initialization complete');
       }
     };
@@ -201,23 +207,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      devLog('Auth state changed:', event);
-      
+      console.log('[Auth] Auth state changed:', event, { currentlyAuthenticated: isAuthenticated, hasUser: !!user });
+
       if (event === 'SIGNED_IN' && session?.user) {
-        setIsLoading(true);
-        const profile = await fetchUserProfile(session.user.id);
-        if (profile) {
-          setUser(profile);
-          setIsAuthenticated(true);
+        // Only show loading spinner if we're not already authenticated
+        // This prevents unmounting the entire app when returning to the tab
+        if (!isAuthenticated || !user) {
+          console.log('[Auth] SIGNED_IN event - showing loading (not currently authenticated)');
+          setIsLoadingWithLog(true, `auth state change: ${event}`);
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+            setIsAuthenticated(true);
+          }
+          setIsLoadingWithLog(false, `auth state change complete: ${event}`);
+        } else {
+          console.log('[Auth] SIGNED_IN event - already authenticated, silently refreshing profile');
+          // Already authenticated, just refresh profile in background
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+          }
         }
-        setIsLoading(false);
       } else if (event === 'SIGNED_OUT') {
+        console.log('[Auth] SIGNED_OUT event');
         setUser(null);
         setIsAuthenticated(false);
         // Clear stored preferences on logout
         localStorage.removeItem(STORAGE_KEYS.LAST_JOB_SITE);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        // Optionally refresh user data on token refresh
+        console.log('[Auth] TOKEN_REFRESHED event - silently refreshing profile');
+        // Token refresh should be completely silent - don't unmount anything
         const profile = await fetchUserProfile(session.user.id);
         if (profile) {
           setUser(profile);
@@ -232,7 +252,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign in function
   const signIn = async (email: string, password: string): Promise<void> => {
-    setIsLoading(true);
+    setIsLoadingWithLog(true, 'manual sign in');
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -253,7 +273,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     } finally {
-      setIsLoading(false);
+      setIsLoadingWithLog(false, 'manual sign in complete');
     }
   };
 
