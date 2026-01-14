@@ -16,6 +16,15 @@ const devLog = (...args: unknown[]) => {
   if (isDev) console.log('[Auth]', ...args);
 };
 
+// Diagnostic checkpoint helper
+function logCheckpoint(name: string) {
+  if (typeof window !== 'undefined' && window.__APP_DIAGNOSTICS__) {
+    const elapsed = Date.now() - window.__APP_DIAGNOSTICS__.startTime;
+    window.__APP_DIAGNOSTICS__.checkpoints.push({ name: `[Auth] ${name}`, elapsed });
+    console.log(`[DIAGNOSTIC] [Auth] ${name} (${elapsed}ms)`);
+  }
+}
+
 // Storage keys
 const STORAGE_KEYS = {
   LAST_JOB_SITE: 'crewai_last_job_site_id',
@@ -129,26 +138,40 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        logCheckpoint('AuthProvider initializing');
+
         // Check for existing session
+        logCheckpoint('Checking for existing session');
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
           if (isDev) console.error('[Auth] Session error:', sessionError);
+          logCheckpoint('Session check failed');
           setIsLoading(false);
           return;
         }
 
+        logCheckpoint(`Session check complete (has session: ${!!session})`);
+
         if (session?.user) {
+          logCheckpoint('Fetching user profile');
           const profile = await fetchUserProfile(session.user.id);
           if (profile) {
             setUser(profile);
             setIsAuthenticated(true);
+            logCheckpoint('User authenticated successfully');
+          } else {
+            logCheckpoint('Failed to fetch user profile');
           }
+        } else {
+          logCheckpoint('No session found - user not authenticated');
         }
       } catch (error) {
         if (isDev) console.error('[Auth] Initialization error:', error);
+        logCheckpoint('Auth initialization error: ' + String(error));
       } finally {
         setIsLoading(false);
+        logCheckpoint('AuthProvider initialization complete');
       }
     };
 

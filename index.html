@@ -32,15 +32,49 @@
   </head>
   <body>
     <script>
+      // ========================================================================
+      // DIAGNOSTIC LOGGING - Tracks app startup progress
+      // ========================================================================
+      window.__APP_DIAGNOSTICS__ = {
+        startTime: Date.now(),
+        checkpoints: [],
+        errors: []
+      };
+
+      function logCheckpoint(name) {
+        var elapsed = Date.now() - window.__APP_DIAGNOSTICS__.startTime;
+        window.__APP_DIAGNOSTICS__.checkpoints.push({ name: name, elapsed: elapsed });
+        console.log('[DIAGNOSTIC] ' + name + ' (' + elapsed + 'ms)');
+      }
+
+      function logError(source, error) {
+        var elapsed = Date.now() - window.__APP_DIAGNOSTICS__.startTime;
+        window.__APP_DIAGNOSTICS__.errors.push({ source: source, error: String(error), elapsed: elapsed });
+        console.error('[DIAGNOSTIC ERROR] ' + source + ':', error);
+      }
+
+      // Global error handlers
+      window.addEventListener('error', function(event) {
+        logError('window.error', event.error || event.message);
+      });
+
+      window.addEventListener('unhandledrejection', function(event) {
+        logError('unhandledrejection', event.reason);
+      });
+
+      logCheckpoint('HTML loaded');
+
       // Cache cleanup: Ensures fresh content on every load
-      // Prevents stale cached content from affecting app behavior
       (function() {
+        logCheckpoint('Cache cleanup started');
+
         // Unregister any service workers
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(registrations) {
             registrations.forEach(function(registration) {
               registration.unregister();
             });
+            logCheckpoint('Service workers unregistered');
           });
         }
 
@@ -50,11 +84,12 @@
             names.forEach(function(name) {
               caches.delete(name);
             });
+            logCheckpoint('Browser caches cleared');
           });
         }
       })();
     </script>
-    
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -16,6 +16,17 @@ import { Sidebar } from './components/layout/Sidebar';
 import { VoiceFloatingButton } from './components/mobile/VoiceFloatingButton';
 import { AuthProvider, JobSiteProvider, useAuth } from './contexts';
 
+// Diagnostic helper
+function logCheckpoint(name: string) {
+  if (window.__APP_DIAGNOSTICS__) {
+    const elapsed = Date.now() - window.__APP_DIAGNOSTICS__.startTime;
+    window.__APP_DIAGNOSTICS__.checkpoints.push({ name, elapsed });
+    console.log(`[DIAGNOSTIC] ${name} (${elapsed}ms)`);
+  }
+}
+
+logCheckpoint('App.tsx loaded');
+
 // ============================================================================
 // Protected Route Wrapper
 // ============================================================================
@@ -151,6 +162,8 @@ function JobSites() {
 // ============================================================================
 
 function App() {
+  logCheckpoint('App component rendering');
+
   return (
     <AuthProvider>
       <BrowserRouter>
