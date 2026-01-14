@@ -24,21 +24,67 @@ import { supabase } from './lib/supabase';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-    });
+    let mounted = true;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const checkAuth = async () => {
+      try {
+        console.log('[ProtectedRoute] Checking auth state...');
+        
+        // Set a timeout to prevent infinite loading
+        timeoutId = setTimeout(() => {
+          if (mounted && isAuthenticated === null) {
+            console.error('[ProtectedRoute] Auth check timeout - assuming not authenticated');
+            setAuthError('Authentication check timed out');
+            setIsAuthenticated(false);
+          }
+        }, 10000); // 10 second timeout
+
+        // Check initial auth state
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('[ProtectedRoute] Auth error:', error);
+          setAuthError(error.message);
+          if (mounted) setIsAuthenticated(false);
+          return;
+        }
+
+        console.log('[ProtectedRoute] Session check complete:', !!session);
+        if (mounted) {
+          setIsAuthenticated(!!session);
+          clearTimeout(timeoutId);
+        }
+      } catch (error) {
+        console.error('[ProtectedRoute] Auth check failed:', error);
+        if (mounted) {
+          setAuthError(error instanceof Error ? error.message : 'Auth check failed');
+          setIsAuthenticated(false);
+        }
+      }
+    };
+
+    checkAuth();
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
+      console.log('[ProtectedRoute] Auth state changed:', _event, !!session);
+      if (mounted) {
+        setIsAuthenticated(!!session);
+        setAuthError(null);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Show loading while checking auth
@@ -47,7 +93,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <div className="flex items-center justify-center h-screen bg-bg-primary">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-text-secondary">Loading...</span>
+          <span className="text-text-secondary">Checking authentication...</span>
+          {authError && (
+            <span className="text-error text-sm mt-2">
+              {authError}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -55,9 +106,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
+    console.log('[ProtectedRoute] Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
+  console.log('[ProtectedRoute] Authenticated, rendering protected content');
   return (
     <JobSiteProvider>
       <div className="flex h-screen bg-bg-primary">
