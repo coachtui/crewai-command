@@ -17,17 +17,51 @@ function Root() {
       window.addEventListener('load', () => {
         navigator.serviceWorker
           .register('/sw.js', {
-            // Check for updates on page load
+            // Check for updates on page load - critical for preventing cache issues
             updateViaCache: 'none',
           })
           .then((reg) => {
             console.log('[SW] Registered:', reg);
             setRegistration(reg);
 
+            // Handle updates - force reload when new version is available
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              console.log('[SW] Update found, installing new version');
+              
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New service worker installed while old one is controlling the page
+                    console.log('[SW] New version available, prompting reload');
+                    
+                    // Send message to new worker to skip waiting
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              }
+            });
+
+            // Listen for controller change (new SW activated)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              console.log('[SW] Controller changed, reloading page');
+              // Force reload to get fresh content with new service worker
+              window.location.reload();
+            });
+
             // Check for updates immediately
             reg.update().catch((err) => {
               console.log('[SW] Initial update check failed:', err);
             });
+
+            // Check for updates every 60 seconds when tab is visible
+            setInterval(() => {
+              if (document.visibilityState === 'visible') {
+                reg.update().catch(() => {
+                  // Silently fail - update check not critical
+                });
+              }
+            }, 60000);
           })
           .catch((error) => {
             console.log('[SW] Registration failed:', error);

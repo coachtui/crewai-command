@@ -1,6 +1,6 @@
 // Service Worker for CrewAI Command PWA
-const CACHE_NAME = 'crewai-v3'; // Increment version to trigger update
-const RUNTIME_CACHE = 'crewai-runtime-v3';
+const CACHE_NAME = 'crewai-v4'; // Increment version to trigger update
+const RUNTIME_CACHE = 'crewai-runtime-v4';
 
 const PRECACHE_ASSETS = [
   '/manifest.json',
@@ -10,6 +10,7 @@ const PRECACHE_ASSETS = [
 
 // Install event - cache essential assets only (NOT index.html)
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing new service worker');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -17,9 +18,9 @@ self.addEventListener('install', (event) => {
         return cache.addAll(PRECACHE_ASSETS);
       })
       .then(() => {
-        console.log('[SW] Install complete, skipping waiting');
-        // Don't auto-activate - wait for user to trigger update
-        // self.skipWaiting() will be called via message from client
+        console.log('[SW] Install complete');
+        // Skip waiting immediately to activate new version ASAP
+        return self.skipWaiting();
       })
   );
 });
@@ -161,7 +162,19 @@ self.addEventListener('fetch', (event) => {
 // Handle messages from client
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
-    console.log('[SW] Received SKIP_WAITING message');
+    console.log('[SW] Received SKIP_WAITING message, activating new version');
     self.skipWaiting();
+  }
+  
+  // Handle manual cache clear request
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    console.log('[SW] Clearing all caches');
+    event.waitUntil(
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => caches.delete(cacheName))
+        );
+      })
+    );
   }
 });
