@@ -318,15 +318,12 @@ export function useCanManageSite(): boolean {
 // Helper hook to check if job site selector should be shown
 export function useShouldShowJobSiteSelector(): boolean {
   const { user } = useAuth();
-  const { availableJobSites, isAdmin } = useJobSite();
-  
-  // Don't show for admins (they see company-wide dashboard)
-  if (isAdmin) return false;
-  
+  const { availableJobSites } = useJobSite();
+
   // Don't show for workers (they don't switch sites manually)
   if (user?.base_role === 'worker' || user?.role === 'viewer') return false;
-  
-  // Show only if user has multiple job sites
+
+  // Show if user has multiple job sites (works for admins and non-admins)
   return availableJobSites.length > 1;
 }
 
