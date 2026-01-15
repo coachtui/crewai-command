@@ -5,21 +5,23 @@
 
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  Calendar, 
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  Calendar,
   CheckSquare,
   Clock,
   LogOut,
   Menu,
   X,
-  Building2
+  Building2,
+  CircleUser
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
 import { JobSiteSelector, JobSiteSelectorMobile } from '../navigation/JobSiteSelector';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface SidebarProps {
@@ -29,6 +31,7 @@ interface SidebarProps {
 export function Sidebar({ pendingCount = 0 }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -217,8 +220,29 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
           })}
         </nav>
 
-        {/* User menu */}
-        <div className="p-4 border-t border-border">
+        {/* User Profile and Logout */}
+        <div className="p-4 border-t border-border space-y-3">
+          {/* User Profile */}
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            {user?.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.name || 'User'}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                <CircleUser size={20} className="text-white" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-text-primary truncate">
+                {user?.name || 'User'}
+              </p>
+            </div>
+          </div>
+
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
             onTouchStart={(e) => e.stopPropagation()}
