@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
-import { useJobSite } from '../../contexts';
+import { useAuth, useJobSite } from '../../contexts';
 import type { Task, Assignment, Holiday } from '../../types';
 import { 
   format, 
@@ -21,6 +21,7 @@ import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 type ViewMode = 'calendar' | 'gantt';
 
 export function Calendar() {
+  const { user } = useAuth();
   const { currentJobSite } = useJobSite();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -31,10 +32,10 @@ export function Calendar() {
   const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   useEffect(() => {
-    if (currentJobSite) {
+    if (currentJobSite && user?.org_id) {
       fetchData();
     }
-  }, [currentJobSite?.id]);
+  }, [currentJobSite?.id, user?.org_id]);
 
   // Enable real-time subscriptions
   useRealtimeSubscriptions([
@@ -43,7 +44,7 @@ export function Calendar() {
   ]);
 
   const fetchData = async () => {
-    if (!currentJobSite) {
+    if (!currentJobSite || !user?.org_id) {
       setTasks([]);
       setAssignments([]);
       setLoading(false);
@@ -52,9 +53,9 @@ export function Calendar() {
 
     try {
       const [tasksData, assignmentsData, holidaysData] = await Promise.all([
-        supabase.from('tasks').select('*').eq('job_site_id', currentJobSite.id).order('start_date'),
-        supabase.from('assignments').select(`*, worker:workers(*), task:tasks!inner(job_site_id)`).eq('task.job_site_id', currentJobSite.id),
-        supabase.from('holidays').select('*').eq('year', 2026).order('date'),
+        supabase.from('tasks').select('*').eq('organization_id', user.org_id).eq('job_site_id', currentJobSite.id).order('start_date'),
+        supabase.from('assignments').select(`*, worker:workers(*), task:tasks!inner(job_site_id, organization_id)`).eq('organization_id', user.org_id).eq('task.organization_id', user.org_id).eq('task.job_site_id', currentJobSite.id),
+        supabase.from('holidays').select('*').eq('organization_id', user.org_id).eq('year', 2026).order('date'),
       ]);
 
       if (tasksData.error) throw tasksData.error;

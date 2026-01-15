@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
-import { useJobSite } from '../../contexts';
+import { useAuth, useJobSite } from '../../contexts';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -21,22 +21,23 @@ interface ActivityLog {
 }
 
 export function Activities() {
+  const { user } = useAuth();
   const { currentJobSite } = useJobSite();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'acknowledged'>('pending');
 
   useEffect(() => {
-    if (currentJobSite) {
+    if (currentJobSite && user?.org_id) {
       fetchActivities();
     }
-  }, [currentJobSite?.id]);
+  }, [currentJobSite?.id, user?.org_id]);
 
   // Real-time updates
   useRealtimeSubscription('assignments', () => fetchActivities());
 
   const fetchActivities = async () => {
-    if (!currentJobSite) {
+    if (!currentJobSite || !user?.org_id) {
       setActivities([]);
       setLoading(false);
       return;
@@ -51,9 +52,11 @@ export function Activities() {
         .from('assignments')
         .select(`
           *,
-          task:tasks!inner(name, job_site_id),
+          task:tasks!inner(name, job_site_id, organization_id),
           worker:workers(name)
         `)
+        .eq('organization_id', user.org_id)
+        .eq('task.organization_id', user.org_id)
         .eq('task.job_site_id', currentJobSite.id)
         .gte('created_at', sevenDaysAgo.toISOString())
         .order('created_at', { ascending: false });

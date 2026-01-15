@@ -21,16 +21,16 @@ export function Workers() {
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
 
   useEffect(() => {
-    if (currentJobSite) {
+    if (currentJobSite && user?.org_id) {
       fetchWorkers();
     }
-  }, [currentJobSite?.id]);
+  }, [currentJobSite?.id, user?.org_id]);
 
   // Enable real-time subscriptions for workers
   useRealtimeSubscription('workers', useCallback(() => fetchWorkers(), []));
 
   const fetchWorkers = async () => {
-    if (!currentJobSite) {
+    if (!currentJobSite || !user?.org_id) {
       setWorkers([]);
       setLoading(false);
       return;
@@ -40,6 +40,7 @@ export function Workers() {
       const { data, error } = await supabase
         .from('workers')
         .select('*')
+        .eq('organization_id', user.org_id)
         .eq('job_site_id', currentJobSite.id)
         .order('name');
 

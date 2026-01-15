@@ -26,11 +26,11 @@ export function Tasks() {
   const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
 
   useEffect(() => {
-    if (currentJobSite) {
+    if (currentJobSite && user?.org_id) {
       fetchTasks();
       fetchAssignments();
     }
-  }, [currentJobSite?.id]);
+  }, [currentJobSite?.id, user?.org_id]);
 
   // Enable real-time subscriptions for tasks and assignments
   useRealtimeSubscriptions([
@@ -39,7 +39,7 @@ export function Tasks() {
   ]);
 
   const fetchTasks = async () => {
-    if (!currentJobSite) {
+    if (!currentJobSite || !user?.org_id) {
       setTasks([]);
       setLoading(false);
       return;
@@ -49,6 +49,7 @@ export function Tasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
+        .eq('organization_id', user.org_id)
         .eq('job_site_id', currentJobSite.id)
         .order('start_date');
 
@@ -63,7 +64,7 @@ export function Tasks() {
   };
 
   const fetchAssignments = async () => {
-    if (!currentJobSite) {
+    if (!currentJobSite || !user?.org_id) {
       setAssignments([]);
       return;
     }
@@ -75,8 +76,10 @@ export function Tasks() {
         .select(`
           *,
           worker:workers(*),
-          task:tasks!inner(job_site_id)
+          task:tasks!inner(job_site_id, organization_id)
         `)
+        .eq('organization_id', user.org_id)
+        .eq('task.organization_id', user.org_id)
         .eq('task.job_site_id', currentJobSite.id);
 
       if (error) throw error;
