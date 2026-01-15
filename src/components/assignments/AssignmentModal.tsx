@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { Users, Plus, X } from 'lucide-react';
 import type { Task, Worker, Assignment } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { useAuth, useJobSite } from '../../contexts';
 import { toast } from 'sonner';
 import { getDatesInRange } from '../../lib/utils';
 
@@ -16,24 +17,26 @@ interface AssignmentModalProps {
 }
 
 export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentModalProps) {
+  const { user } = useAuth();
+  const { currentJobSite } = useJobSite();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [showWorkerPicker, setShowWorkerPicker] = useState<'operator' | 'laborer' | null>(null);
 
   useEffect(() => {
-    if (task && isOpen) {
+    if (task && isOpen && currentJobSite) {
       fetchData();
     }
-  }, [task, isOpen]);
+  }, [task, isOpen, currentJobSite?.id]);
 
   const fetchData = async () => {
-    if (!task) return;
-    
+    if (!task || !currentJobSite) return;
+
     setLoading(true);
     try {
       const [workersData, assignmentsData] = await Promise.all([
-        supabase.from('workers').select('*').eq('status', 'active').order('name'),
+        supabase.from('workers').select('*').eq('job_site_id', currentJobSite.id).eq('status', 'active').order('name'),
         supabase.from('assignments').select(`*, worker:workers(*)`).eq('task_id', task.id),
       ]);
 
@@ -53,6 +56,12 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
   const handleAssignWorker = async (workerId: string) => {
     if (!task) return;
 
+    // Validate user has org_id
+    if (!user?.org_id) {
+      toast.error('Unable to determine organization');
+      return;
+    }
+
     // Can't assign workers without dates
     if (!task.start_date || !task.end_date) {
       toast.error('Please set task dates before assigning workers');
@@ -62,7 +71,7 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
     try {
       // Get all dates in task range
       const dates = getDatesInRange(task.start_date, task.end_date);
-      
+
       // Check for conflicts
       const { data: existingAssignments, error: checkError } = await supabase
         .from('assignments')
@@ -83,7 +92,7 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
         worker_id: workerId,
         assigned_date: date,
         status: 'assigned',
-        org_id: '550e8400-e29b-41d4-a716-446655440000'
+        org_id: user.org_id
       }));
 
       const { error } = await supabase

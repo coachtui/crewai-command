@@ -40,7 +40,7 @@ WHERE id = auth.uid();
 SELECT
   id,
   email,
-  full_name,
+  name,
   org_id,
   organization_id,
   CASE

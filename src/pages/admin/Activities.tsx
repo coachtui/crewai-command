@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
+import { useJobSite } from '../../contexts';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -20,20 +21,29 @@ interface ActivityLog {
 }
 
 export function Activities() {
+  const { currentJobSite } = useJobSite();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'acknowledged'>('pending');
 
   useEffect(() => {
-    fetchActivities();
-  }, []);
+    if (currentJobSite) {
+      fetchActivities();
+    }
+  }, [currentJobSite?.id]);
 
   // Real-time updates
   useRealtimeSubscription('assignments', () => fetchActivities());
 
   const fetchActivities = async () => {
+    if (!currentJobSite) {
+      setActivities([]);
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Get recent assignment changes (last 7 days)
+      // Get recent assignment changes (last 7 days) for current job site
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -41,9 +51,10 @@ export function Activities() {
         .from('assignments')
         .select(`
           *,
-          task:tasks(name),
+          task:tasks!inner(name, job_site_id),
           worker:workers(name)
         `)
+        .eq('task.job_site_id', currentJobSite.id)
         .gte('created_at', sevenDaysAgo.toISOString())
         .order('created_at', { ascending: false });
 
@@ -52,7 +63,7 @@ export function Activities() {
       // Transform to activity logs
       const logs: ActivityLog[] = (data || []).map(assignment => ({
         id: assignment.id,
-        type: assignment.status === 'reassigned' ? 'reassignment' : 
+        type: assignment.status === 'reassigned' ? 'reassignment' :
               assignment.status === 'assigned' ? 'assignment' : 'removal',
         worker_name: assignment.worker?.name || 'Unknown Worker',
         task_name: assignment.task?.name || 'Unknown Task',

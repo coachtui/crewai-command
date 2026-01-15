@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
+import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskForm } from '../../components/tasks/TaskForm';
@@ -12,6 +13,8 @@ import { toast } from 'sonner';
 import { format, addWeeks, startOfWeek, endOfWeek } from 'date-fns';
 
 export function Tasks() {
+  const { user } = useAuth();
+  const { currentJobSite } = useJobSite();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [drafts, setDrafts] = useState<TaskDraft[]>([]);
@@ -23,9 +26,11 @@ export function Tasks() {
   const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
 
   useEffect(() => {
-    fetchTasks();
-    fetchAssignments();
-  }, []);
+    if (currentJobSite) {
+      fetchTasks();
+      fetchAssignments();
+    }
+  }, [currentJobSite?.id]);
 
   // Enable real-time subscriptions for tasks and assignments
   useRealtimeSubscriptions([
@@ -34,10 +39,17 @@ export function Tasks() {
   ]);
 
   const fetchTasks = async () => {
+    if (!currentJobSite) {
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('tasks')
         .select('*')
+        .eq('job_site_id', currentJobSite.id)
         .order('start_date');
 
       if (error) throw error;
@@ -51,13 +63,21 @@ export function Tasks() {
   };
 
   const fetchAssignments = async () => {
+    if (!currentJobSite) {
+      setAssignments([]);
+      return;
+    }
+
     try {
+      // Fetch assignments for tasks in the current job site
       const { data, error } = await supabase
         .from('assignments')
         .select(`
           *,
-          worker:workers(*)
-        `);
+          worker:workers(*),
+          task:tasks!inner(job_site_id)
+        `)
+        .eq('task.job_site_id', currentJobSite.id);
 
       if (error) throw error;
       setAssignments(data || []);
@@ -67,10 +87,16 @@ export function Tasks() {
   };
 
   const fetchDrafts = async () => {
+    if (!currentJobSite) {
+      setDrafts([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('task_drafts')
         .select('*')
+        .eq('job_site_id', currentJobSite.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -82,10 +108,17 @@ export function Tasks() {
   };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Validate user, org_id, and current job site
+    if (!user?.id) {
       toast.error('User not authenticated');
+      return;
+    }
+    if (!user.org_id) {
+      toast.error('Unable to determine organization');
+      return;
+    }
+    if (!currentJobSite) {
+      toast.error('No job site selected');
       return;
     }
 
@@ -104,12 +137,13 @@ export function Tasks() {
         if (error) throw error;
         toast.success('Task updated successfully');
       } else {
-        // Create new task with required fields
+        // Create new task with user's org_id and current job_site_id
         const { error } = await supabase
           .from('tasks')
           .insert([{
             ...taskData,
-            org_id: '550e8400-e29b-41d4-a716-446655440000',
+            organization_id: user.org_id,
+            job_site_id: currentJobSite.id,
             created_by: user.id
           }]);
 
@@ -127,10 +161,13 @@ export function Tasks() {
   };
 
   const handleSaveDraft = async (draftData: Partial<TaskDraft>) => {
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    // Validate user, org_id, and current job site
+    if (!user?.id || !user?.org_id) {
       toast.error('User not authenticated');
+      return;
+    }
+    if (!currentJobSite) {
+      toast.error('No job site selected');
       return;
     }
 
@@ -140,7 +177,8 @@ export function Tasks() {
         ...draftData,
         start_date: draftData.start_date || null,
         end_date: draftData.end_date || null,
-        org_id: '550e8400-e29b-41d4-a716-446655440000',
+        organization_id: user.org_id,
+        job_site_id: currentJobSite.id,
         created_by: user.id
       };
 
@@ -151,7 +189,7 @@ export function Tasks() {
 
       if (error) throw error;
       toast.success('Draft saved successfully');
-      
+
       setIsModalOpen(false);
     } catch (error) {
       toast.error('Failed to save draft');

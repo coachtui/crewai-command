@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useJobSite } from '../../contexts';
 import type { Worker, DailyHours as DailyHoursType, Task, User } from '../../types';
 import { canEdit, isViewer } from '../../lib/roleHelpers';
 import { Card } from '../../components/ui/Card';
@@ -17,6 +18,8 @@ interface WorkerDayStatus {
 }
 
 export function DailyHours() {
+  const { currentJobSite } = useJobSite();
+
   // Use local date instead of UTC to avoid timezone issues
   const getLocalDateString = (date: Date = new Date()) => {
     const year = date.getFullYear();
@@ -55,8 +58,10 @@ export function DailyHours() {
   const [showWeeklyChart, setShowWeeklyChart] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [selectedDate]);
+    if (currentJobSite) {
+      loadData();
+    }
+  }, [selectedDate, currentJobSite?.id]);
 
   useEffect(() => {
     // Get current user ID and role
@@ -78,6 +83,13 @@ export function DailyHours() {
   }, []);
 
   const loadData = async () => {
+    if (!currentJobSite) {
+      setWorkers([]);
+      setTasks([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -92,30 +104,34 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Load workers (use organization_id as column was renamed)
+      // Load workers filtered by current job site
       const { data: workersData, error: workersError } = await supabase
         .from('workers')
         .select('*')
         .eq('organization_id', userData.org_id)
+        .eq('job_site_id', currentJobSite.id)
         .eq('status', 'active')
         .order('name');
 
       if (workersError) throw workersError;
 
-      // Load daily hours for selected date
+      // Load daily hours for selected date (filtered via worker join)
+      const workerIds = (workersData || []).map(w => w.id);
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*)')
         .eq('organization_id', userData.org_id)
-        .eq('log_date', selectedDate);
+        .eq('log_date', selectedDate)
+        .in('worker_id', workerIds.length > 0 ? workerIds : ['00000000-0000-0000-0000-000000000000']);
 
       if (dailyHoursError) throw dailyHoursError;
 
-      // Load tasks (use organization_id as column was renamed)
+      // Load tasks filtered by current job site
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('organization_id', userData.org_id)
+        .eq('job_site_id', currentJobSite.id)
         .in('status', ['active', 'planned'])
         .order('name');
 
@@ -138,6 +154,11 @@ export function DailyHours() {
   };
 
   const loadWeeklyData = async () => {
+    if (!currentJobSite) {
+      toast.error('No job site selected');
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -157,11 +178,15 @@ export function DailyHours() {
       const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
       const endOfWeek = new Date(year, month - 1, day - dayOfWeek + 6);
 
-      // Load all daily hours for the week
+      // Get worker IDs for current job site
+      const workerIds = workers.map(w => w.worker.id);
+
+      // Load all daily hours for the week (filtered by workers in current job site)
       const { data: weeklyHours, error } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*)')
         .eq('organization_id', userData.org_id)
+        .in('worker_id', workerIds.length > 0 ? workerIds : ['00000000-0000-0000-0000-000000000000'])
         .gte('log_date', getLocalDateString(startOfWeek))
         .lte('log_date', getLocalDateString(endOfWeek));
 

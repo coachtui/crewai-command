@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
+import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { WorkerCard } from '../../components/workers/WorkerCard';
 import { WorkerForm } from '../../components/workers/WorkerForm';
@@ -10,6 +11,8 @@ import type { Worker } from '../../types';
 import { toast } from 'sonner';
 
 export function Workers() {
+  const { user } = useAuth();
+  const { currentJobSite } = useJobSite();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,17 +21,26 @@ export function Workers() {
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
 
   useEffect(() => {
-    fetchWorkers();
-  }, []);
+    if (currentJobSite) {
+      fetchWorkers();
+    }
+  }, [currentJobSite?.id]);
 
   // Enable real-time subscriptions for workers
   useRealtimeSubscription('workers', useCallback(() => fetchWorkers(), []));
 
   const fetchWorkers = async () => {
+    if (!currentJobSite) {
+      setWorkers([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('workers')
         .select('*')
+        .eq('job_site_id', currentJobSite.id)
         .order('name');
 
       if (error) throw error;
@@ -42,6 +54,16 @@ export function Workers() {
   };
 
   const handleSaveWorker = async (workerData: Partial<Worker>) => {
+    // Validate user has org_id and current job site
+    if (!user?.org_id) {
+      toast.error('Unable to determine organization');
+      return;
+    }
+    if (!currentJobSite) {
+      toast.error('No job site selected');
+      return;
+    }
+
     try {
       if (editingWorker) {
         // Update existing worker
@@ -53,12 +75,13 @@ export function Workers() {
         if (error) throw error;
         toast.success('Worker updated successfully');
       } else {
-        // Create new worker with default org_id
+        // Create new worker with user's org_id and current job_site_id
         const { error } = await supabase
           .from('workers')
           .insert([{
             ...workerData,
-            org_id: '550e8400-e29b-41d4-a716-446655440000'
+            organization_id: user.org_id,
+            job_site_id: currentJobSite.id
           }]);
 
         if (error) throw error;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
+import { useJobSite } from '../../contexts';
 import type { Task, Assignment, Holiday } from '../../types';
 import { 
   format, 
@@ -20,6 +21,7 @@ import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 type ViewMode = 'calendar' | 'gantt';
 
 export function Calendar() {
+  const { currentJobSite } = useJobSite();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -29,8 +31,10 @@ export function Calendar() {
   const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (currentJobSite) {
+      fetchData();
+    }
+  }, [currentJobSite?.id]);
 
   // Enable real-time subscriptions
   useRealtimeSubscriptions([
@@ -39,10 +43,17 @@ export function Calendar() {
   ]);
 
   const fetchData = async () => {
+    if (!currentJobSite) {
+      setTasks([]);
+      setAssignments([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const [tasksData, assignmentsData, holidaysData] = await Promise.all([
-        supabase.from('tasks').select('*').order('start_date'),
-        supabase.from('assignments').select(`*, worker:workers(*)`),
+        supabase.from('tasks').select('*').eq('job_site_id', currentJobSite.id).order('start_date'),
+        supabase.from('assignments').select(`*, worker:workers(*), task:tasks!inner(job_site_id)`).eq('task.job_site_id', currentJobSite.id),
         supabase.from('holidays').select('*').eq('year', 2026).order('date'),
       ]);
 
