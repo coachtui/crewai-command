@@ -11,6 +11,13 @@
   print-color-adjust: exact !important;
 }
 
+/* Override all dark backgrounds with white */
+.pdf-export-mode > div,
+.pdf-export-mode .gantt-header,
+.pdf-export-mode > div > div {
+  background-color: #ffffff !important;
+}
+
 /* Set base colors but preserve backgrounds on specific elements */
 .pdf-export-mode * {
   color: #000000 !important;
@@ -21,22 +28,43 @@
   background-color: #f9fafb !important;
 }
 
-/* Keep weekend, holiday, and today backgrounds visible */
-.pdf-export-mode [class*="bg-purple"] {
-  background-color: #a855f7 !important;
+/* Override all row backgrounds to white or alternating light gray */
+.pdf-export-mode > div > div > div {
+  background-color: #ffffff !important;
+}
+
+.pdf-export-mode > div > div > div:nth-child(even) {
+  background-color: #f9fafb !important;
+}
+
+/* Override all cell/day backgrounds - but allow specific markers for weekends/holidays/today */
+.pdf-export-mode > div > div > div > div > div {
+  /* Don't force transparent - let specific classes apply */
+}
+
+/* Keep weekend, holiday, and today backgrounds visible but lightened */
+/* Only apply to timeline cells, not task bars or other elements */
+
+/* Purple backgrounds (holidays) - light purple */
+.pdf-export-mode .gantt-header [class*="bg-purple"],
+.pdf-export-mode > div > div > div > div > div[class*="bg-purple"]:not(.task-bar-segment) {
+  background-color: #e9d5ff !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-.pdf-export-mode [class*="bg-gray-8"] {
-  background-color: #1f2937 !important;
+/* Gray backgrounds (weekends) - light gray */
+.pdf-export-mode .gantt-header [class*="bg-gray"],
+.pdf-export-mode > div > div > div > div > div[class*="bg-gray"]:not(.task-bar-segment) {
+  background-color: #e5e7eb !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-.pdf-export-mode [class*="bg-primary/10"],
-.pdf-export-mode [class*="bg-primary/20"] {
-  background-color: #dbeafe !important;
+/* Primary backgrounds (today) - light blue */
+.pdf-export-mode .gantt-header [class*="bg-primary"],
+.pdf-export-mode > div > div > div > div > div[class*="bg-primary"]:not(.task-bar-segment) {
+  background-color: #bfdbfe !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
@@ -45,6 +73,32 @@
 .pdf-export-mode .gantt-header {
   position: static !important;
   top: auto !important;
+  background-color: #f3f4f6 !important;
+}
+
+/* Override header cells and date cells with appropriate backgrounds */
+.pdf-export-mode .gantt-header > div > div {
+  background-color: transparent !important;
+}
+
+/* Ensure header text is visible (override the * selector) */
+.pdf-export-mode .gantt-header * {
+  color: #000000 !important;
+}
+
+/* Weekend text in header should be readable */
+.pdf-export-mode .gantt-header [class*="text-gray"] {
+  color: #6b7280 !important;
+}
+
+/* Purple/holiday text colors */
+.pdf-export-mode [class*="text-purple"] {
+  color: #9333ea !important;
+}
+
+/* Ensure weekend "Off" and holiday labels are visible */
+.pdf-export-mode .text-\\[8px\\] {
+  color: #6b7280 !important;
 }
 
 /* CRITICAL: Task bar segments MUST keep their colors in PDF export */
