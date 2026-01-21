@@ -130,31 +130,32 @@ export function isWorkingDayForTask(
   holidays: Holiday[]
 ): boolean {
   const dayOfWeek = date.getDay();
-  
+
   // Check if it's a holiday
   const dateStr = format(date, 'yyyy-MM-dd');
   const isHoliday = holidays.some(h => h.date === dateStr);
-  
-  // If it's a holiday and task doesn't include holidays, it's not a working day
-  if (isHoliday && !task.include_holidays) {
-    return false;
+
+  // If it's a holiday, only work if task explicitly includes holidays
+  // Default behavior: holidays are NOT working days
+  if (isHoliday) {
+    return task.include_holidays === true;
   }
-  
-  // Monday-Friday are always working days (unless it's a holiday and include_holidays is false)
+
+  // Monday-Friday are working days (if not a holiday)
   if (dayOfWeek >= 1 && dayOfWeek <= 5) {
     return true;
   }
-  
+
   // Saturday: only if task includes Saturday
   if (dayOfWeek === 6) {
     return task.include_saturday || false;
   }
-  
+
   // Sunday: only if task includes Sunday
   if (dayOfWeek === 0) {
     return task.include_sunday || false;
   }
-  
+
   return false;
 }
 

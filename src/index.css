@@ -11,9 +11,32 @@
   print-color-adjust: exact !important;
 }
 
+/* Set base colors but preserve backgrounds on specific elements */
 .pdf-export-mode * {
-  background-color: transparent !important;
   color: #000000 !important;
+}
+
+/* Task name columns and rows - white/light backgrounds */
+.pdf-export-mode .task-name-column {
+  background-color: #f9fafb !important;
+}
+
+/* Keep weekend, holiday, and today backgrounds visible */
+.pdf-export-mode [class*="bg-purple"] {
+  background-color: #a855f7 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.pdf-export-mode [class*="bg-gray-8"] {
+  background-color: #1f2937 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.pdf-export-mode [class*="bg-primary/10"],
+.pdf-export-mode [class*="bg-primary/20"] {
+  background-color: #dbeafe !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
@@ -24,17 +47,15 @@
   top: auto !important;
 }
 
-/* CRITICAL: Task bars MUST be blue in PDF export */
-.pdf-export-mode .task-bar {
-  background-color: #2563eb !important;
-  background: #2563eb !important;
+/* CRITICAL: Task bar segments MUST keep their colors in PDF export */
+.pdf-export-mode .task-bar-segment {
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
 /* Keep white text on task bars */
-.pdf-export-mode .task-bar * {
+.pdf-export-mode .task-bar-segment * {
   color: #ffffff !important;
 }
 
@@ -84,7 +105,7 @@
     min-width: 100% !important;
   }
 
-  .gantt-chart-export * {
+  .gantt-chart-export *:not(.task-bar-segment):not(.task-bar-segment *) {
     background-color: transparent !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact !important;
@@ -97,17 +118,15 @@
     top: auto !important;
   }
 
-  /* CRITICAL: Task bars MUST be blue with exact color */
-  .gantt-chart-export .task-bar {
-    background-color: #2563eb !important;
-    background: #2563eb !important;
+  /* CRITICAL: Task bar segments MUST keep their colors with exact color */
+  .gantt-chart-export .task-bar-segment {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
 
   /* White text on task bars */
-  .gantt-chart-export .task-bar * {
+  .gantt-chart-export .task-bar-segment * {
     color: #ffffff !important;
   }
 

@@ -102,28 +102,41 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
   }, [includeSunday]);
 
   const handleExportPDF = async () => {
-    if (!ganttRef.current) return;
+    if (!ganttRef.current || !scrollContainerRef.current) return;
 
     try {
       toast.loading('Generating PDF...');
-      
-      // Temporarily add white background class for PDF capture
+
+      // Store original styles
+      const originalOverflow = scrollContainerRef.current.style.overflow;
+      const originalMaxHeight = scrollContainerRef.current.style.maxHeight;
+
+      // Temporarily expand container to show all content
+      scrollContainerRef.current.style.overflow = 'visible';
+      scrollContainerRef.current.style.maxHeight = 'none';
+
+      // Add white background class for PDF capture
       ganttRef.current.classList.add('pdf-export-mode');
-      
+
+      // Small delay to ensure styles are applied
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(ganttRef.current, {
         scale: 2,
-        backgroundColor: '#ffffff', // WHITE background for PDF
+        backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
         allowTaint: true,
-        windowWidth: ganttRef.current.scrollWidth,
-        windowHeight: ganttRef.current.scrollHeight,
+        width: ganttRef.current.scrollWidth,
+        height: ganttRef.current.scrollHeight,
       });
 
-      // Remove temporary class
+      // Restore original styles
       ganttRef.current.classList.remove('pdf-export-mode');
+      scrollContainerRef.current.style.overflow = originalOverflow;
+      scrollContainerRef.current.style.maxHeight = originalMaxHeight;
 
-      // ALWAYS landscape orientation (non-negotiable)
+      // ALWAYS landscape orientation
       const pdf = new jsPDF('landscape', 'mm', 'a4');
       const imgData = canvas.toDataURL('image/png');
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -144,7 +157,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
       }
 
       pdf.save(`gantt-chart-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      
+
       toast.dismiss();
       toast.success('PDF exported successfully!');
     } catch (error) {
@@ -154,8 +167,32 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!ganttRef.current || !scrollContainerRef.current) return;
+
+    try {
+      // Store original styles
+      const originalOverflow = scrollContainerRef.current.style.overflow;
+      const originalMaxHeight = scrollContainerRef.current.style.maxHeight;
+
+      // Temporarily expand container to show all content for printing
+      scrollContainerRef.current.style.overflow = 'visible';
+      scrollContainerRef.current.style.maxHeight = 'none';
+
+      // Small delay to ensure layout is recalculated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Trigger print
+      window.print();
+
+      // Restore original styles after print dialog closes
+      // Note: This happens immediately, but the print dialog stays open
+      scrollContainerRef.current.style.overflow = originalOverflow;
+      scrollContainerRef.current.style.maxHeight = originalMaxHeight;
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print');
+    }
   };
 
   const handleTaskClick = (taskId: string) => {
