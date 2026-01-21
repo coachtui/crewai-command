@@ -273,22 +273,33 @@
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
   }
-  
+
   .btn-primary {
     @apply bg-primary text-white hover:bg-primary/90;
   }
-  
+
   .btn-secondary {
     @apply bg-bg-secondary text-text-primary hover:bg-bg-hover;
   }
-  
+
   .card {
     @apply bg-bg-secondary border border-border rounded-lg p-4;
   }
-  
+
   .input {
     @apply bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary;
   }
+}
+
+/* Make calendar icon on date inputs white for better visibility */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+
+input[type="date"]::-moz-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
 }
 
 /* Mobile safe areas */
