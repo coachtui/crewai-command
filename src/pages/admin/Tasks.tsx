@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, Upload } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskForm } from '../../components/tasks/TaskForm';
+import { TaskCSVUpload } from '../../components/tasks/TaskCSVUpload';
 import { AssignmentModal } from '../../components/assignments/AssignmentModal';
 import { Modal } from '../../components/ui/Modal';
 import type { Task, Assignment, TaskDraft } from '../../types';
@@ -21,6 +22,7 @@ export function Tasks() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDraftsModalOpen, setIsDraftsModalOpen] = useState(false);
+  const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
@@ -252,6 +254,52 @@ export function Tasks() {
     setIsDraftsModalOpen(true);
   };
 
+  const handleCSVImport = async (csvRows: Array<{activityId: string, activityName: string, duration: string, taskName: string}>) => {
+    // Validate user, org_id, and current job site
+    if (!user?.id || !user?.org_id) {
+      toast.error('User not authenticated');
+      throw new Error('User not authenticated');
+    }
+    if (!currentJobSite) {
+      toast.error('No job site selected');
+      throw new Error('No job site selected');
+    }
+
+    try {
+      // Create tasks array from CSV data
+      const tasksToCreate = csvRows.map(row => ({
+        name: row.taskName, // Combined "Activity ID - Activity Name"
+        organization_id: user.org_id,
+        job_site_id: currentJobSite.id,
+        created_by: user.id,
+        required_operators: 0,
+        required_laborers: 0,
+        required_carpenters: 0,
+        required_masons: 0,
+        status: 'planned' as const,
+        notes: `Duration: ${row.duration}`, // Store duration in notes
+        include_saturday: false,
+        include_sunday: false,
+        include_holidays: false,
+      }));
+
+      // Bulk insert tasks
+      const { error } = await supabase
+        .from('tasks')
+        .insert(tasksToCreate);
+
+      if (error) throw error;
+
+      toast.success(`Successfully created ${tasksToCreate.length} task${tasksToCreate.length !== 1 ? 's' : ''}`);
+      fetchTasks();
+      setIsCSVModalOpen(false);
+    } catch (error) {
+      console.error('Failed to import tasks from CSV:', error);
+      toast.error('Failed to import tasks');
+      throw error;
+    }
+  };
+
   // Group tasks by week (next 4 weeks)
   const groupedTasks = () => {
     const weeks = [];
@@ -299,6 +347,13 @@ export function Tasks() {
           >
             <FileText size={20} className="mr-2" />
             Saved Drafts
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setIsCSVModalOpen(true)}
+          >
+            <Upload size={20} className="mr-2" />
+            Upload CSV
           </Button>
           <Button
             onClick={() => {
@@ -462,6 +517,18 @@ export function Tasks() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* CSV Upload Modal */}
+      <Modal
+        isOpen={isCSVModalOpen}
+        onClose={() => setIsCSVModalOpen(false)}
+        title="Upload Tasks from CSV"
+      >
+        <TaskCSVUpload
+          onImport={handleCSVImport}
+          onCancel={() => setIsCSVModalOpen(false)}
+        />
       </Modal>
     </div>
   );

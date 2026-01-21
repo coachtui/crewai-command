@@ -1,0 +1,11 @@
+Activity ID,Activity Name,Duration
+A1000,Excavation and Site Preparation,5 days
+A1010,Foundation Pour,3 days
+A1020,Framing - Ground Floor,7 days
+A1030,Framing - Upper Floors,10 days
+A2000,Electrical Rough-In,4 days
+A2010,Plumbing Installation,6 days
+A2020,HVAC Installation,5 days
+A3000,Drywall Installation,8 days
+A3010,Interior Painting,5 days
+A3020,Flooring Installation,6 days
