@@ -221,8 +221,8 @@ export function UserManagement() {
                     <td className="py-3 px-4 text-text-primary font-medium">{userProfile.name}</td>
                     <td className="py-3 px-4 text-text-secondary">{userProfile.email}</td>
                     <td className="py-3 px-4">
-                      <Badge variant={getRoleColor(userProfile.base_role) as any}>
-                        {getBaseRoleDisplayName(userProfile.base_role)}
+                      <Badge variant={getRoleColor(userProfile.base_role || 'worker') as any}>
+                        {getBaseRoleDisplayName(userProfile.base_role || 'worker')}
                       </Badge>
                     </td>
                     <td className="py-3 px-4">

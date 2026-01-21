@@ -65,7 +65,7 @@ export function WorkerManagement() {
     }
   };
 
-  const handleMoveWorker = async (targetSiteId: string, notes?: string) => {
+  const handleMoveWorker = async (targetSiteId: string, _notes?: string) => {
     if (!movingWorker) return;
 
     try {

@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Track page visibility to prevent unnecessary refetches
-  const isVisible = usePageVisibility();
+  const _isVisible = usePageVisibility();
   const lastProfileFetchRef = useRef<number>(0);
   const PROFILE_FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
