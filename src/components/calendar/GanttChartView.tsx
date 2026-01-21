@@ -411,7 +411,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
                         {format(day, 'EEE')[0]}
                       </div>
                       {holiday && (
-                        <div className="text-[8px] text-purple-400 uppercase tracking-wider mt-0.5 px-1">
+                        <div className="text-[8px] text-purple-400 uppercase tracking-wider mt-0.5 leading-tight">
                           Holiday
                         </div>
                       )}
