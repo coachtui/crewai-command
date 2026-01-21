@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText } from 'lucide-react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
 import type { Worker, DailyHours as DailyHoursType, Task, User } from '../../types';
@@ -15,6 +15,13 @@ import jsPDF from 'jspdf';
 interface WorkerDayStatus {
   worker: Worker;
   dailyHours?: DailyHoursType;
+}
+
+interface EditedHours {
+  workerId: string;
+  hours: string;
+  taskId?: string;
+  notes?: string;
 }
 
 export function DailyHours() {
@@ -49,10 +56,13 @@ export function DailyHours() {
   const [workTaskId, setWorkTaskId] = useState('');
   const [hoursWorked, setHoursWorked] = useState('8');
 
+  // Inline editing states
+  const [editedHours, setEditedHours] = useState<Map<string, EditedHours>>(new Map());
+
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
     worker: Worker;
-    hours: { date: string; hours: number }[];
+    hours: { date: string; hours: number; notes?: string; status?: string }[];
     totalHours: number;
   }[]>([]);
   const [showWeeklyChart, setShowWeeklyChart] = useState(false);
@@ -193,38 +203,51 @@ export function DailyHours() {
       if (error) throw error;
 
       // Create a map to store hours by worker and date
-      const workerHoursMap = new Map<string, { worker: Worker; hoursByDate: Map<string, number> }>();
-      
+      const workerHoursMap = new Map<string, {
+        worker: Worker;
+        hoursByDate: Map<string, { hours: number; notes?: string; status?: string }>
+      }>();
+
       workers.forEach(({ worker }) => {
-        workerHoursMap.set(worker.id, { 
-          worker, 
+        workerHoursMap.set(worker.id, {
+          worker,
           hoursByDate: new Map()
         });
       });
 
       (weeklyHours || []).forEach((dh) => {
-        if (dh.worker && dh.status === 'worked') {
+        if (dh.worker) {
           const workerData = workerHoursMap.get(dh.worker_id);
           if (workerData) {
-            workerData.hoursByDate.set(dh.log_date, dh.hours_worked || 0);
+            workerData.hoursByDate.set(dh.log_date, {
+              hours: dh.status === 'worked' ? (dh.hours_worked || 0) : 0,
+              notes: dh.notes,
+              status: dh.status
+            });
           }
         }
       });
 
       // Convert to array format with all 7 days
       const weeklyDataArray = Array.from(workerHoursMap.values()).map((data) => {
-        const hours: { date: string; hours: number }[] = [];
+        const hours: { date: string; hours: number; notes?: string; status?: string }[] = [];
         let totalHours = 0;
-        
+
         // Generate all 7 days of the week
         for (let i = 0; i < 7; i++) {
           const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
           const dateStr = getLocalDateString(currentDate);
-          const hoursForDay = data.hoursByDate.get(dateStr) || 0;
-          hours.push({ date: dateStr, hours: hoursForDay });
+          const dayData = data.hoursByDate.get(dateStr);
+          const hoursForDay = dayData?.hours || 0;
+          hours.push({
+            date: dateStr,
+            hours: hoursForDay,
+            notes: dayData?.notes,
+            status: dayData?.status
+          });
           totalHours += hoursForDay;
         }
-        
+
         return {
           worker: data.worker,
           hours,
@@ -392,6 +415,62 @@ export function DailyHours() {
       loadData();
     } catch (error) {
       console.error('Error saving hours:', error);
+      toast.error('Failed to save hours');
+    }
+  };
+
+  const handleInlineHoursChange = (workerId: string, hours: string) => {
+    const newEditedHours = new Map(editedHours);
+    const existing = newEditedHours.get(workerId) || { workerId, hours: '8' };
+    newEditedHours.set(workerId, { ...existing, hours });
+    setEditedHours(newEditedHours);
+  };
+
+  const saveAllHours = async () => {
+    if (editedHours.size === 0) {
+      toast.info('No hours to save');
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!userData) return;
+
+      // Prepare all records for batch upsert
+      const records = Array.from(editedHours.values()).map((edit) => ({
+        worker_id: edit.workerId,
+        organization_id: userData.org_id,
+        log_date: selectedDate,
+        status: 'worked' as const,
+        hours_worked: parseFloat(edit.hours) || 0,
+        task_id: edit.taskId || null,
+        notes: edit.notes || null,
+        transferred_to_task_id: null,
+        logged_by: userId,
+      }));
+
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
+        .from('daily_hours')
+        .upsert(records, {
+          onConflict: 'worker_id,log_date,organization_id'
+        });
+
+      if (error) throw error;
+
+      toast.success(`Hours saved for ${editedHours.size} worker(s)`);
+      setEditedHours(new Map());
+      loadData();
+    } catch (error) {
+      console.error('Error saving all hours:', error);
       toast.error('Failed to save hours');
     }
   };
@@ -605,9 +684,17 @@ export function DailyHours() {
             <RefreshCw size={16} />
           </Button>
         </div>
-        <Button onClick={loadWeeklyData} variant="secondary">
-          View Weekly Summary
-        </Button>
+        <div className="flex items-center gap-2">
+          {canEdit(currentUser) && editedHours.size > 0 && (
+            <Button onClick={saveAllHours} variant="primary">
+              <Check size={16} className="mr-2" />
+              Accept All ({editedHours.size})
+            </Button>
+          )}
+          <Button onClick={loadWeeklyData} variant="secondary">
+            View Weekly Summary
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-6">
@@ -624,59 +711,78 @@ export function DailyHours() {
               </tr>
             </thead>
             <tbody>
-              {workers.map(({ worker, dailyHours }) => (
-                <tr key={worker.id} className="border-b border-border hover:bg-bg-hover">
-                  <td className="p-4 font-medium">{worker.name}</td>
-                  <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
-                  <td className="p-4">{getStatusBadge(dailyHours)}</td>
-                  <td className="p-4">
-                    {dailyHours?.status === 'worked' || dailyHours?.status === 'transferred'
-                      ? `${dailyHours.hours_worked || 0}h`
-                      : '-'}
-                  </td>
-                  <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
-                    {dailyHours?.status === 'transferred'
-                      ? dailyHours.transferred_to_task
-                        ? `→ ${dailyHours.transferred_to_task.name}`
-                        : `→ ${dailyHours.notes || 'Transferred to another project'}`
-                      : dailyHours?.task
-                      ? dailyHours.task.name
-                      : dailyHours?.notes || '-'}
-                  </td>
-                  <td className="p-4">
-                    {canEdit(currentUser) ? (
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleLogHours(worker)}
-                          title="Log hours"
-                        >
-                          <Clock size={16} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleMarkOff(worker)}
-                          title="Mark as off"
-                        >
-                          <UserX size={16} />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleMarkTransferred(worker)}
-                          title="Mark as transferred"
-                        >
-                          <ArrowRightLeft size={16} />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="text-text-secondary text-sm text-right">View only</div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {workers.map(({ worker, dailyHours }) => {
+                const edited = editedHours.get(worker.id);
+                const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
+                const isEdited = edited !== undefined;
+
+                return (
+                  <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
+                    <td className="p-4 font-medium">{worker.name}</td>
+                    <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
+                    <td className="p-4">{getStatusBadge(dailyHours)}</td>
+                    <td className="p-4">
+                      {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="24"
+                          value={currentHours}
+                          onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
+                          className="w-20"
+                          placeholder="8"
+                        />
+                      ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
+                        `${dailyHours.hours_worked || 0}h`
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
+                      {dailyHours?.status === 'transferred'
+                        ? dailyHours.transferred_to_task
+                          ? `→ ${dailyHours.transferred_to_task.name}`
+                          : `→ ${dailyHours.notes || 'Transferred to another project'}`
+                        : dailyHours?.task
+                        ? dailyHours.task.name
+                        : dailyHours?.notes || '-'}
+                    </td>
+                    <td className="p-4">
+                      {canEdit(currentUser) ? (
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleLogHours(worker)}
+                            title="Log hours with details"
+                          >
+                            <Clock size={16} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleMarkOff(worker)}
+                            title="Mark as off"
+                          >
+                            <UserX size={16} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleMarkTransferred(worker)}
+                            title="Mark as transferred"
+                          >
+                            <ArrowRightLeft size={16} />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="text-text-secondary text-sm text-right">View only</div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -868,8 +974,27 @@ export function DailyHours() {
                   <tr key={worker.id} className="border-b border-border">
                     <td className="p-2 font-medium sticky left-0 bg-bg-secondary">{worker.name}</td>
                     {hours.map((day, index) => (
-                      <td key={index} className="p-2 text-center">
-                        {day.hours > 0 ? day.hours.toFixed(1) : '-'}
+                      <td key={index} className="p-2 text-center align-top">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="font-medium">
+                            {day.hours > 0 ? day.hours.toFixed(1) : '-'}
+                          </div>
+                          {day.notes && (
+                            <div className="text-xs text-text-secondary max-w-[100px] truncate" title={day.notes}>
+                              {day.notes}
+                            </div>
+                          )}
+                          {day.status === 'off' && (
+                            <div className="text-xs px-1 rounded bg-red-500/20 text-red-600 dark:text-red-400">
+                              Off
+                            </div>
+                          )}
+                          {day.status === 'transferred' && (
+                            <div className="text-xs px-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                              Transferred
+                            </div>
+                          )}
+                        </div>
                       </td>
                     ))}
                     <td className="p-2 text-right font-semibold">{totalHours.toFixed(1)}h</td>
