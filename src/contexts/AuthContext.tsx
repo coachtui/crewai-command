@@ -6,7 +6,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile, Organization, JobSiteAssignment, AuthContextType } from '../types';
-import { usePageVisibility } from '../lib/hooks/usePageVisibility';
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,8 +40,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Track page visibility to prevent unnecessary refetches
-  const _isVisible = usePageVisibility();
+  // Track last profile fetch to prevent excessive API calls
   const lastProfileFetchRef = useRef<number>(0);
   const PROFILE_FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
