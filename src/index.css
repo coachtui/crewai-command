@@ -45,10 +45,10 @@
 /* Keep weekend, holiday, and today backgrounds visible but lightened */
 /* Only apply to timeline cells, not task bars or other elements */
 
-/* Purple backgrounds (holidays) - light purple */
+/* Purple backgrounds (holidays) - vibrant purple for visibility */
 .pdf-export-mode .gantt-header [class*="bg-purple"],
 .pdf-export-mode > div > div > div > div > div[class*="bg-purple"]:not(.task-bar-segment) {
-  background-color: #e9d5ff !important;
+  background-color: #c084fc !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
@@ -91,14 +91,26 @@
   color: #6b7280 !important;
 }
 
-/* Purple/holiday text colors */
+/* Purple/holiday text colors - darker for better visibility */
 .pdf-export-mode [class*="text-purple"] {
-  color: #9333ea !important;
+  color: #581c87 !important;
 }
 
 /* Ensure weekend "Off" and holiday labels are visible */
 .pdf-export-mode .text-\\[8px\\] {
-  color: #6b7280 !important;
+  color: #000000 !important;
+  font-weight: 600 !important;
+}
+
+/* Make "Holiday" label stand out on purple background */
+.pdf-export-mode .gantt-header [class*="bg-purple"] .text-\\[8px\\] {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.pdf-export-mode > div > div > div > div > div[class*="bg-purple"] .text-\\[8px\\] {
+  color: #ffffff !important;
+  font-weight: 700 !important;
 }
 
 /* CRITICAL: Task bar segments MUST keep their colors in PDF export */

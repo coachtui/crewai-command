@@ -395,7 +395,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
                         today
                           ? 'bg-primary/20 font-bold'
                           : holiday
-                          ? 'bg-purple-900/30'
+                          ? 'bg-purple-600/40'
                           : weekend
                           ? 'bg-gray-800/50'
                           : ''
@@ -583,7 +583,7 @@ function GanttRow({ task, days, dayWidth, isEven, onTaskClick, holidays }: Gantt
                 today
                   ? 'bg-primary/10'
                   : holiday
-                  ? 'bg-purple-900/20'
+                  ? 'bg-purple-600/30'
                   : weekend
                   ? 'bg-gray-800/50'
                   : ''
