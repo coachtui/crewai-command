@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit2 } from 'lucide-react';
+import { Plus, Search, Edit2, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
 import { UserForm } from './UserForm';
-import { fetchUsers, inviteUser, updateUserBaseRole, assignUserToJobSite, removeJobSiteAssignment } from '../../lib/api/users';
+import { fetchUsers, inviteUser, updateUserBaseRole, assignUserToJobSite, removeJobSiteAssignment, importExistingAuthUsers } from '../../lib/api/users';
 import { fetchJobSites } from '../../lib/api/jobSites';
 import { getBaseRoleDisplayName, getRoleColor } from '../../lib/roleHelpers';
 import type { UserProfile, JobSite } from '../../types';
@@ -18,6 +18,7 @@ export function UserManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [jobSites, setJobSites] = useState<JobSite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -150,6 +151,27 @@ export function UserManagement() {
     setEditingUser(null);
   };
 
+  const handleImportAuthUsers = async () => {
+    if (!user?.org_id) return;
+
+    setImporting(true);
+    try {
+      const result = await importExistingAuthUsers(user.org_id);
+
+      if (result.imported > 0) {
+        toast.success(`Successfully imported ${result.imported} user${result.imported > 1 ? 's' : ''}`);
+        loadUsers(); // Refresh the user list
+      } else {
+        toast.info('No new users to import. All auth users already have profiles.');
+      }
+    } catch (error: any) {
+      console.error('Error importing auth users:', error);
+      toast.error(error.message || 'Failed to import users. Make sure the SQL function is installed.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -188,6 +210,16 @@ export function UserManagement() {
           <option value="foreman">Foreman</option>
           <option value="worker">Worker</option>
         </select>
+
+        <Button
+          onClick={handleImportAuthUsers}
+          variant="secondary"
+          className="flex items-center gap-2"
+          disabled={importing}
+        >
+          <UserPlus size={20} />
+          {importing ? 'Importing...' : 'Import Existing'}
+        </Button>
 
         <Button onClick={handleAddNew} className="flex items-center gap-2">
           <Plus size={20} />

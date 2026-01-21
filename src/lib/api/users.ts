@@ -28,7 +28,7 @@ export async function fetchUsers(orgId: string): Promise<UserProfile[]> {
     .from('user_profiles')
     .select(`
       *,
-      job_site_assignments:job_site_assignments(
+      job_site_assignments:job_site_assignments!user_id(
         id,
         job_site_id,
         role,
@@ -38,11 +38,21 @@ export async function fetchUsers(orgId: string): Promise<UserProfile[]> {
         job_site:job_sites(id, name)
       )
     `)
-    .eq('organization_id', orgId)
+    .eq('org_id', orgId)
     .order('name');
 
   if (error) throw error;
   return data || [];
+}
+
+export async function importExistingAuthUsers(orgId: string): Promise<{ imported: number; skipped: number }> {
+  // Call a Supabase RPC function to import auth users that don't have profiles
+  const { data, error } = await supabase.rpc('import_auth_users_to_profiles', {
+    target_org_id: orgId
+  });
+
+  if (error) throw error;
+  return data || { imported: 0, skipped: 0 };
 }
 
 export async function inviteUser(userData: InviteUserData): Promise<UserProfile> {
