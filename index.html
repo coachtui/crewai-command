@@ -63,31 +63,6 @@
       });
 
       logCheckpoint('HTML loaded');
-
-      // Cache cleanup: Ensures fresh content on every load
-      (function() {
-        logCheckpoint('Cache cleanup started');
-
-        // Unregister any service workers
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            registrations.forEach(function(registration) {
-              registration.unregister();
-            });
-            logCheckpoint('Service workers unregistered');
-          });
-        }
-
-        // Clear all browser caches
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            names.forEach(function(name) {
-              caches.delete(name);
-            });
-            logCheckpoint('Browser caches cleared');
-          });
-        }
-      })();
     </script>
 
     <div id="root"></div>

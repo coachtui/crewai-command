@@ -3,9 +3,10 @@
 // Manages user authentication state and profile data
 // ============================================================================
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { UserProfile, Organization, JobSiteAssignment, AuthContextType } from '../types';
+import { usePageVisibility } from '../lib/hooks/usePageVisibility';
 
 // Create the context with a default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -40,6 +41,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Track page visibility to prevent unnecessary refetches
+  const isVisible = usePageVisibility();
+  const lastProfileFetchRef = useRef<number>(0);
+  const PROFILE_FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
+
   // Wrapper for setIsLoading with diagnostic logging
   const setIsLoadingWithLog = useCallback((value: boolean, reason: string) => {
     console.log(`[Auth] isLoading changing: ${!value} → ${value} (${reason})`);
@@ -47,7 +53,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   // Fetch user profile with organization and job site assignments
-  const fetchUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+  const fetchUserProfile = useCallback(async (userId: string, skipCooldown = false): Promise<UserProfile | null> => {
+    // Check cooldown to prevent excessive API calls
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastProfileFetchRef.current;
+
+    if (!skipCooldown && timeSinceLastFetch < PROFILE_FETCH_COOLDOWN) {
+      console.log(`[Auth] Skipping profile fetch - cooldown active (${Math.round(timeSinceLastFetch / 1000)}s since last fetch)`);
+      return null;
+    }
+
+    lastProfileFetchRef.current = now;
+
     try {
       // Fetch user profile - try user_profiles first, fallback to users
       let userData;
@@ -183,7 +200,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (session?.user) {
           logCheckpoint('Fetching user profile');
-          const profile = await fetchUserProfile(session.user.id);
+          const profile = await fetchUserProfile(session.user.id, true);
           if (profile) {
             setUser(profile);
             setIsAuthenticated(true);
@@ -216,12 +233,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.log('[Auth] SIGNED_IN event - showing loading (not currently authenticated)');
           setIsLoadingWithLog(true, `auth state change: ${event}`);
 
-          // Add 10-second timeout to profile fetch
+          // Add 10-second timeout to profile fetch (skip cooldown on initial sign-in)
           try {
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
             );
-            const profilePromise = fetchUserProfile(session.user.id);
+            const profilePromise = fetchUserProfile(session.user.id, true);
             const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
             if (profile) {
@@ -238,13 +255,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           setIsLoadingWithLog(false, `auth state change complete: ${event}`);
         } else {
-          console.log('[Auth] SIGNED_IN event - already authenticated, silently refreshing profile');
-          // Already authenticated, just refresh profile in background with timeout
+          console.log('[Auth] SIGNED_IN event - already authenticated, checking cooldown for silent refresh');
+          // Already authenticated, respect cooldown for background refresh
           try {
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
             );
-            const profilePromise = fetchUserProfile(session.user.id);
+            const profilePromise = fetchUserProfile(session.user.id, false);
             const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
             if (profile) {
@@ -261,17 +278,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Clear stored preferences on logout
         localStorage.removeItem(STORAGE_KEYS.LAST_JOB_SITE);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        console.log('[Auth] TOKEN_REFRESHED event - silently refreshing profile');
+        console.log('[Auth] TOKEN_REFRESHED event - checking cooldown before profile refresh');
         // Token refresh should be completely silent - don't unmount anything
+        // Respect cooldown to prevent excessive refetches when switching tabs
         try {
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
           );
-          const profilePromise = fetchUserProfile(session.user.id);
+          const profilePromise = fetchUserProfile(session.user.id, false);
           const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
           if (profile) {
             setUser(profile);
+          } else {
+            console.log('[Auth] TOKEN_REFRESHED - profile fetch skipped (cooldown active or returned null)');
           }
         } catch (error) {
           console.error('[Auth] TOKEN_REFRESHED profile fetch failed:', error);
@@ -298,7 +318,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       if (data.user) {
-        const profile = await fetchUserProfile(data.user.id);
+        const profile = await fetchUserProfile(data.user.id, true);
         if (profile) {
           setUser(profile);
           setIsAuthenticated(true);

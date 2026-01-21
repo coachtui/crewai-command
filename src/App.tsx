@@ -4,8 +4,10 @@
 // ============================================================================
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Login } from './pages/Login';
+import { Dashboard } from './pages/Dashboard';
 import { Workers } from './pages/admin/Workers';
 import { Tasks } from './pages/admin/Tasks';
 import { Calendar } from './pages/admin/Calendar';
@@ -15,6 +17,28 @@ import { Today } from './pages/foreman/Today';
 import { Sidebar } from './components/layout/Sidebar';
 import { VoiceFloatingButton } from './components/mobile/VoiceFloatingButton';
 import { AuthProvider, JobSiteProvider, useAuth } from './contexts';
+
+// ============================================================================
+// React Query Configuration
+// ============================================================================
+
+// Create a client with optimized settings for better UX
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Keep data fresh but cached for 5 minutes
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+      // Retry failed requests
+      retry: 1,
+      // Refetch on window focus but with a cooldown
+      refetchOnWindowFocus: 'always',
+      refetchOnMount: true,
+      // Don't refetch on reconnect immediately (real-time handles this)
+      refetchOnReconnect: false,
+    },
+  },
+});
 
 // Diagnostic helper
 function logCheckpoint(name: string) {
@@ -51,7 +75,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Render protected content with job site context
+  // Render protected content (JobSiteProvider moved to App level)
+  return <>{children}</>;
+}
+
+// ============================================================================
+// Protected Layout - Wraps all authenticated routes with shared layout
+// ============================================================================
+
+function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <JobSiteProvider>
       <div className="flex h-screen bg-bg-primary">
@@ -62,68 +94,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <VoiceFloatingButton />
       </div>
     </JobSiteProvider>
-  );
-}
-
-// ============================================================================
-// Dashboard Placeholder (Coming Soon)
-// ============================================================================
-
-function Dashboard() {
-  const { user } = useAuth();
-  
-  return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary">Dashboard</h1>
-        <p className="text-text-secondary mt-2">
-          Welcome back, {user?.name || 'User'}!
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Placeholder cards */}
-        <div className="bg-bg-secondary border border-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-2">Active Tasks</h3>
-          <p className="text-3xl font-bold text-primary">--</p>
-          <p className="text-sm text-text-secondary mt-1">Coming soon</p>
-        </div>
-        
-        <div className="bg-bg-secondary border border-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-2">Workers on Site</h3>
-          <p className="text-3xl font-bold text-success">--</p>
-          <p className="text-sm text-text-secondary mt-1">Coming soon</p>
-        </div>
-        
-        <div className="bg-bg-secondary border border-border rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-text-primary mb-2">Pending Requests</h3>
-          <p className="text-3xl font-bold text-warning">--</p>
-          <p className="text-sm text-text-secondary mt-1">Coming soon</p>
-        </div>
-      </div>
-      
-      <div className="mt-8 p-6 bg-bg-secondary border border-border rounded-lg">
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Multi-Tenant Features (Coming Soon)</h3>
-        <ul className="space-y-2 text-text-secondary">
-          <li className="flex items-center gap-2">
-            <span className="text-primary">•</span>
-            Job Site Overview - View all job sites at a glance
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-primary">•</span>
-            Resource Distribution - Move workers between sites
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-primary">•</span>
-            Company Analytics - Track performance across all sites
-          </li>
-          <li className="flex items-center gap-2">
-            <span className="text-primary">•</span>
-            Team Management - Invite and manage team members
-          </li>
-        </ul>
-      </div>
-    </div>
   );
 }
 
@@ -165,79 +135,97 @@ function App() {
   logCheckpoint('App component rendering');
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Toaster position="top-right" richColors />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/workers" replace />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/job-sites"
-            element={
-              <ProtectedRoute>
-                <JobSites />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/workers"
-            element={
-              <ProtectedRoute>
-                <Workers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/tasks"
-            element={
-              <ProtectedRoute>
-                <Tasks />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/calendar"
-            element={
-              <ProtectedRoute>
-                <Calendar />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/activities"
-            element={
-              <ProtectedRoute>
-                <Activities />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/daily-hours"
-            element={
-              <ProtectedRoute>
-                <DailyHours />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/today"
-            element={
-              <ProtectedRoute>
-                <Today />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Toaster position="top-right" richColors />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to="/workers" replace />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Dashboard />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/job-sites"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <JobSites />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workers"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Workers />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Tasks />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendar"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Calendar />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activities"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Activities />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/daily-hours"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <DailyHours />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/today"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Today />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 
