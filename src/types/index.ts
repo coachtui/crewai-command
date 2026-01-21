@@ -183,8 +183,8 @@ export type AssignmentStatus = 'assigned' | 'completed' | 'reassigned';
 
 export interface Assignment {
   id: string;
-  org_id: string;
-  organization_id?: string;
+  organization_id: string;
+  org_id?: string; // Deprecated: use organization_id
   job_site_id?: string;
   task_id: string;
   worker_id: string;
@@ -207,8 +207,8 @@ export type RequestStatus = 'pending' | 'approved' | 'denied';
 
 export interface AssignmentRequest {
   id: string;
-  org_id: string;
-  organization_id?: string;
+  organization_id: string;
+  org_id?: string; // Deprecated: use organization_id
   job_site_id?: string;
   worker_id: string;
   from_task_id?: string;

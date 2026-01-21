@@ -92,7 +92,7 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
         worker_id: workerId,
         assigned_date: date,
         status: 'assigned',
-        org_id: user.org_id
+        organization_id: user.org_id
       }));
 
       const { error } = await supabase
