@@ -50,12 +50,19 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
   
   const ganttRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
-  const ganttTasks = transformTasksToGantt(tasks, assignments);
-  
+
+  const allGanttTasks = transformTasksToGantt(tasks, assignments);
+
   // Calculate 4-week window
   const windowEndDate = addDays(windowStartDate, 27); // 4 weeks = 28 days
   let days = eachDayOfInterval({ start: windowStartDate, end: windowEndDate });
+
+  // Filter tasks to only show those that overlap with the current viewing window
+  const ganttTasks = allGanttTasks.filter(task => {
+    // Task overlaps with window if:
+    // task.endDate >= windowStartDate AND task.startDate <= windowEndDate
+    return task.endDate >= windowStartDate && task.startDate <= windowEndDate;
+  });
   
   // Filter out Saturday and/or Sunday based on toggles
   days = days.filter(day => {
