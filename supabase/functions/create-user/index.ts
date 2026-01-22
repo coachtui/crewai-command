@@ -87,11 +87,9 @@ Deno.serve(async (req) => {
     // Get request body
     const { email, name, phone, base_role, organization_id } = await req.json()
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: {
+    // Invite user by email (sends invitation email)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: {
         full_name: name
       }
     })
