@@ -87,14 +87,21 @@ Deno.serve(async (req) => {
     // Get request body
     const { email, name, phone, base_role, organization_id } = await req.json()
 
-    // Invite user by email (sends invitation email)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: {
-        full_name: name
+    // Generate invite link (doesn't send email - avoids rate limits)
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'invite',
+      email: email,
+      options: {
+        data: {
+          full_name: name
+        }
       }
     })
 
-    if (authError) throw authError
+    if (linkError) throw linkError
+
+    const authData = { user: linkData.user }
+    const inviteLink = linkData.properties?.action_link
 
     // Create user profile (using upsert in case trigger already created it)
     const { data: userProfile, error: upsertError } = await supabaseAdmin
@@ -134,7 +141,7 @@ Deno.serve(async (req) => {
       // Don't throw - user_profiles was created successfully
     }
 
-    return new Response(JSON.stringify({ success: true, user: userProfile }), {
+    return new Response(JSON.stringify({ success: true, user: userProfile, inviteLink }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

@@ -55,7 +55,12 @@ export async function importExistingAuthUsers(orgId: string): Promise<{ imported
   return data || { imported: 0, skipped: 0 };
 }
 
-export async function inviteUser(userData: InviteUserData): Promise<UserProfile> {
+export interface InviteUserResult {
+  user: UserProfile;
+  inviteLink?: string;
+}
+
+export async function inviteUser(userData: InviteUserData): Promise<InviteUserResult> {
   // Call the edge function to create auth user + profile
   const { data, error: functionError } = await supabase.functions.invoke('create-user', {
     body: {
@@ -71,6 +76,7 @@ export async function inviteUser(userData: InviteUserData): Promise<UserProfile>
   if (!data.success) throw new Error(data.error || 'Failed to create user');
 
   const userProfile = data.user as UserProfile;
+  const inviteLink = data.inviteLink as string | undefined;
 
   // Then, create job site assignments if provided
   if (userData.job_site_assignments && userData.job_site_assignments.length > 0) {
@@ -109,7 +115,7 @@ export async function inviteUser(userData: InviteUserData): Promise<UserProfile>
     .single();
 
   if (fetchError) throw fetchError;
-  return completeProfile;
+  return { user: completeProfile, inviteLink };
 }
 
 export async function updateUserBaseRole(userId: string, role: BaseRole): Promise<UserProfile> {

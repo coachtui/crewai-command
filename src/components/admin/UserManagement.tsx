@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit2, UserPlus } from 'lucide-react';
+import { Plus, Search, Edit2, UserPlus, Copy, Check } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { Button } from '../ui/Button';
@@ -23,6 +23,12 @@ export function UserManagement() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [inviteLinkModal, setInviteLinkModal] = useState<{ isOpen: boolean; link: string; email: string }>({
+    isOpen: false,
+    link: '',
+    email: ''
+  });
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (user?.org_id) {
@@ -112,7 +118,7 @@ export function UserManagement() {
         toast.success('User updated successfully');
       } else {
         // Invite new user
-        await inviteUser({
+        const result = await inviteUser({
           email: userData.email,
           name: userData.name,
           phone: userData.phone,
@@ -124,7 +130,17 @@ export function UserManagement() {
             start_date: a.start_date,
           })),
         });
-        toast.success('User invited successfully');
+
+        if (result.inviteLink) {
+          // Show invite link modal instead of just a toast
+          setInviteLinkModal({
+            isOpen: true,
+            link: result.inviteLink,
+            email: userData.email
+          });
+        } else {
+          toast.success('User invited successfully - invitation email sent');
+        }
       }
 
       loadUsers();
@@ -149,6 +165,22 @@ export function UserManagement() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
+  };
+
+  const handleCopyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLinkModal.link);
+      setLinkCopied(true);
+      toast.success('Invite link copied to clipboard');
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const handleCloseInviteLinkModal = () => {
+    setInviteLinkModal({ isOpen: false, link: '', email: '' });
+    setLinkCopied(false);
   };
 
   const handleImportAuthUsers = async () => {
@@ -306,6 +338,50 @@ export function UserManagement() {
           onSave={handleSaveUser}
           onCancel={handleCloseModal}
         />
+      </Modal>
+
+      {/* Invite Link Modal */}
+      <Modal
+        isOpen={inviteLinkModal.isOpen}
+        onClose={handleCloseInviteLinkModal}
+        title="User Created Successfully"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-text-secondary">
+            User <strong>{inviteLinkModal.email}</strong> has been created. Share this invite link with them to set up their password:
+          </p>
+
+          <div className="bg-bg-primary border border-border-primary rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={inviteLinkModal.link}
+                className="flex-1 bg-transparent text-sm text-text-primary truncate focus:outline-none"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCopyInviteLink}
+                className="flex items-center gap-1 shrink-0"
+              >
+                {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+                {linkCopied ? 'Copied' : 'Copy'}
+              </Button>
+            </div>
+          </div>
+
+          <p className="text-sm text-text-secondary">
+            Note: This link will expire. If needed, you can generate a new one from the Supabase Dashboard.
+          </p>
+
+          <div className="flex justify-end">
+            <Button onClick={handleCloseInviteLinkModal}>
+              Done
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
