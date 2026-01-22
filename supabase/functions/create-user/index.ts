@@ -14,7 +14,15 @@ serve(async (req) => {
 
   try {
     // Get the authorization header
-    const authHeader = req.headers.get('Authorization')!
+    const authHeader = req.headers.get('Authorization')
+
+    if (!authHeader) {
+      console.error('Missing Authorization header')
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     // Create Supabase client with service role for admin operations
     const supabaseAdmin = createClient(
@@ -39,25 +47,48 @@ serve(async (req) => {
 
     // Verify caller is admin
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+
+    if (userError) {
+      console.error('Auth error:', userError)
+      return new Response(JSON.stringify({ error: 'Authentication failed: ' + userError.message }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const { data: profile } = await supabaseClient
+    if (!user) {
+      console.error('No user found in token')
+      return new Response(JSON.stringify({ error: 'Unauthorized - no user found' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    console.log('Authenticated user:', user.id, user.email)
+
+    const { data: profile, error: profileError } = await supabaseClient
       .from('user_profiles')
       .select('base_role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.base_role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Only admins can create users' }), {
+    if (profileError) {
+      console.error('Profile lookup error:', profileError)
+      return new Response(JSON.stringify({ error: 'Could not fetch user profile: ' + profileError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (!profile || profile.base_role !== 'admin') {
+      console.error('User is not admin:', user.email, profile?.base_role)
+      return new Response(JSON.stringify({ error: 'Only admins can create users. Your role: ' + (profile?.base_role || 'none') }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    console.log('Admin verified:', user.email)
 
     // Get request body
     const { email, name, phone, base_role, organization_id } = await req.json()
