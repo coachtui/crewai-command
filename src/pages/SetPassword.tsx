@@ -90,12 +90,15 @@ export function SetPassword() {
         throw updateError;
       }
 
-      toast.success('Password set successfully! Redirecting...');
+      // Sign out first to ensure clean login state
+      await supabase.auth.signOut();
 
-      // Small delay to show success message
+      toast.success('Password set successfully! Please log in with your new password.');
+
+      // Redirect to login page
       setTimeout(() => {
-        navigate('/workers', { replace: true });
-      }, 1000);
+        navigate('/login', { replace: true });
+      }, 1500);
     } catch (err) {
       console.error('[SetPassword] Update error:', err);
       toast.error((err as Error).message || 'Failed to set password');
