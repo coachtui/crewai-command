@@ -12,10 +12,21 @@ export function Login() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  // Check for invite/recovery tokens and redirect if already authenticated
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // Check if this is an invite or recovery link (tokens in URL hash)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const type = hashParams.get('type');
+
+        if (type === 'invite' || type === 'recovery') {
+          // Redirect to set-password page with the hash intact
+          console.log('[Login] Invite/recovery link detected, redirecting to set-password');
+          navigate('/set-password' + window.location.hash, { replace: true });
+          return;
+        }
+
         // Add 5-second timeout for login page session check
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Login session check timeout')), 5000)

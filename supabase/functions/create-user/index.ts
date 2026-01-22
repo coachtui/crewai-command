@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
         name,
         phone,
         base_role,
-        organization_id
+        org_id: organization_id
       }, {
         onConflict: 'id'
       })
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     if (upsertError) throw upsertError
 
     // Also create in legacy users table for backward compatibility
-    await supabaseAdmin
+    const { error: usersError } = await supabaseAdmin
       .from('users')
       .upsert({
         id: authData.user.id,
@@ -128,6 +128,11 @@ Deno.serve(async (req) => {
       }, {
         onConflict: 'id'
       })
+
+    if (usersError) {
+      console.error('Users table upsert error:', usersError)
+      // Don't throw - user_profiles was created successfully
+    }
 
     return new Response(JSON.stringify({ success: true, user: userProfile }), {
       status: 200,

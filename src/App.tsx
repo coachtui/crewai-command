@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Login } from './pages/Login';
+import { SetPassword } from './pages/SetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Workers } from './pages/admin/Workers';
 import { Tasks } from './pages/admin/Tasks';
@@ -141,6 +142,7 @@ function App() {
           <Toaster position="top-right" richColors />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/set-password" element={<SetPassword />} />
             <Route path="/" element={<Navigate to="/workers" replace />} />
             <Route
               path="/dashboard"
