@@ -56,20 +56,21 @@ export async function importExistingAuthUsers(orgId: string): Promise<{ imported
 }
 
 export async function inviteUser(userData: InviteUserData): Promise<UserProfile> {
-  // First, create the user profile
-  const { data: userProfile, error: userError } = await supabase
-    .from('user_profiles')
-    .insert([{
+  // Call the edge function to create auth user + profile
+  const { data, error: functionError } = await supabase.functions.invoke('create-user', {
+    body: {
       email: userData.email,
       name: userData.name,
       phone: userData.phone,
       base_role: userData.base_role,
       organization_id: userData.organization_id
-    }])
-    .select()
-    .single();
+    }
+  });
 
-  if (userError) throw userError;
+  if (functionError) throw functionError;
+  if (!data.success) throw new Error(data.error || 'Failed to create user');
+
+  const userProfile = data.user as UserProfile;
 
   // Then, create job site assignments if provided
   if (userData.job_site_assignments && userData.job_site_assignments.length > 0) {
