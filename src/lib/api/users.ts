@@ -28,7 +28,7 @@ export async function fetchUsers(orgId: string): Promise<UserProfile[]> {
     .from('user_profiles')
     .select(`
       *,
-      job_site_assignments:job_site_assignments!user_id(
+      job_site_assignments:job_site_assignments!job_site_assignments_user_id_fkey(
         id,
         job_site_id,
         role,
@@ -95,7 +95,7 @@ export async function inviteUser(userData: InviteUserData): Promise<UserProfile>
     .from('user_profiles')
     .select(`
       *,
-      job_site_assignments:job_site_assignments(
+      job_site_assignments:job_site_assignments!job_site_assignments_user_id_fkey(
         id,
         job_site_id,
         role,

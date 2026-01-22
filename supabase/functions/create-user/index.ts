@@ -1,12 +1,12 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -36,17 +36,11 @@ serve(async (req) => {
       }
     )
 
-    // Create regular client to check if caller is admin
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: { headers: { Authorization: authHeader } }
-      }
-    )
+    // Extract the JWT token from the Authorization header
+    const token = authHeader.replace('Bearer ', '')
 
-    // Verify caller is admin
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    // Verify the user using the service role client (more reliable)
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token)
 
     if (userError) {
       console.error('Auth error:', userError)
@@ -66,7 +60,7 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id, user.email)
 
-    const { data: profile, error: profileError } = await supabaseClient
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('user_profiles')
       .select('base_role')
       .eq('id', user.id)
@@ -105,7 +99,7 @@ serve(async (req) => {
     if (authError) throw authError
 
     // Create user profile (using upsert in case trigger already created it)
-    const { data: userProfile, error: profileError } = await supabaseAdmin
+    const { data: userProfile, error: upsertError } = await supabaseAdmin
       .from('user_profiles')
       .upsert({
         id: authData.user.id,
@@ -120,7 +114,7 @@ serve(async (req) => {
       .select()
       .single()
 
-    if (profileError) throw profileError
+    if (upsertError) throw upsertError
 
     // Also create in legacy users table for backward compatibility
     await supabaseAdmin
@@ -142,9 +136,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating user:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
