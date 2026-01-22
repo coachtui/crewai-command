@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
@@ -9,55 +10,27 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // Check for invite/recovery tokens and redirect if already authenticated
+  // Check for invite/recovery tokens in URL
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        // Check if this is an invite or recovery link (tokens in URL hash)
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const type = hashParams.get('type');
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
 
-        if (type === 'invite' || type === 'recovery') {
-          // Redirect to set-password page with the hash intact
-          console.log('[Login] Invite/recovery link detected, redirecting to set-password');
-          navigate('/set-password' + window.location.hash, { replace: true });
-          return;
-        }
-
-        // Add 5-second timeout for login page session check
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Login session check timeout')), 5000)
-        );
-
-        const sessionPromise = supabase.auth.getSession();
-
-        let result;
-        try {
-          result = await Promise.race([sessionPromise, timeoutPromise]);
-        } catch (timeoutError) {
-          console.warn('[Login] Session check timed out, clearing session');
-          localStorage.clear();
-          setCheckingAuth(false);
-          return;
-        }
-
-        const { data: { session } } = result as any;
-        if (session) {
-          console.log('[Login] Already authenticated, redirecting...');
-          navigate('/workers', { replace: true });
-        }
-      } catch (error) {
-        console.error('[Login] Session check error:', error);
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-
-    checkSession();
+    if (type === 'invite' || type === 'recovery') {
+      console.log('[Login] Invite/recovery link detected, redirecting to set-password');
+      navigate('/set-password' + window.location.hash, { replace: true });
+    }
   }, [navigate]);
+
+  // Redirect if already authenticated (use AuthContext, not direct Supabase check)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      console.log('[Login] Already authenticated, redirecting...');
+      navigate('/workers', { replace: true });
+    }
+  }, [isAuthenticated, isLoading, navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -117,8 +90,8 @@ export function Login() {
     // Don't setLoading(false) on success - let the redirect happen
   };
 
-  // Show loading while checking auth
-  if (checkingAuth) {
+  // Show loading while AuthContext is initializing
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-primary">
         <div className="flex flex-col items-center gap-4">
