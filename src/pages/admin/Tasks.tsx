@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Upload, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Upload, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
@@ -21,7 +21,6 @@ export function Tasks() {
   const [drafts, setDrafts] = useState<TaskDraft[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDraftsModalOpen, setIsDraftsModalOpen] = useState(false);
   const [isCSVModalOpen, setIsCSVModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
@@ -33,6 +32,7 @@ export function Tasks() {
     if (currentJobSite && user?.org_id) {
       fetchTasks();
       fetchAssignments();
+      fetchDrafts();
     }
   }, [currentJobSite?.id, user?.org_id]);
 
@@ -229,7 +229,6 @@ export function Tasks() {
 
   const handleLoadDraft = (draft: TaskDraft) => {
     setLoadingDraft(draft);
-    setIsDraftsModalOpen(false);
     setIsModalOpen(true);
   };
 
@@ -249,11 +248,6 @@ export function Tasks() {
       toast.error('Failed to delete draft');
       console.error(error);
     }
-  };
-
-  const handleOpenDrafts = async () => {
-    await fetchDrafts();
-    setIsDraftsModalOpen(true);
   };
 
   const handleCSVImport = async (csvRows: Array<{activityId: string, activityName: string, duration: string, taskName: string}>) => {
@@ -361,13 +355,6 @@ export function Tasks() {
         <div className="flex gap-3">
           <Button
             variant="secondary"
-            onClick={handleOpenDrafts}
-          >
-            <FileText size={20} className="mr-2" />
-            Saved Drafts
-          </Button>
-          <Button
-            variant="secondary"
             onClick={() => setIsCSVModalOpen(true)}
           >
             <Upload size={20} className="mr-2" />
@@ -405,19 +392,18 @@ export function Tasks() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* Unscheduled Tasks */}
+          {/* Task Drafts (Unscheduled) */}
           {(() => {
-            const unscheduledTasks = tasks.filter(task => !task.start_date || !task.end_date);
-            const filteredUnscheduled = unscheduledTasks.filter(task => {
+            const filteredDrafts = drafts.filter(draft => {
               if (!searchQuery.trim()) return true;
               const query = searchQuery.toLowerCase();
               return (
-                task.name.toLowerCase().includes(query) ||
-                task.activity_id?.toLowerCase().includes(query) ||
-                task.location?.toLowerCase().includes(query)
+                draft.name.toLowerCase().includes(query) ||
+                draft.activity_id?.toLowerCase().includes(query) ||
+                draft.location?.toLowerCase().includes(query)
               );
             });
-            if (unscheduledTasks.length === 0) return null;
+            if (drafts.length === 0) return null;
             return (
               <div className="mb-8 border border-border rounded-lg overflow-hidden">
                 <button
@@ -426,9 +412,9 @@ export function Tasks() {
                 >
                   <div className="flex items-center gap-2">
                     {unscheduledExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                    <h2 className="text-xl font-bold">Unscheduled Tasks</h2>
+                    <h2 className="text-xl font-bold">Task Drafts</h2>
                     <span className="text-text-secondary">
-                      ({searchQuery ? `${filteredUnscheduled.length} of ${unscheduledTasks.length}` : unscheduledTasks.length})
+                      ({searchQuery ? `${filteredDrafts.length} of ${drafts.length}` : drafts.length})
                     </span>
                   </div>
                   <span className="text-sm text-text-secondary">Click to {unscheduledExpanded ? 'collapse' : 'expand'}</span>
@@ -441,40 +427,30 @@ export function Tasks() {
                           <th className="w-28 px-4 py-3 text-left text-sm font-medium text-text-primary">Activity ID</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Name</th>
                           <th className="w-24 px-4 py-3 text-left text-sm font-medium text-text-primary">Duration</th>
-                          <th className="w-24 px-4 py-3 text-left text-sm font-medium text-text-primary">Status</th>
                           <th className="w-28 px-4 py-3 text-right text-sm font-medium text-text-primary">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {filteredUnscheduled.map((task) => (
-                          <tr key={task.id} className="hover:bg-bg-hover">
+                        {filteredDrafts.map((draft) => (
+                          <tr key={draft.id} className="hover:bg-bg-hover">
                             <td className="w-28 px-4 py-3 text-sm text-text-secondary font-mono truncate">
-                              {task.activity_id || '-'}
+                              {draft.activity_id || '-'}
                             </td>
-                            <td className="px-4 py-3 text-sm text-text-primary truncate" title={task.name}>
-                              {task.name}
+                            <td className="px-4 py-3 text-sm text-text-primary truncate" title={draft.name}>
+                              {draft.name}
                             </td>
                             <td className="w-24 px-4 py-3 text-sm text-text-secondary whitespace-nowrap">
-                              {task.duration ? `${task.duration}d` : '-'}
-                            </td>
-                            <td className="w-24 px-4 py-3 text-sm whitespace-nowrap">
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                task.status === 'completed' ? 'bg-success/20 text-success' :
-                                task.status === 'active' ? 'bg-info/20 text-info' :
-                                'bg-bg-tertiary text-text-secondary'
-                              }`}>
-                                {task.status}
-                              </span>
+                              {draft.duration ? `${draft.duration}d` : '-'}
                             </td>
                             <td className="w-28 px-4 py-3 text-sm text-right whitespace-nowrap">
                               <button
-                                onClick={() => handleEditTask(task)}
+                                onClick={() => handleLoadDraft(draft)}
                                 className="text-primary hover:text-primary/80 mr-3"
                               >
-                                Edit
+                                Schedule
                               </button>
                               <button
-                                onClick={() => handleDeleteTask(task.id)}
+                                onClick={() => handleDeleteDraft(draft.id)}
                                 className="text-error hover:text-error/80"
                               >
                                 Delete
@@ -484,9 +460,9 @@ export function Tasks() {
                         ))}
                       </tbody>
                     </table>
-                    {filteredUnscheduled.length === 0 && searchQuery && (
+                    {filteredDrafts.length === 0 && searchQuery && (
                       <div className="text-center py-8 text-text-secondary">
-                        No tasks match "{searchQuery}"
+                        No drafts match "{searchQuery}"
                       </div>
                     )}
                   </div>
@@ -553,90 +529,6 @@ export function Tasks() {
             setLoadingDraft(null);
           }}
         />
-      </Modal>
-
-      {/* Drafts Modal */}
-      <Modal
-        isOpen={isDraftsModalOpen}
-        onClose={() => setIsDraftsModalOpen(false)}
-        title="Saved Drafts"
-      >
-        <div className="space-y-4">
-          {drafts.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText size={48} className="mx-auto mb-4 text-text-secondary" />
-              <p className="text-text-secondary">No saved drafts</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {drafts.map((draft) => (
-                <div
-                  key={draft.id}
-                  className="p-4 border border-border rounded-lg hover:bg-bg-secondary transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-2">{draft.name}</h3>
-                      {draft.location && (
-                        <p className="text-sm text-text-secondary mb-2">
-                          📍 {draft.location}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap gap-2 text-sm text-text-secondary">
-                        {draft.start_date && (
-                          <span>Start: {format(new Date(draft.start_date), 'MMM d, yyyy')}</span>
-                        )}
-                        {draft.end_date && (
-                          <span>End: {format(new Date(draft.end_date), 'MMM d, yyyy')}</span>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap gap-2 mt-2 text-sm">
-                        {draft.required_operators > 0 && (
-                          <span className="px-2 py-1 bg-bg-secondary rounded">
-                            {draft.required_operators} Operators
-                          </span>
-                        )}
-                        {draft.required_laborers > 0 && (
-                          <span className="px-2 py-1 bg-bg-secondary rounded">
-                            {draft.required_laborers} Laborers
-                          </span>
-                        )}
-                        {draft.required_carpenters > 0 && (
-                          <span className="px-2 py-1 bg-bg-secondary rounded">
-                            {draft.required_carpenters} Carpenters
-                          </span>
-                        )}
-                        {draft.required_masons > 0 && (
-                          <span className="px-2 py-1 bg-bg-secondary rounded">
-                            {draft.required_masons} Masons
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-text-secondary mt-2">
-                        Saved: {format(new Date(draft.created_at), 'MMM d, yyyy h:mm a')}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 ml-4">
-                      <Button
-                        size="sm"
-                        onClick={() => handleLoadDraft(draft)}
-                      >
-                        Load
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleDeleteDraft(draft.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </Modal>
 
       {/* CSV Upload Modal */}
