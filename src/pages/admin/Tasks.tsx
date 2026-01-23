@@ -266,9 +266,19 @@ export function Tasks() {
     }
 
     try {
-      // Create tasks array from CSV data
-      const tasksToCreate = csvRows.map(row => ({
+      // Helper to parse duration string (e.g., "5 days", "5", "5d") into number of days
+      const parseDuration = (durationStr: string): number | null => {
+        if (!durationStr) return null;
+        const match = durationStr.match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : null;
+      };
+
+      // Create drafts array from CSV data
+      const draftsToCreate = csvRows.map(row => ({
         name: row.taskName, // Combined "Activity ID - Activity Name"
+        activity_id: row.activityId,
+        activity_name: row.activityName,
+        duration: parseDuration(row.duration),
         organization_id: user.org_id,
         job_site_id: currentJobSite.id,
         created_by: user.id,
@@ -276,22 +286,17 @@ export function Tasks() {
         required_laborers: 0,
         required_carpenters: 0,
         required_masons: 0,
-        status: 'planned' as const,
-        notes: `Duration: ${row.duration}`, // Store duration in notes
-        include_saturday: false,
-        include_sunday: false,
-        include_holidays: false,
       }));
 
-      // Bulk insert tasks
+      // Bulk insert into task_drafts
       const { error } = await supabase
-        .from('tasks')
-        .insert(tasksToCreate);
+        .from('task_drafts')
+        .insert(draftsToCreate);
 
       if (error) throw error;
 
-      toast.success(`Successfully created ${tasksToCreate.length} task${tasksToCreate.length !== 1 ? 's' : ''}`);
-      fetchTasks();
+      toast.success(`Successfully imported ${draftsToCreate.length} draft${draftsToCreate.length !== 1 ? 's' : ''}`);
+      fetchDrafts();
       setIsCSVModalOpen(false);
     } catch (error) {
       console.error('Failed to import tasks from CSV:', error);
@@ -375,6 +380,29 @@ export function Tasks() {
         </div>
       ) : (
         <div className="space-y-8">
+          {/* Unscheduled Tasks */}
+          {(() => {
+            const unscheduledTasks = tasks.filter(task => !task.start_date || !task.end_date);
+            if (unscheduledTasks.length === 0) return null;
+            return (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4">Unscheduled Tasks ({unscheduledTasks.length})</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {unscheduledTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      assignments={assignments}
+                      onEdit={handleEditTask}
+                      onDelete={handleDeleteTask}
+                      onAssign={(task: Task) => setAssigningTask(task)}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {groupedTasks().map((week, index) => (
             <div key={index}>
               <h2 className="text-xl font-bold mb-4">{week.label}</h2>

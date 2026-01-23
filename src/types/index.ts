@@ -129,6 +129,9 @@ export interface Task {
   organization_id?: string; // New field
   job_site_id?: string;
   name: string;
+  activity_id?: string; // Activity ID from project schedule (e.g., A1000)
+  activity_name?: string; // Activity name from project schedule
+  duration?: number; // Duration in days
   location?: string;
   start_date?: string;
   end_date?: string;
@@ -157,6 +160,9 @@ export interface TaskDraft {
   organization_id?: string;
   job_site_id?: string;
   name: string;
+  activity_id?: string;
+  activity_name?: string;
+  duration?: number;
   location?: string;
   start_date?: string;
   end_date?: string;

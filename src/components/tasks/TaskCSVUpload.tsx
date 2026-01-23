@@ -176,12 +176,12 @@ export function TaskCSVUpload({ onImport, onCancel }: TaskCSVUploadProps) {
           Your CSV file must include the following columns:
         </p>
         <ul className="text-sm text-text-secondary space-y-1 list-disc list-inside">
-          <li><strong>Activity ID</strong>: Unique identifier for the activity</li>
+          <li><strong>Activity ID</strong>: Unique identifier for the activity (e.g., A1000)</li>
           <li><strong>Activity Name</strong>: Description of the activity</li>
-          <li><strong>Duration</strong>: Duration value (stored in task notes)</li>
+          <li><strong>Duration</strong>: Duration in days (e.g., "5 days" or "5")</li>
         </ul>
         <p className="text-sm text-text-secondary mt-2">
-          <strong>Note:</strong> Activity ID and Activity Name will be combined as: "Activity ID - Activity Name"
+          <strong>Note:</strong> Task name will be set as: "Activity ID - Activity Name"
         </p>
         <p className="text-sm text-text-secondary mt-1">
           <strong>Note:</strong> Start and End dates can be added/adjusted later in the task details.
@@ -248,14 +248,16 @@ export function TaskCSVUpload({ onImport, onCancel }: TaskCSVUploadProps) {
                 <table className="w-full text-sm">
                   <thead className="bg-bg-tertiary sticky top-0">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium text-text-primary">Task Name</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-primary">Activity ID</th>
+                      <th className="px-3 py-2 text-left font-medium text-text-primary">Activity Name</th>
                       <th className="px-3 py-2 text-left font-medium text-text-primary">Duration</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {parsedData.map((row, idx) => (
                       <tr key={idx} className="hover:bg-bg-hover">
-                        <td className="px-3 py-2 text-text-secondary">{row.taskName}</td>
+                        <td className="px-3 py-2 text-text-secondary">{row.activityId}</td>
+                        <td className="px-3 py-2 text-text-secondary">{row.activityName}</td>
                         <td className="px-3 py-2 text-text-secondary">{row.duration}</td>
                       </tr>
                     ))}

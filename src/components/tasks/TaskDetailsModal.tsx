@@ -123,8 +123,20 @@ export function TaskDetailsModal({
             </Badge>
           </div>
 
-          {/* Dates */}
+          {/* Activity Info & Dates */}
           <div className="grid grid-cols-2 gap-4 p-4 bg-bg-primary rounded-lg border border-border">
+            {task.activity_id && (
+              <div>
+                <p className="text-sm text-text-secondary mb-1">Activity ID</p>
+                <p className="font-medium">{task.activity_id}</p>
+              </div>
+            )}
+            {task.duration && (
+              <div>
+                <p className="text-sm text-text-secondary mb-1">Duration</p>
+                <p className="font-medium">{task.duration} day{task.duration !== 1 ? 's' : ''}</p>
+              </div>
+            )}
             <div>
               <p className="text-sm text-text-secondary mb-1">Start Date</p>
               <p className="font-medium">
