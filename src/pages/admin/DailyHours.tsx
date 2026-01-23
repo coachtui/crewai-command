@@ -613,18 +613,82 @@ export function DailyHours() {
     yPosition += 2;
     doc.setFont('helvetica', 'bold');
     xPosition = 14;
-    
-    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex => 
+
+    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex =>
       weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0).toFixed(1)
     );
     const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
-    
+
     const totalRow = ['TOTAL', '', ...dayTotals, grandTotal];
     totalRow.forEach((cell, i) => {
       doc.text(String(cell), xPosition, yPosition);
       xPosition += colWidths[i];
     });
-    
+
+    // Collect all notes
+    const allNotes: { worker: string; day: string; date: string; notes: string }[] = [];
+    weeklyData.forEach(({ worker, hours }) => {
+      hours.forEach((day, index) => {
+        if (day.notes) {
+          const noteDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + index);
+          allNotes.push({
+            worker: worker.name,
+            day: dayNames[index],
+            date: formatDate(noteDate),
+            notes: day.notes
+          });
+        }
+      });
+    });
+
+    // Add notes section if there are any
+    if (allNotes.length > 0) {
+      yPosition += 15;
+
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Notes header
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Notes', 14, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+
+      allNotes.forEach(({ worker, day, date, notes }) => {
+        // Check if we need a new page
+        if (yPosition > 270) {
+          doc.addPage();
+          yPosition = 20;
+        }
+
+        // Worker and day
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${worker} - ${day} (${date}):`, 14, yPosition);
+        yPosition += 4;
+
+        // Note text - wrap long notes
+        doc.setFont('helvetica', 'normal');
+        const maxWidth = 180;
+        const splitNotes = doc.splitTextToSize(notes, maxWidth);
+        splitNotes.forEach((line: string) => {
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          doc.text(line, 18, yPosition);
+          yPosition += 4;
+        });
+
+        yPosition += 3;
+      });
+    }
+
     // Save the PDF
     doc.save(`weekly_hours_${getLocalDateString(startOfWeek)}.pdf`);
     toast.success('Weekly hours exported to PDF');
