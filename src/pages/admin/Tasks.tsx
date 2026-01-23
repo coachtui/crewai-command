@@ -269,18 +269,19 @@ export function Tasks() {
 
     try {
       // Helper to parse duration string (e.g., "5 days", "5", "5d") into number of days
-      const parseDuration = (durationStr: string): number | null => {
-        if (!durationStr) return null;
+      const parseDuration = (durationStr: string): number | undefined => {
+        if (!durationStr) return undefined;
         const match = durationStr.match(/^(\d+)/);
-        return match ? parseInt(match[1], 10) : null;
+        return match ? parseInt(match[1], 10) : undefined;
       };
 
       // Create drafts array from CSV data
       const draftsToCreate = csvRows.map(row => ({
-        name: row.activityName, // Just the activity name, not combined
+        name: row.taskName, // Combined "Activity ID - Activity Name"
         activity_id: row.activityId,
         activity_name: row.activityName,
         duration: parseDuration(row.duration),
+        org_id: user.org_id, // Required field
         organization_id: user.org_id,
         job_site_id: currentJobSite.id,
         created_by: user.id,
