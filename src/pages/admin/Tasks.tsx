@@ -433,30 +433,30 @@ export function Tasks() {
                   <span className="text-sm text-text-secondary">Click to {unscheduledExpanded ? 'collapse' : 'expand'}</span>
                 </button>
                 {unscheduledExpanded && (
-                  <div className="max-h-96 overflow-y-auto">
-                    <table className="w-full">
+                  <div className="max-h-96 overflow-y-auto overflow-x-auto">
+                    <table className="w-full table-fixed min-w-[800px]">
                       <thead className="bg-bg-tertiary sticky top-0">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Activity ID</th>
+                          <th className="w-28 px-4 py-3 text-left text-sm font-medium text-text-primary">Activity ID</th>
                           <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Name</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Duration</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Status</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium text-text-primary">Actions</th>
+                          <th className="w-24 px-4 py-3 text-left text-sm font-medium text-text-primary">Duration</th>
+                          <th className="w-24 px-4 py-3 text-left text-sm font-medium text-text-primary">Status</th>
+                          <th className="w-28 px-4 py-3 text-right text-sm font-medium text-text-primary">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {filteredUnscheduled.map((task) => (
                           <tr key={task.id} className="hover:bg-bg-hover">
-                            <td className="px-4 py-3 text-sm text-text-secondary font-mono">
+                            <td className="w-28 px-4 py-3 text-sm text-text-secondary font-mono truncate">
                               {task.activity_id || '-'}
                             </td>
-                            <td className="px-4 py-3 text-sm text-text-primary">
+                            <td className="px-4 py-3 text-sm text-text-primary truncate" title={task.name}>
                               {task.name}
                             </td>
-                            <td className="px-4 py-3 text-sm text-text-secondary">
-                              {task.duration ? `${task.duration} day${task.duration !== 1 ? 's' : ''}` : '-'}
+                            <td className="w-24 px-4 py-3 text-sm text-text-secondary whitespace-nowrap">
+                              {task.duration ? `${task.duration}d` : '-'}
                             </td>
-                            <td className="px-4 py-3 text-sm">
+                            <td className="w-24 px-4 py-3 text-sm whitespace-nowrap">
                               <span className={`px-2 py-1 rounded text-xs ${
                                 task.status === 'completed' ? 'bg-success/20 text-success' :
                                 task.status === 'active' ? 'bg-info/20 text-info' :
@@ -465,7 +465,7 @@ export function Tasks() {
                                 {task.status}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-sm text-right">
+                            <td className="w-28 px-4 py-3 text-sm text-right whitespace-nowrap">
                               <button
                                 onClick={() => handleEditTask(task)}
                                 className="text-primary hover:text-primary/80 mr-3"
