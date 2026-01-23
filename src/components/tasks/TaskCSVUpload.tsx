@@ -181,7 +181,7 @@ export function TaskCSVUpload({ onImport, onCancel }: TaskCSVUploadProps) {
           <li><strong>Duration</strong>: Duration in days (e.g., "5 days" or "5")</li>
         </ul>
         <p className="text-sm text-text-secondary mt-2">
-          <strong>Note:</strong> Task name will be set as: "Activity ID - Activity Name"
+          <strong>Note:</strong> Activity ID and Activity Name will be stored separately.
         </p>
         <p className="text-sm text-text-secondary mt-1">
           <strong>Note:</strong> Start and End dates can be added/adjusted later in the task details.

@@ -19,6 +19,9 @@ interface TaskFormProps {
 export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFormProps) {
   const [formData, setFormData] = useState({
     name: '',
+    activity_id: '',
+    activity_name: '',
+    duration: null as number | null,
     location: '',
     start_date: '',
     end_date: '',
@@ -39,6 +42,9 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
     if (task) {
       setFormData({
         name: task.name,
+        activity_id: task.activity_id || '',
+        activity_name: task.activity_name || '',
+        duration: task.duration || null,
         location: task.location || '',
         start_date: task.start_date || '',
         end_date: task.end_date || '',
@@ -56,6 +62,9 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
     } else if (draft) {
       setFormData({
         name: draft.name,
+        activity_id: draft.activity_id || '',
+        activity_name: draft.activity_name || '',
+        duration: draft.duration || null,
         location: draft.location || '',
         start_date: draft.start_date || '',
         end_date: draft.end_date || '',

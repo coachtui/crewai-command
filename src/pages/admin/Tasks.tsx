@@ -277,7 +277,7 @@ export function Tasks() {
 
       // Create drafts array from CSV data
       const draftsToCreate = csvRows.map(row => ({
-        name: row.taskName, // Combined "Activity ID - Activity Name"
+        name: row.activityName, // Just the activity name, not combined
         activity_id: row.activityId,
         activity_name: row.activityName,
         duration: parseDuration(row.duration),
