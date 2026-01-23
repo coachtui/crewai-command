@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Upload, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Upload, Search, ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
@@ -27,6 +27,7 @@ export function Tasks() {
   const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [unscheduledExpanded, setUnscheduledExpanded] = useState(false);
+  const [draftSort, setDraftSort] = useState<{ column: 'activity_id' | 'name'; direction: 'asc' | 'desc' } | null>(null);
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -394,15 +395,42 @@ export function Tasks() {
         <div className="space-y-8">
           {/* Task Drafts (Unscheduled) */}
           {(() => {
-            const filteredDrafts = drafts.filter(draft => {
-              if (!searchQuery.trim()) return true;
-              const query = searchQuery.toLowerCase();
-              return (
-                draft.name.toLowerCase().includes(query) ||
-                draft.activity_id?.toLowerCase().includes(query) ||
-                draft.location?.toLowerCase().includes(query)
-              );
-            });
+            const filteredDrafts = drafts
+              .filter(draft => {
+                if (!searchQuery.trim()) return true;
+                const query = searchQuery.toLowerCase();
+                return (
+                  draft.name.toLowerCase().includes(query) ||
+                  draft.activity_id?.toLowerCase().includes(query) ||
+                  draft.location?.toLowerCase().includes(query)
+                );
+              })
+              .sort((a, b) => {
+                if (!draftSort) return 0;
+                const { column, direction } = draftSort;
+                const aVal = (a[column] || '').toLowerCase();
+                const bVal = (b[column] || '').toLowerCase();
+                const cmp = aVal.localeCompare(bVal);
+                return direction === 'asc' ? cmp : -cmp;
+              });
+
+            const handleSort = (column: 'activity_id' | 'name') => {
+              setDraftSort(prev => {
+                if (prev?.column === column) {
+                  return prev.direction === 'asc'
+                    ? { column, direction: 'desc' }
+                    : null;
+                }
+                return { column, direction: 'asc' };
+              });
+            };
+
+            const SortIcon = ({ column }: { column: 'activity_id' | 'name' }) => {
+              if (draftSort?.column !== column) return <ArrowUpDown size={14} className="ml-1 opacity-50" />;
+              return draftSort.direction === 'asc'
+                ? <ArrowUp size={14} className="ml-1" />
+                : <ArrowDown size={14} className="ml-1" />;
+            };
             if (drafts.length === 0) return null;
             return (
               <div className="mb-8 border border-border rounded-lg overflow-hidden">
@@ -422,10 +450,26 @@ export function Tasks() {
                 {unscheduledExpanded && (
                   <div className="max-h-96 overflow-y-auto overflow-x-auto">
                     <table className="w-full table-fixed min-w-[800px]">
-                      <thead className="bg-bg-tertiary sticky top-0">
+                      <thead className="bg-bg-tertiary sticky top-0 z-10">
                         <tr>
-                          <th className="w-28 px-4 py-3 text-left text-sm font-medium text-text-primary">Activity ID</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Name</th>
+                          <th
+                            className="w-28 px-4 py-3 text-left text-sm font-medium text-text-primary cursor-pointer hover:bg-bg-hover select-none"
+                            onClick={() => handleSort('activity_id')}
+                          >
+                            <span className="flex items-center">
+                              Activity ID
+                              <SortIcon column="activity_id" />
+                            </span>
+                          </th>
+                          <th
+                            className="px-4 py-3 text-left text-sm font-medium text-text-primary cursor-pointer hover:bg-bg-hover select-none"
+                            onClick={() => handleSort('name')}
+                          >
+                            <span className="flex items-center">
+                              Name
+                              <SortIcon column="name" />
+                            </span>
+                          </th>
                           <th className="w-24 px-4 py-3 text-left text-sm font-medium text-text-primary">Duration</th>
                           <th className="w-28 px-4 py-3 text-right text-sm font-medium text-text-primary">Actions</th>
                         </tr>
