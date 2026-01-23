@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Upload } from 'lucide-react';
+import { Plus, FileText, Upload, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
@@ -26,6 +26,8 @@ export function Tasks() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   const [loadingDraft, setLoadingDraft] = useState<TaskDraft | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unscheduledExpanded, setUnscheduledExpanded] = useState(false);
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -317,7 +319,17 @@ export function Tasks() {
       const weekTasks = tasks.filter(task => {
         // Skip tasks without dates
         if (!task.start_date || !task.end_date) return false;
-        
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase();
+          const matchesSearch =
+            task.name.toLowerCase().includes(query) ||
+            task.activity_id?.toLowerCase().includes(query) ||
+            task.location?.toLowerCase().includes(query);
+          if (!matchesSearch) return false;
+        }
+
         const taskStart = new Date(task.start_date);
         const taskEnd = new Date(task.end_date);
         return (taskStart >= weekStart && taskStart <= weekEnd) ||
@@ -339,7 +351,7 @@ export function Tasks() {
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Tasks</h1>
           <p className="text-text-secondary">Manage project tasks and assignments</p>
@@ -373,6 +385,18 @@ export function Tasks() {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="relative mb-6">
+        <Search size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
+        <input
+          type="text"
+          placeholder="Search tasks by name, activity ID, or location..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        />
+      </div>
+
       {/* Tasks by Week */}
       {loading ? (
         <div className="text-center py-12">
@@ -383,22 +407,89 @@ export function Tasks() {
           {/* Unscheduled Tasks */}
           {(() => {
             const unscheduledTasks = tasks.filter(task => !task.start_date || !task.end_date);
+            const filteredUnscheduled = unscheduledTasks.filter(task => {
+              if (!searchQuery.trim()) return true;
+              const query = searchQuery.toLowerCase();
+              return (
+                task.name.toLowerCase().includes(query) ||
+                task.activity_id?.toLowerCase().includes(query) ||
+                task.location?.toLowerCase().includes(query)
+              );
+            });
             if (unscheduledTasks.length === 0) return null;
             return (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold mb-4">Unscheduled Tasks ({unscheduledTasks.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {unscheduledTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      assignments={assignments}
-                      onEdit={handleEditTask}
-                      onDelete={handleDeleteTask}
-                      onAssign={(task: Task) => setAssigningTask(task)}
-                    />
-                  ))}
-                </div>
+              <div className="mb-8 border border-border rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setUnscheduledExpanded(!unscheduledExpanded)}
+                  className="w-full flex items-center justify-between p-4 bg-bg-secondary hover:bg-bg-hover transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {unscheduledExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                    <h2 className="text-xl font-bold">Unscheduled Tasks</h2>
+                    <span className="text-text-secondary">
+                      ({searchQuery ? `${filteredUnscheduled.length} of ${unscheduledTasks.length}` : unscheduledTasks.length})
+                    </span>
+                  </div>
+                  <span className="text-sm text-text-secondary">Click to {unscheduledExpanded ? 'collapse' : 'expand'}</span>
+                </button>
+                {unscheduledExpanded && (
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-bg-tertiary sticky top-0">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Activity ID</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Name</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Duration</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium text-text-primary">Status</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium text-text-primary">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {filteredUnscheduled.map((task) => (
+                          <tr key={task.id} className="hover:bg-bg-hover">
+                            <td className="px-4 py-3 text-sm text-text-secondary font-mono">
+                              {task.activity_id || '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-text-primary">
+                              {task.name}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-text-secondary">
+                              {task.duration ? `${task.duration} day${task.duration !== 1 ? 's' : ''}` : '-'}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                task.status === 'completed' ? 'bg-success/20 text-success' :
+                                task.status === 'active' ? 'bg-info/20 text-info' :
+                                'bg-bg-tertiary text-text-secondary'
+                              }`}>
+                                {task.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-right">
+                              <button
+                                onClick={() => handleEditTask(task)}
+                                className="text-primary hover:text-primary/80 mr-3"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task.id)}
+                                className="text-error hover:text-error/80"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {filteredUnscheduled.length === 0 && searchQuery && (
+                      <div className="text-center py-8 text-text-secondary">
+                        No tasks match "{searchQuery}"
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
