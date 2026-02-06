@@ -185,6 +185,7 @@ export function Tasks() {
         ...draftData,
         start_date: draftData.start_date || null,
         end_date: draftData.end_date || null,
+        org_id: user.org_id,
         organization_id: user.org_id,
         job_site_id: currentJobSite.id,
         created_by: user.id
