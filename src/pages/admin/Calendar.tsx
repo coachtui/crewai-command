@@ -3,20 +3,22 @@ import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
 import type { Task, Assignment, Holiday } from '../../types';
-import { 
-  format, 
-  addWeeks, 
-  startOfWeek, 
-  endOfWeek, 
+import {
+  format,
+  addWeeks,
+  startOfWeek,
+  endOfWeek,
   eachDayOfInterval,
   isSameDay,
   parseISO
 } from 'date-fns';
 import { toast } from 'sonner';
 import { Badge } from '../../components/ui/Badge';
+import { Modal } from '../../components/ui/Modal';
 import { getStaffingStatus } from '../../lib/utils';
 import { GanttChartView } from '../../components/calendar/GanttChartView';
 import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
+import { TaskForm } from '../../components/tasks/TaskForm';
 
 type ViewMode = 'calendar' | 'gantt';
 
@@ -30,6 +32,8 @@ export function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -70,6 +74,39 @@ export function Calendar() {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setShowTaskDetails(false);
+    setShowEditModal(true);
+  };
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    if (!user?.id || !user?.org_id || !editingTask) {
+      toast.error('Unable to save task');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          ...taskData,
+          modified_by: user.id,
+          modified_at: new Date().toISOString()
+        })
+        .eq('id', editingTask.id);
+
+      if (error) throw error;
+      toast.success('Task updated successfully');
+      fetchData();
+      setShowEditModal(false);
+      setEditingTask(null);
+    } catch (error) {
+      toast.error('Failed to save task');
+      console.error(error);
     }
   };
 
@@ -324,7 +361,31 @@ export function Calendar() {
           }}
           task={selectedTask}
           assignments={assignments}
+          onEdit={() => handleEditTask(selectedTask)}
         />
+      )}
+
+      {/* Task Edit Modal */}
+      {editingTask && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingTask(null);
+          }}
+          title="Edit Task"
+        >
+          <TaskForm
+            task={editingTask}
+            draft={null}
+            onSave={handleSaveTask}
+            onSaveDraft={() => {}}
+            onCancel={() => {
+              setShowEditModal(false);
+              setEditingTask(null);
+            }}
+          />
+        </Modal>
       )}
     </div>
   );
