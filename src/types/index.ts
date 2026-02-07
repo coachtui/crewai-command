@@ -35,6 +35,7 @@ export interface JobSite {
   created_by?: string;
   created_at: string;
   updated_at?: string;
+  is_system_site?: boolean; // Marks system sites like "Unassigned" that can't be deleted
 }
 
 // ============================================================================

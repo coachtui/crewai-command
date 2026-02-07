@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 
 export function Workers() {
   const { user } = useAuth();
-  const { currentJobSite } = useJobSite();
+  const { currentJobSite, availableJobSites } = useJobSite();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [unassignedWorkers, setUnassignedWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,12 +22,15 @@ export function Workers() {
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [showUnassigned, setShowUnassigned] = useState(true);
 
+  // Get the "Unassigned" system job site
+  const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
+
   useEffect(() => {
     if (user?.org_id) {
       fetchWorkers();
       fetchUnassignedWorkers();
     }
-  }, [currentJobSite?.id, user?.org_id]);
+  }, [currentJobSite?.id, user?.org_id, unassignedSite?.id]);
 
   // Enable real-time subscriptions for workers
   useRealtimeSubscription('workers', useCallback(() => {
@@ -70,17 +73,17 @@ export function Workers() {
   };
 
   const fetchUnassignedWorkers = async () => {
-    if (!user?.org_id) {
+    if (!user?.org_id || !unassignedSite) {
       setUnassignedWorkers([]);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('workers')
         .select('*')
         .eq('organization_id', user.org_id)
-        .is('job_site_id', null)
+        .eq('job_site_id', unassignedSite.id)
         .order('name');
 
       if (error) throw error;

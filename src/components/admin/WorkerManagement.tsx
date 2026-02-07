@@ -90,11 +90,14 @@ export function WorkerManagement() {
     setMovingWorker(null);
   };
 
+  // Get the "Unassigned" system job site ID
+  const unassignedSiteId = jobSites.find(site => site.is_system_site && site.name === 'Unassigned')?.id;
+
   const filteredWorkers = workers.filter((worker) => {
     const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSite =
       siteFilter === 'all' ||
-      (siteFilter === 'unassigned' && !worker.job_site_id) ||
+      (siteFilter === 'unassigned' && worker.job_site_id === unassignedSiteId) ||
       worker.job_site_id === siteFilter;
     const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || worker.status === statusFilter;
