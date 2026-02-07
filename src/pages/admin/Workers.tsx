@@ -14,35 +14,50 @@ export function Workers() {
   const { user } = useAuth();
   const { currentJobSite } = useJobSite();
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [unassignedWorkers, setUnassignedWorkers] = useState<Worker[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+  const [showUnassigned, setShowUnassigned] = useState(true);
 
   useEffect(() => {
-    if (currentJobSite && user?.org_id) {
+    if (user?.org_id) {
       fetchWorkers();
+      fetchUnassignedWorkers();
     }
   }, [currentJobSite?.id, user?.org_id]);
 
   // Enable real-time subscriptions for workers
-  useRealtimeSubscription('workers', useCallback(() => fetchWorkers(), []));
+  useRealtimeSubscription('workers', useCallback(() => {
+    fetchWorkers();
+    fetchUnassignedWorkers();
+  }, []));
 
   const fetchWorkers = async () => {
-    if (!currentJobSite || !user?.org_id) {
+    if (!user?.org_id) {
       setWorkers([]);
       setLoading(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('workers')
         .select('*')
-        .eq('organization_id', user.org_id)
-        .eq('job_site_id', currentJobSite.id)
-        .order('name');
+        .eq('organization_id', user.org_id);
+
+      // Filter by job site if one is selected
+      if (currentJobSite) {
+        query = query.eq('job_site_id', currentJobSite.id);
+      } else {
+        // If no job site selected, don't show any workers in main section
+        // (they'll appear in unassigned section if applicable)
+        query = query.is('job_site_id', null).limit(0);
+      }
+
+      const { data, error } = await query.order('name');
 
       if (error) throw error;
       setWorkers(data || []);
@@ -54,14 +69,32 @@ export function Workers() {
     }
   };
 
-  const handleSaveWorker = async (workerData: Partial<Worker>) => {
-    // Validate user has org_id and current job site
+  const fetchUnassignedWorkers = async () => {
     if (!user?.org_id) {
-      toast.error('Unable to determine organization');
+      setUnassignedWorkers([]);
       return;
     }
-    if (!currentJobSite) {
-      toast.error('No job site selected');
+
+    try {
+      const { data, error } = await supabase
+        .from('workers')
+        .select('*')
+        .eq('organization_id', user.org_id)
+        .is('job_site_id', null)
+        .order('name');
+
+      if (error) throw error;
+      setUnassignedWorkers(data || []);
+    } catch (error) {
+      console.error('Failed to load unassigned workers:', error);
+      // Don't show error toast for unassigned workers - it's not critical
+    }
+  };
+
+  const handleSaveWorker = async (workerData: Partial<Worker>) => {
+    // Validate user has org_id
+    if (!user?.org_id) {
+      toast.error('Unable to determine organization');
       return;
     }
 
@@ -76,13 +109,13 @@ export function Workers() {
         if (error) throw error;
         toast.success('Worker updated successfully');
       } else {
-        // Create new worker with user's org_id and current job_site_id
+        // Create new worker with user's org_id and optional job_site_id from form
         const { error } = await supabase
           .from('workers')
           .insert([{
             ...workerData,
             organization_id: user.org_id,
-            job_site_id: currentJobSite.id
+            // job_site_id comes from workerData (can be undefined/null for unassigned)
           }]);
 
         if (error) throw error;
@@ -90,6 +123,7 @@ export function Workers() {
       }
 
       fetchWorkers();
+      fetchUnassignedWorkers();
       setIsModalOpen(false);
       setEditingWorker(null);
     } catch (error) {
@@ -115,6 +149,7 @@ export function Workers() {
       if (error) throw error;
       toast.success('Worker deleted successfully');
       fetchWorkers();
+      fetchUnassignedWorkers();
     } catch (error) {
       toast.error('Failed to delete worker');
       console.error(error);
@@ -122,6 +157,12 @@ export function Workers() {
   };
 
   const filteredWorkers = workers.filter((worker) => {
+    const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  const filteredUnassignedWorkers = unassignedWorkers.filter((worker) => {
     const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -169,6 +210,44 @@ export function Workers() {
           Add Worker
         </Button>
       </div>
+
+      {/* Unassigned Workers Section */}
+      {filteredUnassignedWorkers.length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowUnassigned(!showUnassigned)}
+            className="flex items-center justify-between w-full p-4 bg-bg-secondary border border-border rounded-lg hover:bg-bg-hover transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold">Unassigned Workers</h2>
+              <span className="px-2 py-1 bg-warning/20 text-warning text-sm rounded-full">
+                {filteredUnassignedWorkers.length}
+              </span>
+            </div>
+            <svg
+              className={`w-5 h-5 transition-transform ${showUnassigned ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showUnassigned && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredUnassignedWorkers.map((worker) => (
+                <WorkerCard
+                  key={worker.id}
+                  worker={worker}
+                  onEdit={handleEditWorker}
+                  onDelete={handleDeleteWorker}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Workers Grid */}
       {loading ? (

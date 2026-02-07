@@ -5,6 +5,7 @@ import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
 import type { Worker } from '../../types';
+import { useJobSite } from '../../contexts/JobSiteContext';
 
 interface WorkerFormProps {
   worker: Worker | null;
@@ -13,6 +14,7 @@ interface WorkerFormProps {
 }
 
 export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
+  const { availableJobSites } = useJobSite();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -20,6 +22,7 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
     skills: [] as string[],
     notes: '',
     status: 'active' as 'active' | 'inactive',
+    job_site_id: '' as string | undefined,
   });
   const [skillInput, setSkillInput] = useState('');
 
@@ -34,13 +37,19 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
         skills: worker.skills || [],
         notes: worker.notes || '',
         status: worker.status,
+        job_site_id: worker.job_site_id || '',
       });
     }
   }, [worker]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    // Convert empty string to undefined for job_site_id
+    const dataToSave = {
+      ...formData,
+      job_site_id: formData.job_site_id || undefined,
+    };
+    onSave(dataToSave);
   };
 
   const addSkill = () => {
@@ -145,6 +154,19 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
         options={[
           { value: 'active', label: 'Active' },
           { value: 'inactive', label: 'Inactive' },
+        ]}
+      />
+
+      <Select
+        label="Job Site (Optional)"
+        value={formData.job_site_id || ''}
+        onChange={(e) => setFormData({ ...formData, job_site_id: e.target.value || undefined })}
+        options={[
+          { value: '', label: 'None (Unassigned)' },
+          ...availableJobSites.map(site => ({
+            value: site.id,
+            label: site.name
+          }))
         ]}
       />
 

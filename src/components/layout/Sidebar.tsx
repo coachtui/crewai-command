@@ -10,12 +10,10 @@ import {
   Users,
   Briefcase,
   Calendar,
-  CheckSquare,
   Clock,
   LogOut,
   Menu,
   X,
-  Building2,
   CircleUser
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -24,11 +22,7 @@ import { JobSiteSelector, JobSiteSelectorMobile } from '../navigation/JobSiteSel
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 
-interface SidebarProps {
-  pendingCount?: number;
-}
-
-export function Sidebar({ pendingCount = 0 }: SidebarProps) {
+export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -117,12 +111,10 @@ export function Sidebar({ pendingCount = 0 }: SidebarProps) {
 
   const navItems = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/job-sites', icon: Building2, label: 'Job Sites' },
     { path: '/workers', icon: Users, label: 'Workers' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/calendar', icon: Calendar, label: 'Calendar' },
     { path: '/daily-hours', icon: Clock, label: 'Daily Hours' },
-    { path: '/activities', icon: CheckSquare, label: 'Activities', badge: pendingCount },
   ];
 
   return (
