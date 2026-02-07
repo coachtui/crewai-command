@@ -109,7 +109,14 @@ export function Sidebar() {
     navigate('/login');
   };
 
-  const navItems = [
+  type NavItem = {
+    path: string;
+    icon: React.ComponentType<{ size?: number }>;
+    label: string;
+    badge?: number;
+  };
+
+  const navItems: NavItem[] = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/workers', icon: Users, label: 'Workers' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
