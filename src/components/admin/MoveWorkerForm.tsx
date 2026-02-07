@@ -29,20 +29,33 @@ export function MoveWorkerForm({ worker, availableJobSites, onSave, onCancel }: 
       return;
     }
 
-    if (targetSiteId === worker.job_site_id) {
+    // Check if worker is already in the target state
+    const isCurrentlyUnassigned = !worker.job_site_id;
+    const movingToUnassigned = targetSiteId === 'unassigned';
+
+    if (isCurrentlyUnassigned && movingToUnassigned) {
+      alert('Worker is already unassigned');
+      return;
+    }
+
+    if (!movingToUnassigned && targetSiteId === worker.job_site_id) {
       alert('Target job site must be different from current job site');
       return;
     }
 
-    onSave(targetSiteId, notes);
+    // Use 'null' string to represent unassigned
+    onSave(targetSiteId === 'unassigned' ? 'null' : targetSiteId, notes);
   };
 
-  const jobSiteOptions = availableJobSites
-    .filter(site => site.id !== worker.job_site_id && site.status === 'active')
-    .map(site => ({
-      value: site.id,
-      label: site.name
-    }));
+  const jobSiteOptions = [
+    { value: 'unassigned', label: 'Unassigned (No Job Site)' },
+    ...availableJobSites
+      .filter(site => site.id !== worker.job_site_id && site.status === 'active')
+      .map(site => ({
+        value: site.id,
+        label: site.name
+      }))
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,7 +72,7 @@ export function MoveWorkerForm({ worker, availableJobSites, onSave, onCancel }: 
           </div>
           <div>
             <span className="text-text-secondary">Current Site: </span>
-            <span className="text-text-primary font-medium">{currentSite?.name || 'Unknown'}</span>
+            <span className="text-text-primary font-medium">{currentSite?.name || 'Unassigned'}</span>
           </div>
         </div>
       </div>
@@ -72,13 +85,21 @@ export function MoveWorkerForm({ worker, availableJobSites, onSave, onCancel }: 
         required
       />
 
-      {targetSite && (
+      {(targetSite || targetSiteId === 'unassigned') && (
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 flex gap-2">
           <AlertCircle size={20} className="text-warning flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-text-primary mb-1">Moving Worker</p>
             <p className="text-text-secondary">
-              {worker.name} will be moved from <strong>{currentSite?.name}</strong> to <strong>{targetSite.name}</strong>.
+              {targetSiteId === 'unassigned' ? (
+                <>
+                  {worker.name} will be moved from <strong>{currentSite?.name || 'current site'}</strong> to <strong>Unassigned</strong> (no job site).
+                </>
+              ) : (
+                <>
+                  {worker.name} will be moved from <strong>{currentSite?.name}</strong> to <strong>{targetSite?.name}</strong>.
+                </>
+              )}
             </p>
           </div>
         </div>

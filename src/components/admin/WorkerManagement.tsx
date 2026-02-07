@@ -92,7 +92,10 @@ export function WorkerManagement() {
 
   const filteredWorkers = workers.filter((worker) => {
     const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSite = siteFilter === 'all' || worker.job_site_id === siteFilter;
+    const matchesSite =
+      siteFilter === 'all' ||
+      (siteFilter === 'unassigned' && !worker.job_site_id) ||
+      worker.job_site_id === siteFilter;
     const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || worker.status === statusFilter;
     return matchesSearch && matchesSite && matchesRole && matchesStatus;
@@ -125,6 +128,7 @@ export function WorkerManagement() {
             className="px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="all">All Sites</option>
+            <option value="unassigned">Unassigned</option>
             {jobSites.map(site => (
               <option key={site.id} value={site.id}>{site.name}</option>
             ))}
