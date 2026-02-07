@@ -15,6 +15,10 @@ interface WorkerFormProps {
 
 export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
   const { availableJobSites } = useJobSite();
+
+  // Get the "Unassigned" system job site to use as default
+  const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -22,7 +26,7 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
     skills: [] as string[],
     notes: '',
     status: 'active' as 'active' | 'inactive',
-    job_site_id: '' as string | undefined,
+    job_site_id: unassignedSite?.id || '' as string | undefined,
   });
   const [skillInput, setSkillInput] = useState('');
 
@@ -39,17 +43,19 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
         status: worker.status,
         job_site_id: worker.job_site_id || '',
       });
+    } else if (unassignedSite && !formData.job_site_id) {
+      // Default to Unassigned site for new workers
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFormData(prev => ({
+        ...prev,
+        job_site_id: unassignedSite.id
+      }));
     }
-  }, [worker]);
+  }, [worker, unassignedSite]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    // Convert empty string to undefined for job_site_id
-    const dataToSave = {
-      ...formData,
-      job_site_id: formData.job_site_id || undefined,
-    };
-    onSave(dataToSave);
+    onSave(formData);
   };
 
   const addSkill = () => {
@@ -161,13 +167,10 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
         label="Job Site (Optional)"
         value={formData.job_site_id || ''}
         onChange={(e) => setFormData({ ...formData, job_site_id: e.target.value || undefined })}
-        options={[
-          { value: '', label: 'None (Unassigned)' },
-          ...availableJobSites.map(site => ({
-            value: site.id,
-            label: site.name
-          }))
-        ]}
+        options={availableJobSites.map(site => ({
+          value: site.id,
+          label: site.name
+        }))}
       />
 
       <div className="flex gap-3 pt-4">
