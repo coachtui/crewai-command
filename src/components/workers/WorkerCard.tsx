@@ -1,6 +1,5 @@
 import { Edit2, Trash2, Phone, Wrench, HardHat, Hammer } from 'lucide-react';
-import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
+import { ListItem } from '../ui/ListItem';
 import type { Worker } from '../../types';
 import { formatPhone } from '../../lib/utils';
 
@@ -48,61 +47,59 @@ export function WorkerCard({ worker, onEdit, onDelete }: WorkerCardProps) {
   const roleConfig = getRoleConfig(worker.role);
   const RoleIcon = roleConfig.icon;
 
-  return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${roleConfig.bgColor}`}>
-            <RoleIcon className={roleConfig.iconColor} size={20} />
-          </div>
-          <div>
-            <h3 className="font-semibold text-text-primary">{worker.name}</h3>
-            <Badge variant={roleConfig.badgeVariant} className="mt-1">
-              {worker.role}
-            </Badge>
-          </div>
-        </div>
-        
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onEdit(worker)}
-            className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-            title="Edit"
-          >
-            <Edit2 size={16} className="text-text-secondary" />
-          </button>
-          <button
-            onClick={() => onDelete(worker.id)}
-            className="p-1.5 hover:bg-bg-hover rounded transition-colors"
-            title="Delete"
-          >
-            <Trash2 size={16} className="text-error" />
-          </button>
-        </div>
+  // Determine status color
+  const statusColor: 'green' | 'gray' = worker.status === 'active' ? 'green' : 'gray';
+
+  // Build metadata array
+  const metadata = [];
+  metadata.push({
+    icon: <RoleIcon size={14} className={roleConfig.iconColor} />,
+    text: worker.role.charAt(0).toUpperCase() + worker.role.slice(1),
+  });
+  if (worker.phone) {
+    metadata.push({
+      icon: <Phone size={14} />,
+      text: formatPhone(worker.phone),
+    });
+  }
+
+  // Build right content
+  const rightContent = (
+    <div className="flex items-center justify-between gap-4">
+      <div className="text-[13px] text-text-secondary">
+        {worker.status === 'active' ? 'Available' : 'Inactive'}
       </div>
+      <div className="flex gap-1 opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(worker);
+          }}
+          className="p-1.5 hover:bg-bg-hover rounded transition-colors"
+          title="Edit"
+        >
+          <Edit2 size={16} className="text-text-secondary" />
+        </button>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(worker.id);
+          }}
+          className="p-1.5 hover:bg-bg-hover rounded transition-colors"
+          title="Delete"
+        >
+          <Trash2 size={16} className="text-error" />
+        </button>
+      </div>
+    </div>
+  );
 
-      {worker.phone && (
-        <div className="flex items-center gap-2 text-sm text-text-secondary mb-3">
-          <Phone size={14} />
-          <span>{formatPhone(worker.phone)}</span>
-        </div>
-      )}
-
-      {worker.skills && worker.skills.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {worker.skills.map((skill, index) => (
-            <Badge key={index} variant="default" className="text-xs">
-              {skill}
-            </Badge>
-          ))}
-        </div>
-      )}
-
-      {worker.notes && (
-        <p className="text-sm text-text-secondary mt-2 line-clamp-2">
-          {worker.notes}
-        </p>
-      )}
-    </Card>
+  return (
+    <ListItem
+      statusColor={statusColor}
+      title={worker.name}
+      metadata={metadata}
+      rightContent={rightContent}
+    />
   );
 }

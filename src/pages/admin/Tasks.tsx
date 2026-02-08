@@ -9,6 +9,7 @@ import { TaskForm } from '../../components/tasks/TaskForm';
 import { TaskCSVUpload } from '../../components/tasks/TaskCSVUpload';
 import { AssignmentModal } from '../../components/assignments/AssignmentModal';
 import { Modal } from '../../components/ui/Modal';
+import { ListContainer } from '../../components/ui/ListContainer';
 import type { Task, Assignment, TaskDraft } from '../../types';
 import { toast } from 'sonner';
 import { format, addWeeks, startOfWeek, endOfWeek } from 'date-fns';
@@ -518,13 +519,13 @@ export function Tasks() {
 
           {groupedTasks().map((week, index) => (
             <div key={index}>
-              <h2 className="text-xl font-bold mb-4">{week.label}</h2>
+              <h2 className="text-[18px] font-semibold text-text-primary mb-3">{week.label}</h2>
               {week.tasks.length === 0 ? (
                 <div className="text-center py-8 bg-bg-secondary border border-border rounded-lg">
                   <p className="text-text-secondary">No tasks scheduled for this week</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <ListContainer>
                   {week.tasks.map((task) => (
                     <TaskCard
                       key={task.id}
@@ -535,7 +536,7 @@ export function Tasks() {
                       onAssign={(task: Task) => setAssigningTask(task)}
                     />
                   ))}
-                </div>
+                </ListContainer>
               )}
             </div>
           ))}

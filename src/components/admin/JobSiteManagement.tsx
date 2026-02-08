@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { JobSiteCard } from './JobSiteCard';
 import { JobSiteForm } from './JobSiteForm';
+import { ListContainer } from '../ui/ListContainer';
 import { fetchJobSites, createJobSite, updateJobSite, deleteJobSite } from '../../lib/api/jobSites';
 import type { JobSite } from '../../types';
 import { toast } from 'sonner';
@@ -149,7 +150,7 @@ export function JobSiteManagement() {
             : 'No job sites yet. Click "Add Job Site" to get started.'}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <ListContainer>
           {filteredJobSites.map((jobSite) => (
             <JobSiteCard
               key={jobSite.id}
@@ -158,7 +159,7 @@ export function JobSiteManagement() {
               onDelete={handleDeleteJobSite}
             />
           ))}
-        </div>
+        </ListContainer>
       )}
 
       <Modal

@@ -17,6 +17,12 @@ export default {
         error: '#EF4444',
         'error-bg': '#FEE2E2',
         info: '#3B82F6',
+        // List view design system
+        'status-active': '#3B82F6', // Blue for active/assigned
+        'status-complete': '#10b981', // Green for completed/available
+        'status-draft': '#94a3b8', // Slate gray for draft/unassigned
+        'list-separator': '#e2e8f0', // Light gray for list separators
+        'list-hover': '#f8fafc', // Very light gray for list hover
         bg: {
           primary: '#FAFAF9', // Neutral background
           secondary: '#FFFFFF', // White surfaces

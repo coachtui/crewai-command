@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { WorkerCard } from '../../components/workers/WorkerCard';
 import { WorkerForm } from '../../components/workers/WorkerForm';
 import { Modal } from '../../components/ui/Modal';
+import { ListContainer } from '../../components/ui/ListContainer';
 import type { Worker } from '../../types';
 import { toast } from 'sonner';
 
@@ -238,7 +239,7 @@ export function Workers() {
           </button>
 
           {showUnassigned && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <ListContainer className="mt-4">
               {filteredUnassignedWorkers.map((worker) => (
                 <WorkerCard
                   key={worker.id}
@@ -247,12 +248,12 @@ export function Workers() {
                   onDelete={handleDeleteWorker}
                 />
               ))}
-            </div>
+            </ListContainer>
           )}
         </div>
       )}
 
-      {/* Workers Grid */}
+      {/* Workers List */}
       {loading ? (
         <div className="text-center py-12">
           <p className="text-text-secondary">Loading workers...</p>
@@ -262,7 +263,7 @@ export function Workers() {
           <p className="text-text-secondary">No workers found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <ListContainer>
           {filteredWorkers.map((worker) => (
             <WorkerCard
               key={worker.id}
@@ -271,7 +272,7 @@ export function Workers() {
               onDelete={handleDeleteWorker}
             />
           ))}
-        </div>
+        </ListContainer>
       )}
 
       {/* Worker Form Modal */}
