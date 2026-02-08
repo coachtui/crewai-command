@@ -1,5 +1,5 @@
 // ============================================================================
-// CrewAI Command: Sidebar Navigation
+// CRU: Sidebar Navigation
 // Includes Job Site Selector for multi-tenant navigation
 // ============================================================================
 
@@ -176,7 +176,7 @@ export function Sidebar() {
           <div className="flex items-center justify-center">
             <img
               src="/image/cru-logo-tiff.png"
-              alt="CrewAI Command"
+              alt="CRU"
               className="h-10 w-auto object-contain"
             />
           </div>

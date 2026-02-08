@@ -110,7 +110,7 @@ export function Login() {
             <div className="flex justify-center mb-6">
               <img 
                 src="/image/cru-logo-tiff.png" 
-                alt="CrewAI Command" 
+                alt="CRU" 
                 className="h-24 w-auto"
               />
             </div>

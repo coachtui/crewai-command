@@ -1,6 +1,6 @@
 {
-  "name": "CrewAI Command",
-  "short_name": "CrewAI",
+  "name": "CRU",
+  "short_name": "CRU",
   "description": "Real-time crew scheduling platform for construction superintendents",
   "start_url": "/",
   "display": "standalone",
