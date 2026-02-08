@@ -1,4 +1,4 @@
-import { Edit2, Trash2, MapPin, Calendar, Paperclip } from 'lucide-react';
+import { Edit2, Trash2, MapPin, Calendar } from 'lucide-react';
 import { ListItem } from '../ui/ListItem';
 import type { Task, Assignment } from '../../types';
 import { formatDate } from '../../lib/utils';
@@ -109,13 +109,14 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
   );
 
   return (
-    <ListItem
-      statusColor={statusColor}
-      title={task.name}
-      metadata={metadata}
-      rightContent={rightContent}
-      onClick={() => onAssign?.(task)}
-    >
+    <>
+      <ListItem
+        statusColor={statusColor}
+        title={task.name}
+        metadata={metadata}
+        rightContent={rightContent}
+        onClick={() => onAssign?.(task)}
+      />
       {/* Attachments Modal - shown when clicked */}
       <Modal
         isOpen={showAttachments}
@@ -164,6 +165,6 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
           })}
         </div>
       </Modal>
-    </ListItem>
+    </>
   );
 }

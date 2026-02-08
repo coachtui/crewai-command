@@ -8,7 +8,7 @@ interface JobSiteCardProps {
   onDelete: (jobSiteId: string) => void;
 }
 
-const getStatusColor = (status: JobSite['status']): 'blue' | 'green' | 'orange' => {
+const getStatusColor = (status: JobSite['status']): 'blue' | 'green' | 'orange' | 'gray' => {
   switch (status) {
     case 'active':
       return 'blue';
