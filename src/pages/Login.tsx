@@ -106,12 +106,12 @@ export function Login() {
     <div className="min-h-screen flex flex-col bg-bg-primary">
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-              <img 
-                src="/image/cru-logo-tiff.png" 
-                alt="CRU" 
-                className="h-24 w-auto"
+          <div className="text-center mb-12">
+            <div className="flex justify-center mb-8">
+              <img
+                src="/image/cru-logo-tiff.png"
+                alt="CRU"
+                className="h-72 w-auto"
               />
             </div>
           </div>
@@ -155,11 +155,11 @@ export function Login() {
       {/* Footer */}
       <footer className="bg-bg-subtle border-t border-border py-6 mt-8">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center mb-3">
+          <div className="flex justify-center mb-4">
             <img
               src="/image/aiga-logo-tiff.png"
               alt="AIGA"
-              className="h-12 w-auto"
+              className="h-24 w-auto"
             />
           </div>
           <p className="text-[14px] font-medium text-text-primary mb-2">Powered by AIGA</p>
