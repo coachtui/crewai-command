@@ -106,7 +106,7 @@ export function Login() {
     <div className="min-h-screen flex flex-col bg-bg-primary">
       <div className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md flex flex-col items-center">
-          <div className="flex justify-center mb-10">
+          <div className="flex justify-center mb-3">
             <img
               src="/image/cru-logo-tiff.png"
               alt="CRU"
