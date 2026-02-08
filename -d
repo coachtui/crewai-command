@@ -1,0 +1,18 @@
+HTTP/2 401 
+date: Thu, 22 Jan 2026 18:03:58 GMT
+content-type: application/json
+server: cloudflare
+cf-ray: 9c20f89a397c1017-LAX
+cf-cache-status: DYNAMIC
+access-control-allow-origin: *
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+vary: Accept-Encoding
+access-control-allow-headers: authorization, x-client-info, apikey
+sb-project-ref: rgsulxuitaktxwmcozya
+sb-request-id: 019be6e0-9c73-7882-bdbf-eb053fff2cf1
+x-sb-edge-region: us-west-1
+x-served-by: supabase-edge-runtime
+set-cookie: __cf_bm=QiGE.E8rUzmzc0W4qbMg.197Kba61gYuzEX2OBomxrg-1769105038-1.0.1.1-bZFCAsgu.KtAslHeM2vR8bgCsYWef_Ek3bNnTeDRhL2q9vPLvIFlE7SwCvuuJyO5aVldP6Aps7vvtawu024o8hS4cm9YJtF9H32BtzLi3iM; path=/; expires=Thu, 22-Jan-26 18:33:58 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None
+alt-svc: h3=":443"; ma=86400
+
+{"code":401,"message":"Missing authorization header"}

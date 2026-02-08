@@ -104,19 +104,17 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
-      <div className="flex items-center justify-center p-4 pt-8 pb-6">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-6">
-            <div className="flex justify-center mb-4">
-              <img
-                src="/image/cru-logo-tiff.png"
-                alt="CRU"
-                className="h-72 w-auto"
-              />
-            </div>
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md flex flex-col items-center">
+          <div className="flex justify-center mb-10">
+            <img
+              src="/image/cru-logo-tiff.png"
+              alt="CRU"
+              className="h-72 w-auto"
+            />
           </div>
 
-          <div className="bg-bg-secondary border border-border rounded-lg p-8 shadow-md-soft">
+          <div className="w-full bg-bg-secondary border border-border rounded-lg p-8 shadow-md-soft">
             <form onSubmit={handleLogin} className="space-y-5">
               <Input
                 type="email"
