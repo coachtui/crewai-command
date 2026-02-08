@@ -172,12 +172,12 @@ export function Sidebar() {
         )}
 
         {/* Logo */}
-        <div className="px-6 py-6 border-b border-border">
+        <div className="px-6 py-4 border-b border-border">
           <div className="flex items-center justify-center">
             <img
               src="/image/cru-logo-tiff.png"
               alt="CRU"
-              className="h-16 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           </div>
         </div>
