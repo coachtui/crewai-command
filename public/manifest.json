@@ -4,8 +4,8 @@
   "description": "Real-time crew scheduling platform for construction superintendents",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#FF6B35",
+  "background_color": "#FAFAF9",
+  "theme_color": "#14B8A6",
   "orientation": "portrait-primary",
   "icons": [
     {
