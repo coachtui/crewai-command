@@ -104,10 +104,10 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
-      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4 pt-8 pb-6">
         <div className="w-full max-w-md">
-          <div className="text-center mb-12">
-            <div className="flex justify-center mb-8">
+          <div className="text-center mb-6">
+            <div className="flex justify-center mb-4">
               <img
                 src="/image/cru-logo-tiff.png"
                 alt="CRU"
@@ -153,7 +153,7 @@ export function Login() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-bg-subtle border-t border-border py-6 mt-8">
+      <footer className="bg-bg-subtle border-t border-border py-6 mt-auto">
         <div className="container mx-auto px-4 text-center">
           <div className="flex justify-center mb-4">
             <img
