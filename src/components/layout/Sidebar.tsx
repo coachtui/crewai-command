@@ -175,7 +175,7 @@ export function Sidebar() {
         <div className="px-6 py-5 border-b border-border">
           <div className="flex items-center justify-center">
             <img
-              src="/image/crewai-command-logo.png"
+              src="/image/cru-logo-tiff.png"
               alt="CrewAI Command"
               className="h-10 w-auto object-contain"
             />

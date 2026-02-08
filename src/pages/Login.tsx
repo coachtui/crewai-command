@@ -109,7 +109,7 @@ export function Login() {
           <div className="text-center mb-8">
             <div className="flex justify-center mb-6">
               <img 
-                src="/image/crewai-command-logo.png" 
+                src="/image/cru-logo-tiff.png" 
                 alt="CrewAI Command" 
                 className="h-24 w-auto"
               />
@@ -157,7 +157,7 @@ export function Login() {
         <div className="container mx-auto px-4 text-center">
           <div className="flex justify-center mb-3">
             <img
-              src="/image/aiga-logo.png"
+              src="/image/aiga-logo-tiff.png"
               alt="AIGA"
               className="h-12 w-auto"
             />
