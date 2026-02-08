@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts';
-import { Card } from '../components/ui/Card';
 import { JobSiteManagement } from '../components/admin/JobSiteManagement';
 import { WorkerManagement } from '../components/admin/WorkerManagement';
 import { UserManagement } from '../components/admin/UserManagement';
-import { CheckSquare, Users, AlertCircle } from 'lucide-react';
 
 export function Dashboard() {
   const { user } = useAuth();
@@ -19,44 +17,6 @@ export function Dashboard() {
         <p className="text-[14px] text-text-secondary">Welcome back, {user?.name}!</p>
       </div>
 
-      {/* Quick Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
-        <Card className="!p-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-md bg-primary-subtle flex items-center justify-center">
-              <CheckSquare className="text-primary" size={22} />
-            </div>
-            <div>
-              <p className="text-text-secondary text-[13px] mb-1">Active Tasks</p>
-              <p className="text-[24px] font-semibold text-text-primary">--</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="!p-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-md bg-success/10 flex items-center justify-center">
-              <Users className="text-success" size={22} />
-            </div>
-            <div>
-              <p className="text-text-secondary text-[13px] mb-1">Workers on Site</p>
-              <p className="text-[24px] font-semibold text-text-primary">--</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="!p-5">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-md bg-warning/10 flex items-center justify-center">
-              <AlertCircle className="text-warning" size={22} />
-            </div>
-            <div>
-              <p className="text-text-secondary text-[13px] mb-1">Pending Requests</p>
-              <p className="text-[24px] font-semibold text-text-primary">--</p>
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* Admin Management Section */}
       {isAdmin ? (
