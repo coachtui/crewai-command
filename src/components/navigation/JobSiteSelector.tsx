@@ -80,9 +80,9 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
 
   if (isLoading) {
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 bg-bg-secondary border border-border rounded-lg ${className}`}>
+      <div className={`flex items-center gap-2 px-3 py-2 bg-bg-secondary border border-border rounded-md ${className}`}>
         <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <span className="text-sm text-text-secondary">Loading...</span>
+        <span className="text-[13px] text-text-secondary">Loading...</span>
       </div>
     );
   }
@@ -93,12 +93,12 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`
-          flex items-center gap-2 px-3 py-2 
-          bg-bg-secondary hover:bg-bg-hover 
-          border border-border rounded-lg 
-          transition-colors cursor-pointer
-          ${isOpen ? 'ring-2 ring-primary ring-opacity-50' : ''}
-          ${compact ? 'text-sm' : 'text-sm md:text-base'}
+          w-full flex items-center gap-2 px-3 py-2
+          bg-bg-secondary hover:bg-bg-hover
+          border border-border rounded-md
+          transition-all duration-150 ease-smooth cursor-pointer
+          ${isOpen ? 'ring-2 ring-primary ring-opacity-50 border-primary' : ''}
+          ${compact ? 'text-[13px]' : 'text-[14px]'}
         `}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -107,26 +107,26 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
         <span className="text-text-primary font-medium truncate">
           {currentJobSite ? getDisplayName(currentJobSite.name) : 'Select Site'}
         </span>
-        <ChevronDown 
-          size={compact ? 14 : 16} 
-          className={`text-text-secondary transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} 
+        <ChevronDown
+          size={compact ? 14 : 16}
+          className={`text-text-secondary transition-transform duration-150 flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div 
+        <div
           className={`
-            absolute z-50 mt-1 
-            bg-bg-secondary border border-border rounded-lg shadow-lg
+            absolute z-50 mt-2
+            bg-bg-secondary border border-border rounded-md shadow-md-soft
             min-w-[200px] max-w-[300px] w-max
             ${compact ? 'right-0' : 'left-0'}
           `}
           role="listbox"
         >
           {/* Header */}
-          <div className="px-3 py-2 border-b border-border">
-            <p className="text-xs text-text-secondary font-medium uppercase tracking-wider">
+          <div className="px-4 py-2.5 border-b border-border">
+            <p className="text-[11px] text-text-secondary font-semibold uppercase tracking-wide">
               Your Job Sites
             </p>
           </div>
@@ -134,7 +134,7 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
           {/* Site List */}
           <div className="max-h-[300px] overflow-y-auto py-1">
             {availableJobSites.length === 0 ? (
-              <div className="px-3 py-4 text-center text-text-secondary text-sm">
+              <div className="px-4 py-6 text-center text-text-secondary text-[13px]">
                 No job sites available
               </div>
             ) : (
@@ -143,10 +143,10 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
                   key={site.id}
                   onClick={() => handleSiteSelect(site)}
                   className={`
-                    w-full flex items-start gap-3 px-3 py-2
-                    hover:bg-bg-hover transition-colors
+                    w-full flex items-start gap-3 px-4 py-2.5
+                    hover:bg-bg-hover transition-all duration-150
                     text-left
-                    ${currentJobSite?.id === site.id ? 'bg-primary/10' : ''}
+                    ${currentJobSite?.id === site.id ? 'bg-primary-subtle' : ''}
                   `}
                   role="option"
                   aria-selected={currentJobSite?.id === site.id}
@@ -162,13 +162,13 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
 
                   {/* Site info */}
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium truncate ${
+                    <p className={`text-[14px] font-medium truncate ${
                       currentJobSite?.id === site.id ? 'text-primary' : 'text-text-primary'
                     }`}>
                       {site.name}
                     </p>
                     {site.address && (
-                      <p className="text-xs text-text-secondary truncate mt-0.5">
+                      <p className="text-[12px] text-text-secondary truncate mt-0.5">
                         {site.address}
                       </p>
                     )}
@@ -176,7 +176,7 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
 
                   {/* Status badge */}
                   <span className={`
-                    px-1.5 py-0.5 text-xs font-medium rounded flex-shrink-0
+                    px-2 py-0.5 text-[11px] font-medium rounded-full flex-shrink-0
                     ${getStatusColor(site.status)}
                   `}>
                     {site.status === 'on_hold' ? 'Hold' : site.status}
@@ -188,8 +188,8 @@ export function JobSiteSelector({ className = '', compact = false }: JobSiteSele
 
           {/* Footer - show total count */}
           {availableJobSites.length > 0 && (
-            <div className="px-3 py-2 border-t border-border">
-              <p className="text-xs text-text-secondary text-center">
+            <div className="px-4 py-2.5 border-t border-border bg-bg-subtle">
+              <p className="text-[11px] text-text-secondary text-center">
                 {availableJobSites.length} site{availableJobSites.length !== 1 ? 's' : ''} assigned
               </p>
             </div>
@@ -230,7 +230,7 @@ export function JobSiteSelectorMobile() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 px-2 py-1.5 bg-bg-secondary border border-border rounded-lg">
+      <div className="flex items-center gap-2 px-2 py-1.5 bg-bg-secondary border border-border rounded-md">
         <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -241,10 +241,10 @@ export function JobSiteSelectorMobile() {
       {/* Compact trigger */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1.5 bg-bg-secondary hover:bg-bg-hover border border-border rounded-lg transition-colors"
+        className="flex items-center gap-1.5 px-2 py-1.5 bg-bg-secondary hover:bg-bg-hover border border-border rounded-md transition-all duration-150"
       >
         <MapPin size={14} className="text-primary" />
-        <span className="text-sm text-text-primary font-medium max-w-[80px] truncate">
+        <span className="text-[13px] text-text-primary font-medium max-w-[80px] truncate">
           {currentJobSite?.name || 'Site'}
         </span>
         <ChevronDown size={12} className="text-text-secondary" />

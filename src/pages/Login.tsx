@@ -116,8 +116,8 @@ export function Login() {
             </div>
           </div>
 
-          <div className="bg-bg-secondary border border-border rounded-lg p-8">
-            <form onSubmit={handleLogin} className="space-y-4">
+          <div className="bg-bg-secondary border border-border rounded-lg p-8 shadow-md-soft">
+            <form onSubmit={handleLogin} className="space-y-5">
               <Input
                 type="email"
                 label="Email"
@@ -138,7 +138,7 @@ export function Login() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full !mt-6"
                 disabled={loading}
               >
                 {loading ? 'Logging in...' : 'Login'}
@@ -146,25 +146,25 @@ export function Login() {
             </form>
           </div>
 
-          <p className="text-center text-sm text-text-secondary mt-4">
+          <p className="text-center text-[13px] text-text-secondary mt-4">
             Demo: admin@demo.com / foreman@demo.com
           </p>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-bg-secondary border-t border-border py-6 mt-8">
+      <footer className="bg-bg-subtle border-t border-border py-6 mt-8">
         <div className="container mx-auto px-4 text-center">
           <div className="flex justify-center mb-3">
-            <img 
-              src="/image/aiga-logo.png" 
-              alt="AIGA" 
+            <img
+              src="/image/aiga-logo.png"
+              alt="AIGA"
               className="h-12 w-auto"
             />
           </div>
-          <p className="text-sm font-medium text-text-primary mb-2">Powered by AIGA</p>
-          <p className="text-xs text-text-secondary mb-1">&copy; 2025 AIGA LLC. All rights reserved.</p>
-          <p className="text-xs text-text-secondary">AIGA® and related product names and logos are trademarks of AIGA LLC.</p>
+          <p className="text-[14px] font-medium text-text-primary mb-2">Powered by AIGA</p>
+          <p className="text-[12px] text-text-secondary mb-1">&copy; 2025 AIGA LLC. All rights reserved.</p>
+          <p className="text-[12px] text-text-secondary">AIGA® and related product names and logos are trademarks of AIGA LLC.</p>
         </div>
       </footer>
     </div>

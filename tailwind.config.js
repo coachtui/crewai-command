@@ -8,28 +8,51 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#eab308',
-        success: '#1DB954',
-        warning: '#FDB44B',
-        error: '#E22134',
-        info: '#1E90FF',
+        // Notion-like light theme palette
+        primary: '#14B8A6', // Teal primary
+        'primary-hover': '#0D9488', // Darker teal for hover
+        'primary-subtle': '#CCFBF1', // Subtle teal background
+        success: '#22C55E',
+        warning: '#F59E0B',
+        error: '#EF4444',
+        'error-bg': '#FEE2E2',
+        info: '#3B82F6',
         bg: {
-          primary: '#121212',
-          secondary: '#1E1E1E',
-          hover: '#2A2A2A',
+          primary: '#FAFAF9', // Neutral background
+          secondary: '#FFFFFF', // White surfaces
+          subtle: '#F5F5F4', // Subtle surface variant
+          hover: '#F5F5F4', // Hover state (light gray)
         },
         text: {
-          primary: '#FFFFFF',
-          secondary: '#B3B3B3',
+          primary: '#111827', // Dark text
+          secondary: '#6B7280', // Muted text
+          tertiary: '#9CA3AF', // Even more muted
         },
-        border: '#333333',
+        border: '#E7E5E4', // Subtle borders
+        'border-hover': '#D6D3D1', // Slightly darker on hover
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       letterSpacing: {
-        tightest: '-0.5px',
-        tight: '-0.25px',
+        tightest: '-0.03em',
+        tight: '-0.015em',
+      },
+      lineHeight: {
+        relaxed: '1.6',
+      },
+      transitionDuration: {
+        '120': '120ms',
+        '150': '150ms',
+        '180': '180ms',
+      },
+      transitionTimingFunction: {
+        'ease-smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
+      boxShadow: {
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        'sm-soft': '0 2px 4px 0 rgba(0, 0, 0, 0.04)',
+        'md-soft': '0 4px 6px -1px rgba(0, 0, 0, 0.06)',
       },
     },
   },

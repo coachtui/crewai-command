@@ -128,14 +128,14 @@ export function Sidebar() {
     <>
       {/* Mobile menu button - shows when sidebar is hidden */}
       {isMobile && !isVisible && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-bg-secondary border-b border-border">
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-bg-secondary border-b border-border shadow-subtle">
           <button
             onClick={() => setIsVisible(true)}
-            className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg"
+            className="w-10 h-10 bg-primary rounded-md flex items-center justify-center shadow-sm-soft hover:bg-primary-hover transition-all duration-150"
           >
             <Menu size={20} className="text-white" />
           </button>
-          
+
           {/* Mobile Job Site Selector */}
           <JobSiteSelectorMobile />
         </div>
@@ -144,7 +144,7 @@ export function Sidebar() {
       {/* Overlay for mobile when sidebar is visible */}
       {isMobile && isVisible && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-30 transition-opacity duration-150"
           onClick={() => setIsVisible(false)}
         />
       )}
@@ -155,7 +155,7 @@ export function Sidebar() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={`
-          w-[220px] h-screen bg-bg-secondary border-r border-border flex flex-col
+          w-[240px] h-screen bg-bg-secondary border-r border-border flex flex-col shadow-sm-soft
           transition-transform duration-300 ease-in-out
           ${isMobile ? 'fixed left-0 top-0 z-40' : 'relative'}
           ${isMobile && !isVisible ? '-translate-x-full' : 'translate-x-0'}
@@ -165,16 +165,16 @@ export function Sidebar() {
         {isMobile && isVisible && (
           <button
             onClick={() => setIsVisible(false)}
-            className="absolute top-4 right-4 z-10 w-8 h-8 bg-bg-hover rounded-lg flex items-center justify-center"
+            className="absolute top-4 right-4 z-10 w-8 h-8 bg-bg-hover rounded-md flex items-center justify-center hover:bg-bg-subtle transition-all duration-150"
           >
             <X size={16} className="text-text-secondary" />
           </button>
         )}
 
         {/* Logo */}
-        <div className="p-6 border-b border-border">
+        <div className="px-6 py-5 border-b border-border">
           <div className="flex items-center justify-center">
-            <img 
+            <img
               src="/image/crewai-command-logo.png"
               alt="CrewAI Command"
               className="h-10 w-auto object-contain"
@@ -183,12 +183,12 @@ export function Sidebar() {
         </div>
 
         {/* Job Site Selector (Desktop) */}
-        <div className="px-4 py-3 border-b border-border">
+        <div className="px-4 py-4 border-b border-border">
           <JobSiteSelector compact={false} />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -200,15 +200,15 @@ export function Sidebar() {
                 onTouchMove={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
-                  ${isActive 
-                    ? 'bg-primary text-white' 
+                  flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ease-smooth
+                  ${isActive
+                    ? 'bg-primary-subtle text-primary font-medium border border-primary/20'
                     : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
                   }
                 `}
               >
                 <item.icon size={20} />
-                <span className="text-sm font-medium flex-1">{item.label}</span>
+                <span className="text-[14px] flex-1">{item.label}</span>
                 {item.badge && item.badge > 0 && (
                   <Badge variant={isActive ? 'default' : 'warning'} className="ml-auto">
                     {item.badge}
@@ -220,22 +220,22 @@ export function Sidebar() {
         </nav>
 
         {/* User Profile and Logout */}
-        <div className="p-4 border-t border-border space-y-3">
+        <div className="p-4 border-t border-border space-y-2">
           {/* User Profile */}
-          <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-bg-hover transition-all duration-150">
             {user?.avatar_url ? (
               <img
                 src={user.avatar_url}
                 alt={user.name || 'User'}
-                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                className="w-9 h-9 rounded-full object-cover flex-shrink-0 border border-border"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <CircleUser size={20} className="text-white" />
+              <div className="w-9 h-9 rounded-full bg-primary-subtle border border-primary/20 flex items-center justify-center flex-shrink-0">
+                <CircleUser size={18} className="text-primary" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate">
+              <p className="text-[13px] font-medium text-text-primary truncate">
                 {user?.name || 'User'}
               </p>
             </div>
@@ -247,10 +247,10 @@ export function Sidebar() {
             onTouchStart={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all duration-150"
           >
-            <LogOut size={20} />
-            <span className="text-sm font-medium">Logout</span>
+            <LogOut size={18} />
+            <span className="text-[14px]">Logout</span>
           </button>
         </div>
       </div>
