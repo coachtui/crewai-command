@@ -110,7 +110,7 @@ export function Login() {
             <img
               src="/image/cru-logo-tiff.png"
               alt="CRU"
-              className="h-72 w-auto"
+              className="h-50 w-auto"
             />
           </div>
 
