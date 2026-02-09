@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check } from 'lucide-react';
+import { useState, useEffect, Fragment } from 'react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
 import type { Worker, DailyHours as DailyHoursType, Task, User } from '../../types';
@@ -58,6 +58,9 @@ export function DailyHours() {
 
   // Inline editing states
   const [editedHours, setEditedHours] = useState<Map<string, EditedHours>>(new Map());
+
+  // Group by role
+  const [groupByRole, setGroupByRole] = useState(false);
 
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
@@ -766,8 +769,18 @@ export function DailyHours() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
+                <th className="text-center p-4 font-semibold w-12">#</th>
                 <th className="text-left p-4 font-semibold">Worker</th>
-                <th className="text-left p-4 font-semibold">Role</th>
+                <th
+                  className="text-left p-4 font-semibold cursor-pointer select-none hover:text-primary transition-colors"
+                  onClick={() => setGroupByRole(!groupByRole)}
+                  title={groupByRole ? 'Click to ungroup' : 'Click to group by role'}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    Role
+                    {groupByRole ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  </span>
+                </th>
                 <th className="text-left p-4 font-semibold">Status</th>
                 <th className="text-left p-4 font-semibold">Hours</th>
                 <th className="text-left p-4 font-semibold">Task/Notes</th>
@@ -775,79 +788,123 @@ export function DailyHours() {
               </tr>
             </thead>
             <tbody>
-              {workers.map(({ worker, dailyHours }) => {
-                const edited = editedHours.get(worker.id);
-                const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
-                const isEdited = edited !== undefined;
+              {(() => {
+                const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum: number) => {
+                  const edited = editedHours.get(worker.id);
+                  const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
+                  const isEdited = edited !== undefined;
 
-                return (
-                  <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
-                    <td className="p-4 font-medium">{worker.name}</td>
-                    <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
-                    <td className="p-4">{getStatusBadge(dailyHours)}</td>
-                    <td className="p-4">
-                      {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          max="24"
-                          value={currentHours}
-                          onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
-                          className="w-20"
-                          placeholder="8"
-                        />
-                      ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
-                        `${dailyHours.hours_worked || 0}h`
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
-                      {dailyHours?.status === 'transferred'
-                        ? dailyHours.transferred_to_task
-                          ? `→ ${dailyHours.transferred_to_task.name}`
-                          : `→ ${dailyHours.notes || 'Transferred to another project'}`
-                        : dailyHours?.task
-                        ? dailyHours.task.name
-                        : dailyHours?.notes || '-'}
-                    </td>
-                    <td className="p-4">
-                      {canEdit(currentUser) ? (
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleLogHours(worker)}
-                            title="Log hours with details"
-                          >
-                            <Clock size={16} />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleMarkOff(worker)}
-                            title="Mark as off"
-                          >
-                            <UserX size={16} />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => handleMarkTransferred(worker)}
-                            title="Mark as transferred"
-                          >
-                            <ArrowRightLeft size={16} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="text-text-secondary text-sm text-right">View only</div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
+                      <td className="p-4 text-center text-text-secondary">{rowNum}</td>
+                      <td className="p-4 font-medium">{worker.name}</td>
+                      <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
+                      <td className="p-4">{getStatusBadge(dailyHours)}</td>
+                      <td className="p-4">
+                        {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="24"
+                            value={currentHours}
+                            onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
+                            className="w-20"
+                            placeholder="8"
+                          />
+                        ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
+                          `${dailyHours.hours_worked || 0}h`
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
+                        {dailyHours?.status === 'transferred'
+                          ? dailyHours.transferred_to_task
+                            ? `→ ${dailyHours.transferred_to_task.name}`
+                            : `→ ${dailyHours.notes || 'Transferred to another project'}`
+                          : dailyHours?.task
+                          ? dailyHours.task.name
+                          : dailyHours?.notes || '-'}
+                      </td>
+                      <td className="p-4">
+                        {canEdit(currentUser) ? (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleLogHours(worker)}
+                              title="Log hours with details"
+                            >
+                              <Clock size={16} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleMarkOff(worker)}
+                              title="Mark as off"
+                            >
+                              <UserX size={16} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleMarkTransferred(worker)}
+                              title="Mark as transferred"
+                            >
+                              <ArrowRightLeft size={16} />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="text-text-secondary text-sm text-right">View only</div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                };
+
+                if (groupByRole) {
+                  const roleGroups = new Map<string, WorkerDayStatus[]>();
+                  workers.forEach((ws) => {
+                    const role = ws.worker.role || 'unassigned';
+                    if (!roleGroups.has(role)) roleGroups.set(role, []);
+                    roleGroups.get(role)!.push(ws);
+                  });
+
+                  let runningIndex = 0;
+                  return Array.from(roleGroups.entries()).map(([role, group]) => {
+                    const rows = group.map((ws) => {
+                      runningIndex++;
+                      return renderWorkerRow(ws, runningIndex);
+                    });
+                    return (
+                      <Fragment key={role}>
+                        <tr className="bg-bg-secondary">
+                          <td colSpan={7} className="p-3 font-semibold capitalize">
+                            {role}
+                            <span className="ml-2 text-xs font-normal text-text-secondary">
+                              ({group.length} {group.length === 1 ? 'person' : 'people'})
+                            </span>
+                          </td>
+                        </tr>
+                        {rows}
+                      </Fragment>
+                    );
+                  });
+                }
+
+                return workers.map((ws, index) => renderWorkerRow(ws, index + 1));
+              })()}
             </tbody>
+            {workers.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-border">
+                  <td colSpan={7} className="p-4 font-semibold text-right text-text-secondary">
+                    Total on site: {workers.length} {workers.length === 1 ? 'person' : 'people'}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </Card>
