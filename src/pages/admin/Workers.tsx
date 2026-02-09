@@ -201,6 +201,8 @@ export function Workers() {
           <option value="all">All Roles</option>
           <option value="operator">Operators</option>
           <option value="laborer">Laborers</option>
+          <option value="carpenter">Carpenters</option>
+          <option value="mason">Masons</option>
         </select>
 
         <Button
