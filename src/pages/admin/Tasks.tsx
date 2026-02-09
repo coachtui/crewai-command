@@ -158,11 +158,21 @@ export function Tasks() {
 
         if (error) throw error;
         toast.success('Task created successfully');
+
+        // If created from a draft, delete the draft
+        if (loadingDraft) {
+          await supabase
+            .from('task_drafts')
+            .delete()
+            .eq('id', loadingDraft.id);
+          fetchDrafts();
+        }
       }
 
       fetchTasks();
       setIsModalOpen(false);
       setEditingTask(null);
+      setLoadingDraft(null);
     } catch (error) {
       toast.error('Failed to save task');
       console.error(error);
