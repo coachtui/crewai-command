@@ -157,7 +157,7 @@ export function Login() {
             <img
               src="/image/aiga-logo-tiff.png"
               alt="AIGA"
-              className="h-24 w-auto"
+              className="h-12 w-auto"
             />
           </div>
           <p className="text-[14px] font-medium text-text-primary mb-2">Powered by AIGA</p>
