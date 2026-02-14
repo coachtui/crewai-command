@@ -362,6 +362,10 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
           <span className="text-sm">Not Staffed</span>
         </div>
         <div className="flex items-center gap-2 ml-4">
+          <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
+          <span className="text-sm">Pour Tasks</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-purple-600"></div>
           <span className="text-sm">Holiday</span>
         </div>
@@ -511,8 +515,9 @@ interface GanttRowProps {
 }
 
 function GanttRow({ task, days, dayWidth, isEven, onTaskClick, holidays }: GanttRowProps) {
-  const color = getColorByStatus(task.staffingStatus);
-  
+  const isPourTask = task.name.toLowerCase().includes('pour');
+  const color = isPourTask ? '#3b82f6' : getColorByStatus(task.staffingStatus); // Blue for pour tasks
+
   // Check if task is active on a specific day and if it's a working day
   const isTaskActiveOnDay = (day: Date): boolean => {
     // Check if day is within task's date range

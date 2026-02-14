@@ -297,12 +297,15 @@ export function Calendar() {
                           <div className="space-y-2">
                             {dayTasks.map((task) => {
                               const status = getStaffingStatus(task, assignments);
+                              const isPourTask = task.name.toLowerCase().includes('pour');
                               return (
                                 <div
                                   key={task.id}
                                   onClick={() => handleTaskClick(task)}
                                   className={`p-2 rounded border-l-2 text-xs cursor-pointer hover:opacity-80 transition-opacity ${
-                                    status === 'success'
+                                    isPourTask
+                                      ? 'bg-blue-100 border-blue-500 dark:bg-blue-900/30 dark:border-blue-400'
+                                      : status === 'success'
                                       ? 'bg-success/10 border-success'
                                       : status === 'warning'
                                       ? 'bg-warning/10 border-warning'
