@@ -245,7 +245,7 @@ function Hero() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-bold text-text-primary leading-tight tracking-tightest mb-4">
-              Crew scheduling and daily labor tracking built for the jobsite.
+              One source of truth for every person on the job.
             </h1>
 
             <p className="text-sm font-semibold text-primary tracking-widest uppercase mb-6">
