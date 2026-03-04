@@ -1,7 +1,6 @@
 // ============================================================================
 // CruWork: Founder Console — Auth Guard
-// Uses raw Supabase session + VITE_FOUNDER_EMAILS allowlist.
-// Falls back gracefully if env var is not set in some environments.
+// Uses raw Supabase session. Does not depend on AuthContext or user_profiles.
 // Real security is enforced server-side by the founder-api edge function.
 // ============================================================================
 
@@ -20,25 +19,16 @@ export function FounderGuard({ children }: FounderGuardProps) {
   const [state, setState] = useState<State>('loading')
 
   useEffect(() => {
-    const evaluate = (email: string | null | undefined) => {
+    // Use getSession() only — onAuthStateChange fires INITIAL_SESSION with
+    // null before the real session loads, causing a false redirect.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email
       if (!email) {
         setState('unauthenticated')
         return
       }
       setState(isFounderEmail(email) ? 'ok' : 'forbidden')
-    }
-
-    // Check current session immediately (works on page reload too)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      evaluate(session?.user?.email)
     })
-
-    // Stay in sync if auth changes (sign-out in another tab, etc.)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      evaluate(session?.user?.email)
-    })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   if (state === 'loading') {
