@@ -357,12 +357,12 @@ export function Tasks() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-6 md:p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Tasks</h1>
-          <p className="text-text-secondary">Manage project tasks and assignments</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-1">Tasks</h1>
+          <p className="text-[14px] text-text-secondary">Manage project tasks and assignments</p>
         </div>
 
         <div className="flex gap-3">
@@ -394,7 +394,7 @@ export function Tasks() {
           placeholder="Search tasks by name, activity ID, or location..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="w-full pl-10 pr-4 py-2.5 bg-bg-secondary border border-gray-200 rounded-xl text-[14px] text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
         />
       </div>
 
@@ -445,14 +445,14 @@ export function Tasks() {
             };
             if (drafts.length === 0) return null;
             return (
-              <div className="mb-8 border border-border rounded-lg overflow-hidden">
+              <div className="mb-8 border border-gray-100 rounded-xl overflow-hidden shadow-sm-soft">
                 <button
                   onClick={() => setUnscheduledExpanded(!unscheduledExpanded)}
                   className="w-full flex items-center justify-between p-4 bg-bg-secondary hover:bg-bg-hover transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {unscheduledExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                    <h2 className="text-xl font-bold">Task Drafts</h2>
+                    <h2 className="text-[15px] font-semibold text-text-primary">Task Drafts</h2>
                     <span className="text-text-secondary">
                       ({searchQuery ? `${filteredDrafts.length} of ${drafts.length}` : drafts.length})
                     </span>
@@ -531,7 +531,7 @@ export function Tasks() {
             <div key={index}>
               <h2 className="text-[18px] font-semibold text-text-primary mb-3">{week.label}</h2>
               {week.tasks.length === 0 ? (
-                <div className="text-center py-8 bg-bg-secondary border border-border rounded-lg">
+                <div className="text-center py-8 bg-bg-secondary border border-gray-100 rounded-xl shadow-sm-soft">
                   <p className="text-text-secondary">No tasks scheduled for this week</p>
                 </div>
               ) : (

@@ -187,13 +187,13 @@ export function Calendar() {
   const weeks = generateWeeks();
 
   return (
-    <div className="p-8">
+    <div className="p-6 md:p-8">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Calendar</h1>
-            <p className="text-text-secondary">
+            <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-1">Calendar</h1>
+            <p className="text-[14px] text-text-secondary">
               {viewMode === 'calendar' 
                 ? '4-week task schedule overview' 
                 : 'Professional Gantt chart timeline view'}
@@ -201,7 +201,7 @@ export function Calendar() {
           </div>
           
           {/* View Toggle */}
-          <div className="flex items-center gap-2 bg-bg-secondary border border-border rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-bg-subtle border border-gray-100 rounded-xl p-1">
             <button
               onClick={() => setViewMode('calendar')}
               className={`px-4 py-2 rounded-md transition-colors flex items-center gap-2 ${
@@ -244,7 +244,7 @@ export function Calendar() {
             {weeks.map((week) => (
               <div
                 key={week.weekNumber}
-                className="flex-shrink-0 w-[280px] bg-bg-secondary border border-border rounded-lg p-4"
+                className="flex-shrink-0 w-[280px] bg-bg-secondary border border-gray-100 rounded-xl p-4 shadow-sm-soft"
               >
                 {/* Week Header */}
                 <div className="mb-4 pb-3 border-b border-border">
@@ -337,7 +337,7 @@ export function Calendar() {
 
       {/* Legend - Only show for calendar view, hidden on mobile */}
       {viewMode === 'calendar' && (
-        <div className="mt-8 hidden md:flex items-center gap-6 p-4 bg-bg-secondary border border-border rounded-lg">
+        <div className="mt-6 hidden md:flex items-center gap-6 p-4 bg-bg-secondary border border-gray-100 rounded-xl shadow-sm-soft">
           <div className="font-medium">Staffing Status:</div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-success"></div>

@@ -723,10 +723,10 @@ export function DailyHours() {
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-6 md:p-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">Daily Hours Log</h1>
-        <p className="text-text-secondary">Track worker hours, days off, and job transfers</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-1">Daily Hours Log</h1>
+        <p className="text-[14px] text-text-secondary">Track worker hours, days off, and job transfers</p>
       </div>
 
       {/* Read-only notice for viewers */}
