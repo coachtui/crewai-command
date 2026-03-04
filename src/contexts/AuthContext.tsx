@@ -329,8 +329,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (data.user) {
         const profile = await fetchUserProfile(data.user.id, true);
         if (profile) {
-          setUser(profile);
-          setIsAuthenticated(true);
+          setUserAndRef(profile);
+          setIsAuthenticatedAndRef(true);
         } else {
           throw new Error('Failed to load user profile');
         }
@@ -347,9 +347,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (error) {
         throw error;
       }
-      setUser(null);
-      setIsAuthenticated(false);
-      // Clear stored preferences
+      setUserAndRef(null);
+      setIsAuthenticatedAndRef(false);
       localStorage.removeItem(STORAGE_KEYS.LAST_JOB_SITE);
     } catch (error) {
       console.error('Sign out error:', error);
@@ -364,7 +363,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const profile = await fetchUserProfile(user.id);
       if (profile) {
-        setUser(profile);
+        setUserAndRef(profile);
       }
     } catch (error) {
       console.error('Error refreshing user:', error);

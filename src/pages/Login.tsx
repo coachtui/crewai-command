@@ -97,7 +97,7 @@ export function Login() {
 
     try {
       console.log('[Login] Attempting login...');
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -107,38 +107,10 @@ export function Login() {
         throw authError;
       }
 
-      console.log('[Login] Auth successful, fetching user role...');
-
-      // Try to fetch user role from users table (with timeout)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('User data fetch timeout')), 5000)
-      );
-
-      const userDataPromise = supabase
-        .from('users')
-        .select('role, base_role')
-        .eq('id', authData.user.id)
-        .single();
-
-      try {
-        const result = await Promise.race([userDataPromise, timeoutPromise]);
-        const userData = (result as { data: { role?: string; base_role?: string } | null }).data;
-
-        console.log('[Login] User data fetched:', userData);
-
-        if (userData?.role === 'admin' || userData?.base_role === 'admin') {
-          console.log('[Login] Redirecting admin to /workers');
-          navigate('/workers', { replace: true });
-        } else {
-          console.log('[Login] Redirecting user to /workers');
-          navigate('/workers', { replace: true });
-        }
-      } catch (userError) {
-        // If user data fetch fails, still redirect to default page
-        console.warn('[Login] User data fetch failed, redirecting to default:', userError);
-        navigate('/workers', { replace: true });
-      }
-
+      // Navigate immediately — AuthContext picks up the session via onAuthStateChange.
+      // The role-based DB query was dead code (both branches navigated to /workers).
+      console.log('[Login] Auth successful, navigating to /workers');
+      navigate('/workers', { replace: true });
       toast.success('Login successful!');
     } catch (error) {
       console.error('[Login] Login failed:', error);

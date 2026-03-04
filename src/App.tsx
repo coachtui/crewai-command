@@ -39,8 +39,9 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
       // Retry failed requests
       retry: 1,
-      // Refetch on window focus but with a cooldown
-      refetchOnWindowFocus: 'always',
+      // Don't refetch on every tab focus — realtime + manual invalidation handle freshness.
+      // 'always' caused a burst of N requests every time the user alt-tabbed back.
+      refetchOnWindowFocus: false,
       refetchOnMount: true,
       // Don't refetch on reconnect immediately (real-time handles this)
       refetchOnReconnect: false,
