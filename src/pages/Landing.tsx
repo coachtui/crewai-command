@@ -490,11 +490,6 @@ function Differentiators() {
       desc: 'Powered by Supabase live sync. Everyone sees the same data, always current — no refresh needed.',
     },
     {
-      icon: CheckSquare,
-      title: 'Pour task highlighting',
-      desc: 'Critical pours are visually distinct in the calendar, task list, and Today view. Reduce misses.',
-    },
-    {
       icon: FileText,
       title: 'File sharing on tasks',
       desc: 'Supes, OMs, and engineers attach PDFs — specs, plans, drawings — directly to tasks. Everyone on the task sees the same files.',
@@ -511,7 +506,7 @@ function Differentiators() {
           </p>
         </div>
 
-        <ul className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        <ul className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {cards.map(({ icon: Icon, title, desc }) => (
             <li
               key={title}
@@ -614,10 +609,7 @@ function FAQ() {
       q: 'Can I manage multiple job sites?',
       a: 'Yes. Workers and tasks are scoped to specific job sites. You get a full cross-site view at the admin level.',
     },
-    {
-      q: 'What is a pour task?',
-      a: 'Concrete pours are high-stakes events on any construction site. Cru highlights them visually across all views so they never get missed.',
-    },
+
   ];
 
   return (
