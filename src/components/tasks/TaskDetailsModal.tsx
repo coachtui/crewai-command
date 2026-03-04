@@ -341,6 +341,52 @@ export function TaskDetailsModal({
           </div>
         )}
 
+        {/* Attachments */}
+        {task.attachments && task.attachments.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-3">Files ({task.attachments.length})</h4>
+            <div className="space-y-3">
+              {task.attachments.map((url, index) => {
+                const fileName = url.split('/').pop()?.split('?')[0] || `File ${index + 1}`;
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url.split('?')[0]);
+                return (
+                  <div key={index} className="border border-border rounded-lg overflow-hidden">
+                    {isImage ? (
+                      <div>
+                        <img src={url} alt={fileName} className="w-full h-auto" />
+                        <div className="p-3 bg-bg-primary border-t border-border flex items-center justify-between gap-3">
+                          <p className="text-sm text-text-secondary truncate">{fileName}</p>
+                          <button
+                            onClick={() => window.open(url, '_blank')}
+                            className="text-sm text-primary hover:underline whitespace-nowrap"
+                          >
+                            Open
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-bg-primary flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <svg className="w-8 h-8 text-text-secondary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <p className="text-sm font-medium truncate">{fileName}</p>
+                        </div>
+                        <button
+                          onClick={() => window.open(url, '_blank')}
+                          className="text-sm text-primary hover:underline whitespace-nowrap"
+                        >
+                          Open File
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Notes */}
         {task.notes && (
           <div>
