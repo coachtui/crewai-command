@@ -40,9 +40,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Refs so onAuthStateChange callback always sees current values
+  // (the callback closure captures values at effect-setup time, not on re-render)
+  const isAuthenticatedRef = useRef(false);
+  const currentUserRef = useRef<UserProfile | null>(null);
+
   // Track last profile fetch to prevent excessive API calls
   const lastProfileFetchRef = useRef<number>(0);
   const PROFILE_FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
+
+  // Keep refs in sync so the onAuthStateChange callback (which closes over
+  // the initial values) can always read current auth state without being in deps.
+  const setIsAuthenticatedAndRef = useCallback((val: boolean) => {
+    isAuthenticatedRef.current = val;
+    setIsAuthenticated(val);
+  }, []);
+
+  const setUserAndRef = useCallback((profile: UserProfile | null) => {
+    currentUserRef.current = profile;
+    setUser(profile);
+  }, []);
 
   // Wrapper for setIsLoading with diagnostic logging
   const setIsLoadingWithLog = useCallback((value: boolean, reason: string) => {
@@ -95,42 +112,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return null;
       }
 
-      // Fetch organization
-      let organization: Organization | undefined;
+      // Fetch organization + job site assignments in parallel (not sequential)
       const orgId = userData.org_id || userData.organization_id;
-      
-      if (orgId) {
-        const { data: orgData, error: orgError } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', orgId)
-          .single();
 
-        if (!orgError && orgData) {
-          organization = orgData;
-        }
-      }
-
-      // Fetch job site assignments (only for non-admins or if table exists)
-      let jobSiteAssignments: JobSiteAssignment[] = [];
-      
-      try {
-        const { data: assignmentData, error: assignmentError } = await supabase
+      const [orgResult, assignmentsResult] = await Promise.all([
+        orgId
+          ? supabase.from('organizations').select('*').eq('id', orgId).single()
+          : Promise.resolve({ data: null, error: null }),
+        supabase
           .from('job_site_assignments')
-          .select(`
-            *,
-            job_site:job_sites(*)
-          `)
+          .select('*, job_site:job_sites(*)')
           .eq('user_id', userId)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .catch(() => ({ data: null, error: null })), // table may not exist yet
+      ]);
 
-        if (!assignmentError && assignmentData) {
-          jobSiteAssignments = assignmentData;
-        }
-      } catch {
-        // Table might not exist yet, that's okay
-        devLog('Job site assignments table not available yet');
-      }
+      const organization: Organization | undefined =
+        orgResult.data && !orgResult.error ? orgResult.data : undefined;
+
+      const jobSiteAssignments: JobSiteAssignment[] =
+        assignmentsResult.data && !assignmentsResult.error
+          ? assignmentsResult.data
+          : [];
 
       // Construct user profile
       const userProfile: UserProfile = {
