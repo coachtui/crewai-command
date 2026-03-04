@@ -1,6 +1,7 @@
 // ============================================================================
 // CruWork: Founder Console — Auth Guard
-// Uses raw Supabase session. Does not depend on AuthContext or user_profiles.
+// Uses getSession() (localStorage) with getUser() server fallback.
+// Does not depend on AuthContext or user_profiles RLS.
 // Real security is enforced server-side by the founder-api edge function.
 // ============================================================================
 
@@ -19,16 +20,28 @@ export function FounderGuard({ children }: FounderGuardProps) {
   const [state, setState] = useState<State>('loading')
 
   useEffect(() => {
-    // Use getSession() only — onAuthStateChange fires INITIAL_SESSION with
-    // null before the real session loads, causing a false redirect.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const email = session?.user?.email
-      if (!email) {
-        setState('unauthenticated')
+    async function checkAuth() {
+      // Primary: read from localStorage (instant)
+      const { data: { session } } = await supabase.auth.getSession()
+      const sessionEmail = session?.user?.email
+
+      if (sessionEmail) {
+        setState(isFounderEmail(sessionEmail) ? 'ok' : 'forbidden')
         return
       }
-      setState(isFounderEmail(email) ? 'ok' : 'forbidden')
-    })
+
+      // Fallback: verify with Supabase server (handles stale/uninitialized storage)
+      const { data: { user } } = await supabase.auth.getUser()
+      const userEmail = user?.email
+
+      if (userEmail) {
+        setState(isFounderEmail(userEmail) ? 'ok' : 'forbidden')
+      } else {
+        setState('unauthenticated')
+      }
+    }
+
+    checkAuth()
   }, [])
 
   if (state === 'loading') {
