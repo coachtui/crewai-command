@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, CheckSquare, Calendar, Activity, Clock, LayoutDashboard,
   Smartphone, RefreshCw, Mic, MapPin, Shield, Lock,
-  ArrowRight, Menu, X,
+  ArrowRight, Menu, X, FileText,
 } from 'lucide-react';
 import { useAuth } from '../contexts';
 
@@ -313,7 +313,7 @@ function Hero() {
 function WhatItDoes() {
   const adminFeatures = [
     { icon: Users,          title: 'Workers',     desc: 'Manage crew members, roles (carpenter, mason, etc.) and job site assignments.' },
-    { icon: CheckSquare,    title: 'Tasks',       desc: 'Create and assign tasks. Pour tasks are visually distinct so nothing gets missed.' },
+    { icon: CheckSquare,    title: 'Tasks',       desc: 'Create and assign tasks. Attach PDFs — specs, plans, drawings — directly to a task so every worker has the right files.' },
     { icon: Calendar,       title: 'Calendar',    desc: 'Visual schedule and Gantt chart view across all your job sites.' },
     { icon: Activity,       title: 'Activities',  desc: 'Track progress and review work activity logs in real time.' },
     { icon: Clock,          title: 'Daily Hours', desc: 'Log and review hours per worker per day across all sites.' },
@@ -494,6 +494,11 @@ function Differentiators() {
       title: 'Pour task highlighting',
       desc: 'Critical pours are visually distinct in the calendar, task list, and Today view. Reduce misses.',
     },
+    {
+      icon: FileText,
+      title: 'File sharing on tasks',
+      desc: 'Supes, OMs, and engineers attach PDFs — specs, plans, drawings — directly to tasks. Everyone on the task sees the same files.',
+    },
   ];
 
   return (
@@ -506,7 +511,7 @@ function Differentiators() {
           </p>
         </div>
 
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <ul className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {cards.map(({ icon: Icon, title, desc }) => (
             <li
               key={title}
