@@ -14,12 +14,14 @@ import {
   LogOut,
   Menu,
   X,
-  CircleUser
+  CircleUser,
+  ShieldCheck
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
 import { JobSiteSelector, JobSiteSelectorMobile } from '../navigation/JobSiteSelector';
 import { useAuth } from '../../contexts/AuthContext';
+import { isFounderEmail } from '../../lib/api/founder';
 import { toast } from 'sonner';
 
 export function Sidebar() {
@@ -217,6 +219,27 @@ export function Sidebar() {
               </Link>
             );
           })}
+
+          {/* Founder Console - only visible to founder emails */}
+          {isFounderEmail(user?.email) && (
+            <Link
+              to="/founder"
+              onClick={() => isMobile && setIsVisible(false)}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              className={`
+                flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ease-smooth
+                ${location.pathname.startsWith('/founder')
+                  ? 'bg-primary-subtle text-primary font-medium border border-primary/20'
+                  : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+                }
+              `}
+            >
+              <ShieldCheck size={20} />
+              <span className="text-[14px] flex-1">Founder Console</span>
+            </Link>
+          )}
         </nav>
 
         {/* User Profile and Logout */}
