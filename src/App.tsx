@@ -6,7 +6,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { RequestAccess } from './pages/RequestAccess';
 import { SetPassword } from './pages/SetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Workers } from './pages/admin/Workers';
@@ -18,6 +20,11 @@ import { Today } from './pages/foreman/Today';
 import { Sidebar } from './components/layout/Sidebar';
 import { VoiceFloatingButton } from './components/mobile/VoiceFloatingButton';
 import { AuthProvider, JobSiteProvider, useAuth } from './contexts';
+import { FounderGuard } from './components/founder/FounderGuard';
+import { FounderLayout } from './components/founder/FounderLayout';
+import { FounderOverview } from './pages/founder/index';
+import { FounderCompanies } from './pages/founder/Companies';
+import { CompanyDetail } from './pages/founder/CompanyDetail';
 
 // ============================================================================
 // React Query Configuration
@@ -64,7 +71,7 @@ function RootRedirect() {
   if (hash && (type === 'invite' || type === 'recovery')) {
     return <Navigate to={`/set-password${hash}`} replace />;
   }
-  return <Navigate to="/workers" replace />;
+  return <Landing />;
 }
 
 // ============================================================================
@@ -128,6 +135,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/request-access" element={<RequestAccess />} />
             <Route path="/" element={<RootRedirect />} />
             <Route
               path="/dashboard"
@@ -201,6 +209,37 @@ function App() {
                     <Today />
                   </ProtectedLayout>
                 </ProtectedRoute>
+              }
+            />
+            {/* ── Founder Console (/founder/*) ── */}
+            <Route
+              path="/founder"
+              element={
+                <FounderGuard>
+                  <FounderLayout>
+                    <FounderOverview />
+                  </FounderLayout>
+                </FounderGuard>
+              }
+            />
+            <Route
+              path="/founder/companies"
+              element={
+                <FounderGuard>
+                  <FounderLayout>
+                    <FounderCompanies />
+                  </FounderLayout>
+                </FounderGuard>
+              }
+            />
+            <Route
+              path="/founder/companies/:companyId"
+              element={
+                <FounderGuard>
+                  <FounderLayout>
+                    <CompanyDetail />
+                  </FounderLayout>
+                </FounderGuard>
               }
             />
           </Routes>
