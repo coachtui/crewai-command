@@ -5,69 +5,7 @@ import { useAuth } from '../contexts';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { toast } from 'sonner';
-import {
-  Eye, EyeOff, Copy, Check,
-  ChevronDown, ChevronUp,
-  Smartphone, RefreshCw, Mic, MapPin,
-} from 'lucide-react';
-
-// ── Demo Credentials ────────────────────────────────────────────────────────
-
-function DemoCredentials() {
-  const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const copy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(text);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const accounts = [
-    { role: 'Admin', email: 'admin@demo.com' },
-    { role: 'Foreman', email: 'foreman@demo.com' },
-  ];
-
-  return (
-    <div className="mt-5">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 text-[13px] text-text-secondary hover:text-text-primary transition-colors mx-auto"
-      >
-        Demo credentials
-        {open
-          ? <ChevronUp className="w-3.5 h-3.5" />
-          : <ChevronDown className="w-3.5 h-3.5" />}
-      </button>
-
-      {open && (
-        <div className="mt-3 rounded-xl border border-border bg-bg-subtle p-3 space-y-2">
-          {accounts.map(({ role, email }) => (
-            <div key={role} className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-[11px] font-semibold text-text-secondary uppercase tracking-wide leading-none mb-0.5">
-                  {role}
-                </p>
-                <p className="text-[13px] text-text-primary font-mono">{email}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => copy(email)}
-                className="p-1.5 rounded-md hover:bg-bg-hover transition-colors text-text-secondary hover:text-text-primary shrink-0"
-                aria-label={`Copy ${email}`}
-              >
-                {copied === email
-                  ? <Check className="w-4 h-4 text-primary" />
-                  : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { Eye, EyeOff, Smartphone, RefreshCw, Mic, MapPin } from 'lucide-react';
 
 // ── Product Proof Panel (desktop) ───────────────────────────────────────────
 
@@ -290,9 +228,6 @@ export function Login() {
               {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
-
-          {/* Demo credentials (collapsible) */}
-          <DemoCredentials />
         </div>
 
         {/* ── Proof Panel (desktop only) ── */}
