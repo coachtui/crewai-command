@@ -53,6 +53,21 @@ function logCheckpoint(name: string) {
 logCheckpoint('App.tsx loaded');
 
 // ============================================================================
+// Root Redirect - preserves hash for invite/recovery links
+// ============================================================================
+
+function RootRedirect() {
+  const hash = window.location.hash;
+  const hashParams = new URLSearchParams(hash.substring(1));
+  const type = hashParams.get('type');
+
+  if (hash && (type === 'invite' || type === 'recovery')) {
+    return <Navigate to={`/set-password${hash}`} replace />;
+  }
+  return <Navigate to="/workers" replace />;
+}
+
+// ============================================================================
 // Protected Route Wrapper
 // ============================================================================
 
@@ -113,7 +128,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/set-password" element={<SetPassword />} />
-            <Route path="/" element={<Navigate to="/workers" replace />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route
               path="/dashboard"
               element={

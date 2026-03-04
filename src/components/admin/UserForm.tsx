@@ -1,8 +1,8 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
-import { UserRoleManager, type JobSiteAssignmentData } from './UserRoleManager';
+import { UserRoleManager, type JobSiteAssignmentData, type UserRoleManagerHandle } from './UserRoleManager';
 import type { UserProfile, JobSite, BaseRole } from '../../types';
 
 interface UserFormProps {
@@ -27,6 +27,7 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
   });
 
   const [assignments, setAssignments] = useState<JobSiteAssignmentData[]>([]);
+  const roleManagerRef = useRef<UserRoleManagerHandle>(null);
 
   useEffect(() => {
     if (user) {
@@ -62,9 +63,12 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
       return;
     }
 
+    // Commit any in-progress assignment the user filled out but didn't click "Add" on
+    const finalAssignments = roleManagerRef.current?.flush() ?? assignments;
+
     onSave({
       ...formData,
-      job_site_assignments: assignments,
+      job_site_assignments: finalAssignments,
     });
   };
 
@@ -122,6 +126,7 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
           Job Site Assignments
         </h3>
         <UserRoleManager
+          ref={roleManagerRef}
           assignments={assignments}
           availableJobSites={availableJobSites}
           onChange={setAssignments}

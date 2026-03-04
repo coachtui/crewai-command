@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef, useImperativeHandle } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
@@ -14,13 +14,19 @@ export interface JobSiteAssignmentData {
   is_active: boolean;
 }
 
+export interface UserRoleManagerHandle {
+  /** Commits any in-progress assignment and returns the final list. */
+  flush: () => JobSiteAssignmentData[];
+}
+
 interface UserRoleManagerProps {
   assignments: JobSiteAssignmentData[];
   availableJobSites: JobSite[];
   onChange: (assignments: JobSiteAssignmentData[]) => void;
 }
 
-export function UserRoleManager({ assignments, availableJobSites, onChange }: UserRoleManagerProps) {
+export const UserRoleManager = forwardRef<UserRoleManagerHandle, UserRoleManagerProps>(
+function UserRoleManager({ assignments, availableJobSites, onChange }, ref) {
   const [isAdding, setIsAdding] = useState(false);
   const [newAssignment, setNewAssignment] = useState<JobSiteAssignmentData>({
     job_site_id: '',
@@ -28,6 +34,21 @@ export function UserRoleManager({ assignments, availableJobSites, onChange }: Us
     start_date: new Date().toISOString().split('T')[0],
     is_active: true,
   });
+
+  useImperativeHandle(ref, () => ({
+    flush: () => {
+      if (isAdding && newAssignment.job_site_id) {
+        const exists = assignments.some(a => a.job_site_id === newAssignment.job_site_id && a.is_active);
+        if (!exists) {
+          const next = [...assignments, newAssignment];
+          onChange(next);
+          setIsAdding(false);
+          return next;
+        }
+      }
+      return assignments;
+    },
+  }));
 
   const handleAddAssignment = () => {
     if (!newAssignment.job_site_id) {
@@ -198,4 +219,4 @@ export function UserRoleManager({ assignments, availableJobSites, onChange }: Us
       </div>
     </div>
   );
-}
+});
