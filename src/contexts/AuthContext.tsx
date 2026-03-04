@@ -12,10 +12,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Development logging helper
 const isDev = import.meta.env.DEV;
-const devLog = (...args: unknown[]) => {
-  if (isDev) console.log('[Auth]', ...args);
-};
-
 // Diagnostic checkpoint helper
 function logCheckpoint(name: string) {
   if (typeof window !== 'undefined' && window.__APP_DIAGNOSTICS__) {
@@ -123,8 +119,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .from('job_site_assignments')
           .select('*, job_site:job_sites(*)')
           .eq('user_id', userId)
-          .eq('is_active', true)
-          .catch(() => ({ data: null, error: null })), // table may not exist yet
+          .eq('is_active', true),
       ]);
 
       const organization: Organization | undefined =
@@ -179,12 +174,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
           sessionData = await Promise.race([sessionPromise, timeoutPromise]);
         } catch (timeoutError) {
-          // Timeout occurred - clear localStorage and force re-login
-          logCheckpoint('Session check timed out - clearing corrupted session');
-          console.warn('[Auth] Session check timed out, clearing localStorage');
-          localStorage.clear();
+          // Timeout — only remove the Supabase auth token, not all of localStorage.
+          // (localStorage.clear() would wipe job-site preferences and other app state.)
+          logCheckpoint('Session check timed out - clearing auth token only');
+          console.warn('[Auth] Session check timed out, removing auth token from localStorage');
+          try {
+            const projectRef = new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0];
+            localStorage.removeItem(`sb-${projectRef}-auth-token`);
+          } catch {
+            // Fallback: remove any key that looks like a supabase auth token
+            Object.keys(localStorage)
+              .filter((k) => k.startsWith('sb-') && k.endsWith('-auth-token'))
+              .forEach((k) => localStorage.removeItem(k));
+          }
           setIsLoadingWithLog(false, 'session timeout');
-          setIsAuthenticated(false);
+          setIsAuthenticatedAndRef(false);
           return;
         }
 
@@ -203,8 +207,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           logCheckpoint('Fetching user profile');
           const profile = await fetchUserProfile(session.user.id, true);
           if (profile) {
-            setUser(profile);
-            setIsAuthenticated(true);
+            setUserAndRef(profile);
+            setIsAuthenticatedAndRef(true);
             logCheckpoint('User authenticated successfully');
           } else {
             logCheckpoint('Failed to fetch user profile');
@@ -223,18 +227,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initAuth();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] Auth state changed:', event, { currentlyAuthenticated: isAuthenticated, hasUser: !!user });
+    // Listen for auth state changes.
+    // IMPORTANT: this callback closes over the initial values of isAuthenticated/user
+    // (always false/null) because the effect only runs once. We use refs instead of
+    // the state variables so we always read the current values.
+    // Inline types because @supabase/supabase-js dist/ is empty in this install
+    // (types cannot be resolved by the TS language server via package imports).
+    type _Event = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED' |
+      'PASSWORD_RECOVERY' | 'INITIAL_SESSION' | 'MFA_CHALLENGE_VERIFIED';
+    type _Session = { user: { id: string; email?: string } } | null;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: _Event, session: _Session) => {
+      console.log('[Auth] Auth state changed:', event, {
+        currentlyAuthenticated: isAuthenticatedRef.current,
+        hasUser: !!currentUserRef.current,
+      });
 
       if (event === 'SIGNED_IN' && session?.user) {
-        // Only show loading spinner if we're not already authenticated
-        // This prevents unmounting the entire app when returning to the tab
-        if (!isAuthenticated || !user) {
+        // Use ref (not stale closure value) to decide whether we're already authed
+        if (!isAuthenticatedRef.current || !currentUserRef.current) {
           console.log('[Auth] SIGNED_IN event - showing loading (not currently authenticated)');
           setIsLoadingWithLog(true, `auth state change: ${event}`);
 
-          // Add 10-second timeout to profile fetch (skip cooldown on initial sign-in)
           try {
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
@@ -243,21 +257,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
             if (profile) {
-              setUser(profile);
-              setIsAuthenticated(true);
+              setUserAndRef(profile);
+              setIsAuthenticatedAndRef(true);
             } else {
               console.warn('[Auth] Profile fetch returned null - user profile may not exist in database');
             }
           } catch (error) {
             console.error('[Auth] Profile fetch failed/timed out:', error);
-            // Don't clear localStorage - the session might still be valid
-            // Just leave user in not-authenticated state and let them try again
           }
 
           setIsLoadingWithLog(false, `auth state change complete: ${event}`);
         } else {
-          console.log('[Auth] SIGNED_IN event - already authenticated, checking cooldown for silent refresh');
-          // Already authenticated, respect cooldown for background refresh
+          console.log('[Auth] SIGNED_IN event - already authenticated, silent background refresh');
           try {
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
@@ -266,7 +277,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
             if (profile) {
-              setUser(profile);
+              setUserAndRef(profile);
             }
           } catch (error) {
             console.error('[Auth] Background profile refresh failed:', error);
@@ -274,14 +285,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       } else if (event === 'SIGNED_OUT') {
         console.log('[Auth] SIGNED_OUT event');
-        setUser(null);
-        setIsAuthenticated(false);
-        // Clear stored preferences on logout
+        setUserAndRef(null);
+        setIsAuthenticatedAndRef(false);
         localStorage.removeItem(STORAGE_KEYS.LAST_JOB_SITE);
       } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        console.log('[Auth] TOKEN_REFRESHED event - checking cooldown before profile refresh');
-        // Token refresh should be completely silent - don't unmount anything
-        // Respect cooldown to prevent excessive refetches when switching tabs
+        console.log('[Auth] TOKEN_REFRESHED event - silent refresh, respecting cooldown');
         try {
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
@@ -290,7 +298,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
           if (profile) {
-            setUser(profile);
+            setUserAndRef(profile);
           } else {
             console.log('[Auth] TOKEN_REFRESHED - profile fetch skipped (cooldown active or returned null)');
           }
