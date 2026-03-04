@@ -3,9 +3,10 @@
 // Minimal sidebar navigation for all /founder/* pages.
 // ============================================================================
 
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Building2, LayoutDashboard, LogOut, ArrowLeft } from 'lucide-react'
-import { useAuth } from '../../contexts'
+import { supabase } from '../../lib/supabase'
 
 const NAV_ITEMS = [
   { path: '/founder', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -19,10 +20,16 @@ interface FounderLayoutProps {
 export function FounderLayout({ children }: FounderLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { signOut, user } = useAuth()
+  const [email, setEmail] = useState<string>('')
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setEmail(session?.user?.email ?? '')
+    })
+  }, [])
 
   const handleSignOut = async () => {
-    await signOut()
+    await supabase.auth.signOut()
     navigate('/login')
   }
 
@@ -38,7 +45,7 @@ export function FounderLayout({ children }: FounderLayoutProps) {
             </div>
             <span className="text-[13px] font-semibold text-text-primary">Founder Console</span>
           </div>
-          <div className="text-[11px] text-text-secondary truncate pl-7">{user?.email}</div>
+          <div className="text-[11px] text-text-secondary truncate pl-7">{email}</div>
         </div>
 
         {/* Nav */}

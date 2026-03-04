@@ -1,21 +1,47 @@
 // ============================================================================
 // CruWork: Founder Console — Auth Guard
-// Blocks non-founders from /founder routes.
-// This is a UI convenience gate — real security is in the edge function.
+// Uses raw Supabase session + VITE_FOUNDER_EMAILS allowlist.
+// Falls back gracefully if env var is not set in some environments.
+// Real security is enforced server-side by the founder-api edge function.
 // ============================================================================
 
+import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../contexts'
+import { supabase } from '../../lib/supabase'
 import { isFounderEmail } from '../../lib/api/founder'
+
+type State = 'loading' | 'ok' | 'unauthenticated' | 'forbidden'
 
 interface FounderGuardProps {
   children: React.ReactNode
 }
 
 export function FounderGuard({ children }: FounderGuardProps) {
-  const { user, isLoading, isAuthenticated } = useAuth()
+  const [state, setState] = useState<State>('loading')
 
-  if (isLoading) {
+  useEffect(() => {
+    const evaluate = (email: string | null | undefined) => {
+      if (!email) {
+        setState('unauthenticated')
+        return
+      }
+      setState(isFounderEmail(email) ? 'ok' : 'forbidden')
+    }
+
+    // Check current session immediately (works on page reload too)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      evaluate(session?.user?.email)
+    })
+
+    // Stay in sync if auth changes (sign-out in another tab, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      evaluate(session?.user?.email)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (state === 'loading') {
     return (
       <div className="flex items-center justify-center h-screen bg-bg-primary">
         <div className="flex flex-col items-center gap-4">
@@ -26,13 +52,7 @@ export function FounderGuard({ children }: FounderGuardProps) {
     )
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
-
-  if (!isFounderEmail(user?.email)) {
-    return <Navigate to="/workers" replace />
-  }
-
+  if (state === 'unauthenticated') return <Navigate to="/login" replace />
+  if (state === 'forbidden') return <Navigate to="/workers" replace />
   return <>{children}</>
 }
