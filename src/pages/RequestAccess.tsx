@@ -113,6 +113,18 @@ export function RequestAccess() {
 
       if (error) throw error;
 
+      // Fire-and-forget notification — form succeeds even if email fails
+      supabase.functions.invoke('notify-lead', {
+        body: {
+          name:      form.name.trim(),
+          email:     form.email.trim().toLowerCase(),
+          company:   form.company.trim(),
+          job_sites: form.job_sites || null,
+          workers:   form.workers   || null,
+          notes:     form.notes.trim() || null,
+        },
+      }).catch((e) => console.warn('notify-lead invoke error:', e));
+
       setLastSubmitAt(now);
       setStatus('success');
     } catch (err) {

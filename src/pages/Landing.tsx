@@ -710,9 +710,8 @@ function Footer() {
     <footer className="bg-gray-900 border-t border-gray-800 px-4 sm:px-6 lg:px-8 py-10">
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          <Link to="/" className="flex items-center gap-2.5" aria-label="Cru home">
+          <Link to="/" aria-label="Cru home">
             <img src="/image/cru-logo-tiff.png" alt="Cru logo" className="h-7 w-auto opacity-75" />
-            <span className="text-gray-300 font-semibold">Cru</span>
           </Link>
 
           <nav className="flex flex-wrap gap-6" aria-label="Footer navigation">
