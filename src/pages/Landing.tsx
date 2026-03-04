@@ -244,9 +244,13 @@ function Hero() {
               Built for construction
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-bold text-text-primary leading-tight tracking-tightest mb-6">
+            <h1 className="text-4xl sm:text-5xl font-bold text-text-primary leading-tight tracking-tightest mb-4">
               Crew scheduling and daily labor tracking built for the jobsite.
             </h1>
+
+            <p className="text-sm font-semibold text-primary tracking-widest uppercase mb-6">
+              For the Crew, By the Crew
+            </p>
 
             <p className="text-lg text-text-secondary leading-relaxed mb-8">
               Manage multi-site crews, track daily hours, and keep foremen in sync — all from your phone.
