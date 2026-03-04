@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
@@ -173,30 +173,30 @@ export function Workers() {
   });
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-6 md:p-8">
       {/* Header */}
-      <div className="mb-6 md:mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Workers</h1>
-        <p className="text-text-secondary text-sm md:text-base">Manage your construction crew</p>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-text-primary tracking-tight mb-1">Workers</h1>
+        <p className="text-[14px] text-text-secondary">Manage your construction crew</p>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 mb-6">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative sm:flex-1 sm:min-w-[300px] w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none z-10" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none z-10" size={16} />
           <input
             type="text"
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-11 pl-10 pr-3 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full h-10 pl-9 pr-3 bg-bg-secondary border border-gray-200 rounded-xl text-[14px] text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
           />
         </div>
 
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="w-full sm:w-48 h-11 px-3 py-2 bg-bg-secondary border border-border rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+          className="w-full sm:w-44 h-10 px-3 bg-bg-secondary border border-gray-200 rounded-xl text-[14px] text-text-primary focus:outline-none focus:ring-2 focus:ring-primary transition-all"
         >
           <option value="all">All Roles</option>
           <option value="operator">Operators</option>
@@ -210,7 +210,7 @@ export function Workers() {
             setEditingWorker(null);
             setIsModalOpen(true);
           }}
-          className="w-full sm:w-auto h-11 whitespace-nowrap"
+          className="w-full sm:w-auto h-10 whitespace-nowrap"
         >
           <Plus size={20} className="mr-2" />
           Add Worker
@@ -222,22 +222,18 @@ export function Workers() {
         <div className="mb-6">
           <button
             onClick={() => setShowUnassigned(!showUnassigned)}
-            className="flex items-center justify-between w-full p-4 bg-bg-secondary border border-border rounded-lg hover:bg-bg-hover transition-colors"
+            className="flex items-center justify-between w-full px-4 py-3 bg-bg-secondary border border-gray-100 rounded-xl hover:bg-bg-hover transition-colors shadow-sm-soft"
           >
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold">Unassigned Workers</h2>
-              <span className="px-2 py-1 bg-warning/20 text-warning text-sm rounded-full">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[15px] font-semibold text-text-primary">Unassigned Workers</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-warning/10 text-warning border border-warning/20">
                 {filteredUnassignedWorkers.length}
               </span>
             </div>
-            <svg
-              className={`w-5 h-5 transition-transform ${showUnassigned ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronDown
+              size={16}
+              className={`text-text-secondary transition-transform duration-150 ${showUnassigned ? 'rotate-180' : ''}`}
+            />
           </button>
 
           {showUnassigned && (

@@ -9,12 +9,12 @@ export function ListContainer({ children, className, ...props }: ListContainerPr
   return (
     <div
       className={cn(
-        'bg-list-separator rounded-lg overflow-hidden',
+        'bg-bg-secondary border border-gray-100 rounded-xl overflow-hidden shadow-sm-soft',
         className
       )}
       {...props}
     >
-      <div className="divide-y divide-list-separator">
+      <div className="divide-y divide-gray-100">
         {children}
       </div>
     </div>

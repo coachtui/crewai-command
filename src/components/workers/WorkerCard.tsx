@@ -1,5 +1,6 @@
 import { Edit2, Trash2, Phone, Wrench, HardHat, Hammer } from 'lucide-react';
 import { ListItem } from '../ui/ListItem';
+import { Badge } from '../ui/Badge';
 import type { Worker } from '../../types';
 import { formatPhone } from '../../lib/utils';
 
@@ -66,9 +67,9 @@ export function WorkerCard({ worker, onEdit, onDelete }: WorkerCardProps) {
   // Build right content
   const rightContent = (
     <div className="flex items-center justify-between gap-4">
-      <div className="text-[13px] text-text-secondary">
+      <Badge variant={worker.status === 'active' ? 'success' : 'default'}>
         {worker.status === 'active' ? 'Available' : 'Inactive'}
-      </div>
+      </Badge>
       <div className="flex gap-1 opacity-100 transition-opacity">
         <button
           onClick={(e) => {

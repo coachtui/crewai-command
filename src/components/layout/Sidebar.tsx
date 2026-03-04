@@ -157,7 +157,7 @@ export function Sidebar() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={`
-          w-[240px] h-screen bg-bg-secondary border-r border-border flex flex-col shadow-sm-soft
+          w-[260px] h-screen bg-bg-secondary border-r border-gray-100 flex flex-col
           transition-transform duration-300 ease-in-out
           ${isMobile ? 'fixed left-0 top-0 z-40' : 'relative'}
           ${isMobile && !isVisible ? '-translate-x-full' : 'translate-x-0'}
@@ -174,23 +174,23 @@ export function Sidebar() {
         )}
 
         {/* Logo */}
-        <div className="px-6 py-3 border-b border-border">
-          <div className="flex items-center justify-center">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center">
             <img
               src="/image/cru-logo-tiff.png"
               alt="CRU"
-              className="h-32 w-auto object-contain"
+              className="h-9 w-auto object-contain"
             />
           </div>
         </div>
 
         {/* Job Site Selector (Desktop) */}
-        <div className="px-4 py-4 border-b border-border">
+        <div className="px-4 py-3 border-b border-gray-100">
           <JobSiteSelector compact={false} />
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -202,14 +202,14 @@ export function Sidebar() {
                 onTouchMove={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ease-smooth
+                  flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 ease-smooth
                   ${isActive
-                    ? 'bg-primary-subtle text-primary font-medium border border-primary/20'
+                    ? 'bg-primary-subtle text-primary font-semibold'
                     : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
                   }
                 `}
               >
-                <item.icon size={20} />
+                <item.icon size={18} />
                 <span className="text-[14px] flex-1">{item.label}</span>
                 {item.badge && item.badge > 0 && (
                   <Badge variant={isActive ? 'default' : 'warning'} className="ml-auto">
@@ -229,21 +229,21 @@ export function Sidebar() {
               onTouchMove={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
               className={`
-                flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ease-smooth
+                flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 ease-smooth
                 ${location.pathname.startsWith('/founder')
-                  ? 'bg-primary-subtle text-primary font-medium border border-primary/20'
+                  ? 'bg-primary-subtle text-primary font-semibold'
                   : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
                 }
               `}
             >
-              <ShieldCheck size={20} />
+              <ShieldCheck size={18} />
               <span className="text-[14px] flex-1">Founder Console</span>
             </Link>
           )}
         </nav>
 
         {/* User Profile and Logout */}
-        <div className="p-4 border-t border-border space-y-2">
+        <div className="p-4 border-t border-gray-100 space-y-1">
           {/* User Profile */}
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-bg-hover transition-all duration-150">
             {user?.avatar_url ? (
