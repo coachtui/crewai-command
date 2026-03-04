@@ -46,8 +46,8 @@ function SuccessScreen() {
         <p className="text-text-secondary mb-8 leading-relaxed">
           Thanks for your interest in Cru. We'll be in touch shortly with next steps.
           In the meantime, reach us at{' '}
-          <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-            hello@cruwork.app
+          <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+            cru@aigaai.com
           </a>
           .
         </p>
@@ -130,7 +130,7 @@ export function RequestAccess() {
     } catch (err) {
       console.error('RequestAccess submit error:', err);
       setErrorMsg(
-        'Something went wrong. Please try again or email us at hello@cruwork.app'
+        'Something went wrong. Please try again or email us at cru@aigaai.com'
       );
       setStatus('error');
     }
