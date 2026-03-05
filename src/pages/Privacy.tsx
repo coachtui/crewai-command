@@ -35,7 +35,7 @@ function LegalFooter() {
         <nav className="flex gap-6" aria-label="Legal navigation">
           <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Terms</Link>
           <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Privacy</Link>
-          <a href="mailto:hello@cruwork.app" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Contact</a>
+          <a href="mailto:cru@aigaai.com" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Contact</a>
         </nav>
       </div>
     </footer>
@@ -208,8 +208,8 @@ export function Privacy() {
             </p>
             <p>
               You may request deletion of your personal data at any time by contacting us at{' '}
-              <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                hello@cruwork.app
+              <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                cru@aigaai.com
               </a>. Note that deletion of your account data may affect your organization's
               operational records within the platform.
             </p>
@@ -229,8 +229,8 @@ export function Privacy() {
             </ul>
             <p>
               To exercise any of these rights, contact us at{' '}
-              <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                hello@cruwork.app
+              <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                cru@aigaai.com
               </a>. We will respond within a reasonable timeframe.
             </p>
           </Section>
@@ -286,8 +286,8 @@ export function Privacy() {
               <p>Operating as: Cru / CruWork</p>
               <p>
                 Email:{' '}
-                <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                  hello@cruwork.app
+                <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                  cru@aigaai.com
                 </a>
               </p>
               <p>Website: cruwork.app</p>

@@ -35,7 +35,7 @@ function LegalFooter() {
         <nav className="flex gap-6" aria-label="Legal navigation">
           <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Terms</Link>
           <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Privacy</Link>
-          <a href="mailto:hello@cruwork.app" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Contact</a>
+          <a href="mailto:cru@aigaai.com" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Contact</a>
         </nav>
       </div>
     </footer>
@@ -109,8 +109,8 @@ export function Terms() {
             </p>
             <p>
               You agree to notify us immediately at{' '}
-              <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                hello@cruwork.app
+              <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                cru@aigaai.com
               </a>{' '}
               if you suspect unauthorized access to your account.
             </p>
@@ -212,8 +212,8 @@ export function Terms() {
             <p>
               Either party may terminate these Terms at any time by providing written notice. You may
               cancel your subscription by contacting us at{' '}
-              <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                hello@cruwork.app
+              <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                cru@aigaai.com
               </a>.
             </p>
             <p>
@@ -268,8 +268,8 @@ export function Terms() {
               <p>Operating as: Cru / CruWork</p>
               <p>
                 Email:{' '}
-                <a href="mailto:hello@cruwork.app" className="text-primary hover:underline">
-                  hello@cruwork.app
+                <a href="mailto:cru@aigaai.com" className="text-primary hover:underline">
+                  cru@aigaai.com
                 </a>
               </p>
               <p>Website: cruwork.app</p>

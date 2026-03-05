@@ -854,7 +854,7 @@ function Footer() {
             <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Terms</Link>
             <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Privacy</Link>
             <a
-              href="mailto:hello@cruwork.app"
+              href="mailto:cru@aigaai.com"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
             >
               Contact
