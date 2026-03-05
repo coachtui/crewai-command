@@ -34,6 +34,8 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   const [intent, setIntent] = useState<VoiceIntent | null>(null);
   const [error, setError] = useState('');
   const recognitionRef = useRef<any>(null);
+  // Tracks whether onresult already fired — used by onend to avoid spurious errors
+  const hasResultRef = useRef(false);
 
   // Check browser support
   const isSpeechSupported = () => {
@@ -57,25 +59,28 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: any) => {
+      hasResultRef.current = true;
       const resultTranscript = event.results[0][0].transcript;
       setTranscript(resultTranscript);
-      
-      // Immediately stop the recognition after getting result
-      // This releases the microphone right away
+
+      // Clear ref BEFORE abort so onend knows this was intentional
+      recognitionRef.current = null;
       try {
-        recognition.stop();
         recognition.abort();
       } catch (err) {
-        console.error('Error stopping recognition after result:', err);
+        console.error('Error aborting recognition after result:', err);
       }
-      
+
       setState('processing');
       parseCommand(resultTranscript);
     };
 
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
-      
+
+      // Clear ref BEFORE setting state so onend doesn't double-handle
+      recognitionRef.current = null;
+
       switch (event.error) {
         case 'not-allowed':
           setError('Microphone access denied. Please enable microphone permissions.');
@@ -89,17 +94,17 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         default:
           setError('Voice recognition failed. Please try again.');
       }
-      
+
       setState('error');
     };
 
     recognition.onend = () => {
-      if (state === 'listening') {
-        // If ended unexpectedly during listening, show error
-        if (!transcript) {
-          setError('No speech detected. Please try again.');
-          setState('error');
-        }
+      // Only handle unexpected end: no result fired AND this instance is still active.
+      // Uses refs (not stale state/transcript) to avoid closure capture bugs.
+      if (!hasResultRef.current && recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+        setError('No speech detected. Please try again.');
+        setState('error');
       }
     };
 
@@ -111,17 +116,19 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     setTranscript('');
     setError('');
     setIntent(null);
-    
+    hasResultRef.current = false;
+
     const recognition = initRecognition();
     if (!recognition) return;
-    
+
     recognitionRef.current = recognition;
     setState('listening');
-    
+
     try {
       recognition.start();
     } catch (err) {
       console.error('Failed to start recognition:', err);
+      recognitionRef.current = null;
       setError('Failed to start voice recognition. Please try again.');
       setState('error');
     }
@@ -130,13 +137,14 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   // Stop listening and cleanup
   const stopListening = () => {
     if (recognitionRef.current) {
+      const r = recognitionRef.current;
+      // Clear ref BEFORE abort so onend doesn't trigger the "no speech" error path
+      recognitionRef.current = null;
       try {
-        recognitionRef.current.stop();
-        recognitionRef.current.abort(); // Force abort to ensure cleanup
+        r.abort();
       } catch (err) {
         console.error('Error stopping recognition:', err);
       }
-      recognitionRef.current = null;
     }
   };
 
@@ -253,7 +261,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // App went to background, stop microphone immediately
+        // App went to background — stop microphone immediately
         stopListening();
         if (state === 'listening') {
           setState('idle');
@@ -265,23 +273,19 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
       stopListening();
     };
 
-    const handlePause = () => {
-      stopListening();
-      if (state === 'listening') {
-        setState('idle');
-      }
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);
-    window.addEventListener('blur', handlePause);
+    // NOTE: Do NOT listen to window 'blur' here.
+    // When the browser shows the microphone permission dialog it fires window.blur
+    // immediately — before React has re-rendered with state='listening'. The stale
+    // closure would abort recognition but not reset state, permanently freezing the
+    // UI in "Listening..." mode. visibilitychange is sufficient for backgrounding.
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('pagehide', handleBeforeUnload);
-      window.removeEventListener('blur', handlePause);
     };
   }, [state]);
 
@@ -342,7 +346,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
                 </p>
               </div>
               <Button
-                onClick={stopListening}
+                onClick={() => { stopListening(); setState('idle'); }}
                 variant="secondary"
                 className="w-full max-w-xs"
               >
