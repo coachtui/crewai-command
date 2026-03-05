@@ -273,7 +273,14 @@ export function SharedFiles() {
                       </button>
                     </div>
                   ) : (
-                    <p className="text-sm font-medium text-text-primary truncate">{file.name}</p>
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-text-primary hover:text-primary hover:underline truncate block"
+                    >
+                      {file.name}
+                    </a>
                   )}
                   <div className="flex items-center gap-3 mt-0.5">
                     {file.file_size != null && (
