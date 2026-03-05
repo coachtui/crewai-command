@@ -245,17 +245,27 @@ function Hero() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-bold text-text-primary leading-tight tracking-tightest mb-4">
-              One source of truth for every person on the job.
+              Run your crews, tasks, and daily hours from one system.
             </h1>
 
-            <p className="text-sm font-semibold text-primary tracking-widest uppercase mb-6">
-              For the Crew, By the Crew
+            <p className="text-lg text-text-secondary leading-relaxed mb-6">
+              Created for the crew, by the crew.<br />
+              Schedule job sites, track labor hours, and keep foremen aligned — all without spreadsheets.
             </p>
 
-            <p className="text-lg text-text-secondary leading-relaxed mb-8">
-              Manage multi-site crews, track daily hours, and keep foremen in sync — all from your phone.
-              No spreadsheets. No guesswork.
-            </p>
+            {/* Benefit bullets */}
+            <ul className="space-y-2.5 mb-8" aria-label="Key benefits">
+              {[
+                'Schedule crews across job sites',
+                'Give foremen a simple "Today View"',
+                'Share relevant files with the crews working today',
+              ].map((benefit) => (
+                <li key={benefit} className="flex items-center gap-2.5 text-sm text-text-secondary">
+                  <span className="text-primary font-semibold flex-shrink-0" aria-hidden="true">✓</span>
+                  {benefit}
+                </li>
+              ))}
+            </ul>
 
             {/* CTAs */}
             <div className="flex flex-wrap gap-3 mb-8">
@@ -311,24 +321,46 @@ function Hero() {
 }
 
 // ============================================================================
+// Problem — the status quo
+// ============================================================================
+
+function Problem() {
+  return (
+    <section className="py-16 bg-white px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-text-primary mb-4">
+          Construction crews still run on texts and spreadsheets.
+        </h2>
+        <p className="text-text-secondary leading-relaxed">
+          Managers juggle crew schedules, daily labor hours, and changing job site tasks across multiple tools.
+        </p>
+        <p className="text-text-secondary leading-relaxed mt-3">
+          Cru centralizes crews, tasks, and daily work into one system — built specifically for construction teams.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ============================================================================
 // What it does — split by persona
 // ============================================================================
 
 function WhatItDoes() {
   const adminFeatures = [
-    { icon: Users,          title: 'Workers',     desc: 'Manage crew members, roles (carpenter, mason, etc.) and job site assignments.' },
-    { icon: CheckSquare,    title: 'Tasks',       desc: 'Create and assign tasks. Attach PDFs — specs, plans, drawings — directly to a task so every worker has the right files.' },
-    { icon: Calendar,       title: 'Calendar',    desc: 'Visual schedule and Gantt chart view across all your job sites.' },
-    { icon: Activity,       title: 'Activities',  desc: 'Track progress and review work activity logs in real time.' },
-    { icon: Clock,          title: 'Daily Hours', desc: 'Log and review hours per worker per day across all sites.' },
-    { icon: LayoutDashboard, title: 'Dashboard',  desc: 'Operational overview: crew status, active tasks, site activity.' },
+    { icon: Users,          title: 'Crew management',  desc: 'Build your roster, assign roles, and manage job site assignments across all active sites.' },
+    { icon: CheckSquare,    title: 'Task scheduling',  desc: 'Create and assign tasks to crews. Attach specs and drawings so every worker has what they need.' },
+    { icon: Calendar,       title: 'Calendar',         desc: 'Schedule crews and visualize work across all job sites with calendar and Gantt chart views.' },
+    { icon: Clock,          title: 'Labor tracking',   desc: 'Log and review daily hours per worker, per site — all in one place.' },
+    { icon: Activity,       title: 'Site visibility',  desc: 'Track labor activity and review progress logs across all sites in real time.' },
+    { icon: LayoutDashboard, title: 'Dashboard',       desc: 'Full operational overview: crew status, active tasks, and site activity at a glance.' },
   ];
 
   return (
     <section id="product" className="py-20 bg-white px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-text-primary mb-4">Built for every role on site</h2>
+          <h2 className="text-3xl font-bold text-text-primary mb-4">Built for managers and foremen.</h2>
           <p className="text-text-secondary max-w-xl mx-auto">
             Two interfaces, one system — tailored to how managers and foremen actually work.
           </p>
@@ -378,7 +410,7 @@ function WhatItDoes() {
               <div>
                 <div className="text-sm font-semibold text-white mb-1">Today view</div>
                 <div className="text-sm text-gray-400">
-                  A simplified daily view of exactly what the crew needs to execute today. No clutter, just the work.
+                  Open the app and see exactly what the crew has today. No navigation, no clutter — just the work.
                 </div>
               </div>
 
@@ -397,9 +429,9 @@ function WhatItDoes() {
 
               <ul className="space-y-3">
                 {[
-                  { label: 'Big tap targets', desc: 'Works with gloves. Tap, done.' },
-                  { label: 'Quick entry',     desc: 'Log hours and tasks in seconds, not minutes.' },
-                  { label: 'Low-friction by design', desc: 'Fewer taps, clear layouts, readable in sunlight.' },
+                  { label: "See today's tasks instantly", desc: "Your crew's work is right there on open — no searching." },
+                  { label: 'Log hours in seconds',       desc: 'End-of-shift hour logging takes less than a minute.' },
+                  { label: 'Updates reach managers live', desc: 'Progress syncs in real time — no calls, no texts needed.' },
                 ].map(({ label, desc }) => (
                   <li key={label} className="flex items-start gap-3">
                     <div className="mt-0.5 w-5 h-5 rounded bg-primary/20 flex-shrink-0 flex items-center justify-center" aria-hidden="true">
@@ -428,7 +460,7 @@ function HowItWorks() {
   const steps = [
     {
       step: '01',
-      title: 'Create company & job sites',
+      title: 'Create your company and job sites',
       desc: 'Set up your organization, add your active job sites, and configure your team structure.',
     },
     {
@@ -438,7 +470,7 @@ function HowItWorks() {
     },
     {
       step: '03',
-      title: 'Assign tasks & track hours daily',
+      title: 'Start assigning tasks and tracking hours',
       desc: 'Managers create and assign tasks. Foremen open the Today view each morning. Hours are logged at end of shift.',
     },
   ];
@@ -457,12 +489,12 @@ function HowItWorks() {
           {steps.map(({ step, title, desc }) => (
             <li key={step}>
               <div
-                className="text-7xl font-black text-gray-100 leading-none mb-4 select-none"
+                className="text-8xl font-black text-gray-300 leading-none mb-4 select-none"
                 aria-hidden="true"
               >
                 {step}
               </div>
-              <h3 className="text-lg font-semibold text-text-primary mb-2">{title}</h3>
+              <h3 className="text-xl font-semibold text-text-primary mb-2">{title}</h3>
               <p className="text-text-secondary text-sm leading-relaxed">{desc}</p>
             </li>
           ))}
@@ -480,23 +512,23 @@ function Differentiators() {
   const cards = [
     {
       icon: Mic,
-      title: 'Voice input',
-      desc: 'A floating voice button lets you log tasks and hours hands-free. Works in the field, on the go.',
+      title: 'Log work without typing',
+      desc: 'Use your voice to log tasks and hours hands-free — works in the field, even with gloves on.',
     },
     {
       icon: MapPin,
-      title: 'Job site context',
-      desc: 'Workers are assigned to specific sites. Multi-site support keeps each project isolated and clear.',
+      title: 'Assign crews to the right job site',
+      desc: 'Workers, tasks, and hours are scoped to specific job sites. Multi-site management stays clear and organized.',
     },
     {
       icon: RefreshCw,
-      title: 'Real-time updates',
-      desc: 'Powered by Supabase live sync. Everyone sees the same data, always current — no refresh needed.',
+      title: 'Managers see progress instantly',
+      desc: 'Changes sync live across all devices. No refresh, no follow-up calls — managers always see current status.',
     },
     {
       icon: FileText,
-      title: 'File sharing on tasks',
-      desc: 'Supes, OMs, and engineers attach PDFs — specs, plans, drawings — directly to tasks. Everyone on the task sees the same files.',
+      title: 'Share drawings and notes with the crew',
+      desc: 'Attach specs, plans, and PDFs directly to tasks. Everyone on the task sees the same files.',
     },
   ];
 
@@ -613,7 +645,10 @@ function FAQ() {
       q: 'Can I manage multiple job sites?',
       a: 'Yes. Workers and tasks are scoped to specific job sites. You get a full cross-site view at the admin level.',
     },
-
+    {
+      q: 'Do workers need an account?',
+      a: 'Workers are invited via email and can access tasks and log hours through a simple mobile interface.',
+    },
   ];
 
   return (
@@ -662,6 +697,10 @@ function Pricing() {
                 <p className="text-xs text-text-secondary">Per job site, per month</p>
               </div>
             </div>
+
+            <p className="text-xs text-text-secondary mb-5 italic">
+              Designed for construction companies managing multiple crews and job sites.
+            </p>
 
             <div className="flex items-end gap-1 mb-2">
               <span className="text-5xl font-black text-text-primary">$149</span>
@@ -844,6 +883,7 @@ export function Landing() {
       <Header />
       <main>
         <Hero />
+        <Problem />
         <WhatItDoes />
         <HowItWorks />
         <Differentiators />
