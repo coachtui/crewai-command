@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS shared_files_job_site_idx ON shared_files(job_site_id
 
 -- ============================================================================
 -- RLS Policies
--- user_profiles.id is stored as text; auth.uid() returns uuid — cast needed
+-- user_profiles.id and org_id are uuid; organization_id here is text — cast org_id::text
 -- ============================================================================
 
 ALTER TABLE shared_files ENABLE ROW LEVEL SECURITY;
@@ -34,7 +34,7 @@ CREATE POLICY "shared_files_select"
   TO authenticated
   USING (
     organization_id = (
-      SELECT org_id FROM user_profiles WHERE id = auth.uid()::text
+      SELECT org_id::text FROM user_profiles WHERE id = auth.uid()
     )
   );
 
@@ -44,13 +44,13 @@ CREATE POLICY "shared_files_insert"
   TO authenticated
   WITH CHECK (
     organization_id = (
-      SELECT org_id FROM user_profiles WHERE id = auth.uid()::text
+      SELECT org_id::text FROM user_profiles WHERE id = auth.uid()
     )
     AND (
-      (SELECT base_role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT base_role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'superintendent', 'engineer', 'foreman')
       OR
-      (SELECT role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'foreman')
     )
   );
@@ -61,13 +61,13 @@ CREATE POLICY "shared_files_update"
   TO authenticated
   USING (
     organization_id = (
-      SELECT org_id FROM user_profiles WHERE id = auth.uid()::text
+      SELECT org_id::text FROM user_profiles WHERE id = auth.uid()
     )
     AND (
-      (SELECT base_role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT base_role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'superintendent', 'engineer', 'foreman')
       OR
-      (SELECT role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'foreman')
     )
   );
@@ -78,13 +78,13 @@ CREATE POLICY "shared_files_delete"
   TO authenticated
   USING (
     organization_id = (
-      SELECT org_id FROM user_profiles WHERE id = auth.uid()::text
+      SELECT org_id::text FROM user_profiles WHERE id = auth.uid()
     )
     AND (
-      (SELECT base_role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT base_role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'superintendent', 'engineer', 'foreman')
       OR
-      (SELECT role FROM user_profiles WHERE id = auth.uid()::text)
+      (SELECT role FROM user_profiles WHERE id = auth.uid())
         IN ('admin', 'foreman')
     )
   );
