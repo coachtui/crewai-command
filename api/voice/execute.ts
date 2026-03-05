@@ -101,23 +101,47 @@ export default async function handler(req: Request) {
       case 'reassign_worker':
         result = await handleReassignWorker(intent.data, user, authClient);
         break;
-      
+
       case 'create_task':
         result = await handleCreateTask(intent.data, user, authClient);
         break;
-      
+
       case 'query_info':
         result = await handleQueryInfo(intent.data, user, authClient);
         break;
-      
+
       case 'update_timesheet':
         result = await handleUpdateTimesheet(intent.data, user, authClient);
         break;
-      
+
       case 'approve_request':
         result = await handleApproveRequest(intent.data, user, authClient);
         break;
-      
+
+      case 'create_worker':
+        result = await handleCreateWorker(intent.data, user, authClient);
+        break;
+
+      case 'edit_worker':
+        result = await handleEditWorker(intent.data, user, authClient);
+        break;
+
+      case 'create_job_site':
+        result = await handleCreateJobSite(intent.data, user, authClient);
+        break;
+
+      case 'invite_user':
+        result = await handleInviteUser(intent.data, user, token);
+        break;
+
+      case 'open_file':
+        result = await handleOpenFile(intent.data, user, authClient);
+        break;
+
+      case 'navigate':
+        result = handleNavigate(intent.data);
+        break;
+
       default:
         throw new Error(`Unknown action: ${intent.action}`);
     }
@@ -396,9 +420,182 @@ async function handleApproveRequest(data: any, user: any, client: any) {
   if (updateError) throw updateError;
   
   // TODO: Actually execute the reassignment based on the request
-  
+
   return {
     worker: worker.name,
     request_id: request.id,
   };
+}
+
+// ── New handlers ─────────────────────────────────────────────────────────────
+
+// Create a new worker
+async function handleCreateWorker(data: any, user: any, client: any) {
+  const { worker_name, role, phone } = data;
+
+  if (!worker_name) throw new Error('Worker name is required');
+
+  const validRoles = ['operator', 'laborer', 'carpenter', 'mason'];
+  const workerRole = validRoles.includes(role) ? role : 'laborer';
+
+  // Use first active job site as default
+  const { data: jobSites } = await client
+    .from('job_sites')
+    .select('id')
+    .eq('organization_id', user.org_id)
+    .eq('status', 'active')
+    .limit(1);
+
+  const { data: worker, error } = await client
+    .from('workers')
+    .insert({
+      org_id: user.org_id,
+      organization_id: user.org_id,
+      job_site_id: jobSites?.[0]?.id || null,
+      name: worker_name,
+      role: workerRole,
+      phone: phone || null,
+      status: 'active',
+      skills: [],
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return { worker_id: worker.id, worker_name: worker.name, role: worker.role };
+}
+
+// Edit an existing worker's role, phone, or status
+async function handleEditWorker(data: any, user: any, client: any) {
+  const { worker_name, updates } = data;
+
+  const worker = await findWorkerByName(worker_name, user.org_id, client);
+
+  const allowedFields = ['role', 'phone', 'status'];
+  const safeUpdates: Record<string, any> = {};
+  for (const key of allowedFields) {
+    if (updates?.[key] !== undefined) safeUpdates[key] = updates[key];
+  }
+
+  if (Object.keys(safeUpdates).length === 0) {
+    throw new Error('No valid fields to update (allowed: role, phone, status)');
+  }
+
+  const { error } = await client
+    .from('workers')
+    .update(safeUpdates)
+    .eq('id', worker.id);
+
+  if (error) throw error;
+
+  return { worker_name: worker.name, updated: safeUpdates };
+}
+
+// Create a new job site
+async function handleCreateJobSite(data: any, user: any, client: any) {
+  const { site_name, address, start_date } = data;
+
+  if (!site_name) throw new Error('Job site name is required');
+
+  const startDate = start_date ? parseRelativeDate(start_date)[0] : null;
+
+  const { data: site, error } = await client
+    .from('job_sites')
+    .insert({
+      organization_id: user.org_id,
+      name: site_name,
+      address: address || null,
+      start_date: startDate,
+      status: 'active',
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return { site_id: site.id, site_name: site.name };
+}
+
+// Invite a new user via the create-user edge function
+async function handleInviteUser(data: any, user: any, token: string) {
+  const { email, name, role } = data;
+
+  if (!email) throw new Error('Email is required to invite a user');
+  if (!name) throw new Error('Name is required to invite a user');
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Supabase URL not configured');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/create-user`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      email,
+      name,
+      role: role || 'worker',
+      organization_id: user.org_id,
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to invite user (${response.status})`);
+  }
+
+  return { email, name, role: role || 'worker' };
+}
+
+// Find and return a shared file URL
+async function handleOpenFile(data: any, user: any, client: any) {
+  const { file_name } = data;
+
+  if (!file_name) throw new Error('File name is required');
+
+  const { data: files, error } = await client
+    .from('shared_files')
+    .select('id, name, url')
+    .eq('organization_id', user.org_id)
+    .ilike('name', `%${file_name}%`)
+    .limit(5);
+
+  if (error) throw error;
+  if (!files || files.length === 0) {
+    throw new Error(`No file found matching "${file_name}"`);
+  }
+
+  // Return best match (first result from ilike)
+  return { file_url: files[0].url, file_name: files[0].name };
+}
+
+// Resolve a page name to an app route
+function handleNavigate(data: any) {
+  const pageMap: Record<string, string> = {
+    dashboard: '/dashboard',
+    workers: '/workers',
+    tasks: '/tasks',
+    calendar: '/calendar',
+    activities: '/activities',
+    'daily-hours': '/daily-hours',
+    'daily hours': '/daily-hours',
+    timesheet: '/daily-hours',
+    files: '/files',
+    'shared files': '/files',
+    documents: '/files',
+    today: '/today',
+    profile: '/profile',
+  };
+
+  const page = (data.page || '').toLowerCase();
+  const path =
+    pageMap[page] ||
+    Object.entries(pageMap).find(([k]) => page.includes(k))?.[1];
+
+  if (!path) throw new Error(`Unknown page: "${data.page}"`);
+
+  return { navigate_to: path, page: data.page };
 }

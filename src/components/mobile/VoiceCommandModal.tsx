@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Mic, Loader2, CheckCircle, AlertCircle, HelpCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
@@ -17,8 +18,14 @@ interface VoiceIntent {
   options?: string[];
 }
 
+type QuestionField =
+  | 'task_name' | 'start_date' | 'crew'
+  | 'worker_name' | 'worker_role'
+  | 'site_name'
+  | 'user_email' | 'user_name' | 'user_role';
+
 interface PendingQuestion {
-  field: 'task_name' | 'start_date' | 'crew';
+  field: QuestionField;
   question: string;
   placeholder: string;
 }
@@ -35,70 +42,119 @@ declare global {
   }
 }
 
-// Parse a crew count answer like "2 operators and 3 laborers" into structured fields
+// ── Answer parsers ────────────────────────────────────────────────────────────
+
+// Parse "2 operators and 3 laborers" → { required_operators: 2, required_laborers: 3 }
 function parseCrewAnswer(answer: string): Record<string, number> {
-  const normalized = answer.toLowerCase();
+  const n = answer.toLowerCase();
   const result: Record<string, number> = {};
 
-  const operatorMatch = normalized.match(/(\d+)\s*operator/);
-  if (operatorMatch) result.required_operators = parseInt(operatorMatch[1]);
+  const op = n.match(/(\d+)\s*operator/);   if (op) result.required_operators = parseInt(op[1]);
+  const lb = n.match(/(\d+)\s*laborer/);    if (lb) result.required_laborers = parseInt(lb[1]);
+  const cp = n.match(/(\d+)\s*carpenter/);  if (cp) result.required_carpenters = parseInt(cp[1]);
+  const ms = n.match(/(\d+)\s*mason/);      if (ms) result.required_masons = parseInt(ms[1]);
 
-  const laborerMatch = normalized.match(/(\d+)\s*laborer/);
-  if (laborerMatch) result.required_laborers = parseInt(laborerMatch[1]);
-
-  const carpenterMatch = normalized.match(/(\d+)\s*carpenter/);
-  if (carpenterMatch) result.required_carpenters = parseInt(carpenterMatch[1]);
-
-  const masonMatch = normalized.match(/(\d+)\s*mason/);
-  if (masonMatch) result.required_masons = parseInt(masonMatch[1]);
-
-  // Bare number with no role → default to laborers
+  // Bare number → default to laborers
   if (Object.keys(result).length === 0) {
-    const numMatch = answer.trim().match(/^(\d+)$/);
-    if (numMatch) result.required_laborers = parseInt(numMatch[1]);
+    const bare = answer.trim().match(/^(\d+)$/);
+    if (bare) result.required_laborers = parseInt(bare[1]);
   }
-
   return result;
 }
 
-// Build a list of follow-up questions for missing create_task fields
-function buildQuestionQueue(data: any): PendingQuestion[] {
-  const questions: PendingQuestion[] = [];
+// Build follow-up questions for any action that has missing required fields
+function buildQuestionQueue(action: string, data: any): PendingQuestion[] {
+  const q: PendingQuestion[] = [];
 
-  if (!data.task_name || data.task_name.trim() === '') {
-    questions.push({
-      field: 'task_name',
-      question: "What's the name of this task?",
-      placeholder: 'e.g. Concrete pour, Rebar install...',
-    });
+  if (action === 'create_task') {
+    if (!data.task_name?.trim())
+      q.push({ field: 'task_name', question: "What's the name of this task?", placeholder: 'e.g. Concrete pour, Rebar install...' });
+    if (!data.start_date?.trim())
+      q.push({ field: 'start_date', question: 'When does this task start?', placeholder: "e.g. tomorrow, Monday, March 10..." });
+    const hasAnyCrew = (data.required_operators || 0) + (data.required_laborers || 0) +
+                       (data.required_carpenters || 0) + (data.required_masons || 0) > 0;
+    if (!hasAnyCrew)
+      q.push({ field: 'crew', question: 'How many workers are needed?', placeholder: 'e.g. 2 operators, 3 laborers...' });
   }
 
-  if (!data.start_date || data.start_date.trim() === '') {
-    questions.push({
-      field: 'start_date',
-      question: 'When does this task start?',
-      placeholder: "e.g. tomorrow, Monday, March 10...",
-    });
+  if (action === 'create_worker') {
+    if (!data.worker_name?.trim())
+      q.push({ field: 'worker_name', question: "What's the worker's full name?", placeholder: 'e.g. Miguel Santos' });
+    if (!data.role?.trim())
+      q.push({ field: 'worker_role', question: "What's their role?", placeholder: 'operator, laborer, carpenter, or mason' });
   }
 
-  const hasAnyCrew =
-    (data.required_operators || 0) > 0 ||
-    (data.required_laborers || 0) > 0 ||
-    (data.required_carpenters || 0) > 0 ||
-    (data.required_masons || 0) > 0;
-
-  if (!hasAnyCrew) {
-    questions.push({
-      field: 'crew',
-      question: 'How many workers are needed?',
-      placeholder: 'e.g. 2 operators, 3 laborers...',
-    });
+  if (action === 'create_job_site') {
+    if (!data.site_name?.trim())
+      q.push({ field: 'site_name', question: "What's the name of this job site?", placeholder: 'e.g. Queen\'s Medical Center, Downtown Hotel...' });
   }
 
-  return questions;
+  if (action === 'invite_user') {
+    if (!data.email?.trim())
+      q.push({ field: 'user_email', question: "What's their email address?", placeholder: 'e.g. john@example.com' });
+    if (!data.name?.trim())
+      q.push({ field: 'user_name', question: "What's their full name?", placeholder: 'e.g. John Smith' });
+    if (!data.role?.trim())
+      q.push({ field: 'user_role', question: "What role should they have?", placeholder: 'admin, superintendent, engineer, foreman, or worker' });
+  }
+
+  return q;
 }
 
+// Apply a question answer back into the intent data
+function applyAnswer(field: QuestionField, answer: string, data: any): any {
+  const updated = { ...data };
+
+  switch (field) {
+    case 'task_name':    updated.task_name = answer.trim(); break;
+    case 'worker_name':  updated.worker_name = answer.trim(); break;
+    case 'site_name':    updated.site_name = answer.trim(); break;
+    case 'user_email':   updated.email = answer.trim(); break;
+    case 'user_name':    updated.name = answer.trim(); break;
+    case 'worker_role':
+    case 'user_role':    updated.role = answer.trim().toLowerCase(); break;
+    case 'start_date': {
+      const parsed = parseRelativeDate(answer.trim());
+      updated.start_date = parsed[0];
+      if (!updated.end_date) updated.end_date = parsed[0];
+      break;
+    }
+    case 'crew': {
+      const crew = parseCrewAnswer(answer.trim());
+      Object.assign(updated, crew);
+      break;
+    }
+  }
+  return updated;
+}
+
+// Rebuild the human-readable summary after filling in missing fields
+function rebuildSummary(action: string, data: any): string {
+  switch (action) {
+    case 'create_task': {
+      const crewParts: string[] = [];
+      if (data.required_operators > 0) crewParts.push(`${data.required_operators} operator${data.required_operators !== 1 ? 's' : ''}`);
+      if (data.required_laborers > 0)  crewParts.push(`${data.required_laborers} laborer${data.required_laborers !== 1 ? 's' : ''}`);
+      if (data.required_carpenters > 0) crewParts.push(`${data.required_carpenters} carpenter${data.required_carpenters !== 1 ? 's' : ''}`);
+      if (data.required_masons > 0)    crewParts.push(`${data.required_masons} mason${data.required_masons !== 1 ? 's' : ''}`);
+      return `Create task "${data.task_name}"${data.location ? ` at ${data.location}` : ''}${data.start_date ? ` starting ${data.start_date}` : ''}${crewParts.length ? ` with ${crewParts.join(', ')}` : ''}`;
+    }
+    case 'create_worker':
+      return `Add ${data.worker_name} as a ${data.role || 'laborer'}${data.phone ? ` (${data.phone})` : ''}`;
+    case 'create_job_site':
+      return `Create job site "${data.site_name}"${data.address ? ` at ${data.address}` : ''}${data.start_date ? ` starting ${data.start_date}` : ''}`;
+    case 'invite_user':
+      return `Invite ${data.name} (${data.email}) as ${data.role || 'worker'}`;
+    default:
+      return '';
+  }
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
+  const navigate = useNavigate();
+
   const [state, setState] = useState<ModalState>('idle');
   const [transcript, setTranscript] = useState('');
   const [intent, setIntent] = useState<VoiceIntent | null>(null);
@@ -107,7 +163,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   // Tracks whether onresult already fired — used by onend to avoid spurious errors
   const hasResultRef = useRef(false);
 
-  // Question queue state (only used for create_task follow-ups)
+  // Question queue state (used for actions with missing required fields)
   const [questionQueue, setQuestionQueue] = useState<PendingQuestion[]>([]);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [currentAnswer, setCurrentAnswer] = useState('');
@@ -223,49 +279,42 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     }
   };
 
+  // After parsing, check if any required fields are missing for this action
+  const maybeEnterQuestionFlow = (parsedIntent: VoiceIntent) => {
+    const questions = buildQuestionQueue(parsedIntent.action, parsedIntent.data || {});
+    if (questions.length > 0) {
+      setIntent(parsedIntent);
+      setQuestionQueue(questions);
+      setQuestionIndex(0);
+      setCurrentAnswer('');
+      setState('questioning');
+    } else {
+      setIntent(parsedIntent);
+      setState('confirming');
+    }
+  };
+
   // Parse command with Claude API
   const parseCommand = async (text: string) => {
     try {
-      // Get client's local date (not server UTC)
       const today = new Date();
-      const clientDate = today.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+      const clientDate = today.toLocaleDateString('en-CA'); // YYYY-MM-DD
 
       const response = await fetch('/api/voice/parse', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transcript: text,
-          clientDate: clientDate
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: text, clientDate }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to parse command');
-      }
+      if (!response.ok) throw new Error('Failed to parse command');
 
       const parsedIntent: VoiceIntent = await response.json();
 
       if (parsedIntent.action === 'clarify') {
         setError(parsedIntent.question || 'Please clarify your command');
         setState('error');
-      } else if (parsedIntent.action === 'create_task') {
-        // Check if any required fields are missing and queue follow-up questions
-        const questions = buildQuestionQueue(parsedIntent.data || {});
-        if (questions.length > 0) {
-          setIntent(parsedIntent);
-          setQuestionQueue(questions);
-          setQuestionIndex(0);
-          setCurrentAnswer('');
-          setState('questioning');
-        } else {
-          setIntent(parsedIntent);
-          setState('confirming');
-        }
       } else {
-        setIntent(parsedIntent);
-        setState('confirming');
+        maybeEnterQuestionFlow(parsedIntent);
       }
     } catch (err) {
       console.error('Parse error:', err);
@@ -274,70 +323,39 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     }
   };
 
-  // Handle a submitted answer to a follow-up question
+  // Submit answer to the current question and advance the queue
   const handleQuestionSubmit = () => {
     if (!intent || !currentAnswer.trim()) return;
 
     const current = questionQueue[questionIndex];
-    const updatedData = { ...intent.data };
-
-    // Apply the answer to the appropriate field
-    if (current.field === 'task_name') {
-      updatedData.task_name = currentAnswer.trim();
-    } else if (current.field === 'start_date') {
-      // Parse relative date client-side using existing helper
-      const parsed = parseRelativeDate(currentAnswer.trim());
-      updatedData.start_date = parsed[0];
-      if (!updatedData.end_date) {
-        updatedData.end_date = parsed[0]; // default end to same day
-      }
-    } else if (current.field === 'crew') {
-      const crew = parseCrewAnswer(currentAnswer.trim());
-      Object.assign(updatedData, crew);
-    }
-
+    const updatedData = applyAnswer(current.field, currentAnswer, intent.data || {});
     const updatedIntent: VoiceIntent = { ...intent, data: updatedData };
     setIntent(updatedIntent);
 
     const nextIndex = questionIndex + 1;
     if (nextIndex < questionQueue.length) {
-      // More questions remaining
       setQuestionIndex(nextIndex);
       setCurrentAnswer('');
     } else {
-      // All questions answered — rebuild summary and go to confirming
-      // Rebuild a human-readable summary from the final data
-      const d = updatedData;
-      const crewParts = [];
-      if (d.required_operators > 0) crewParts.push(`${d.required_operators} operator${d.required_operators !== 1 ? 's' : ''}`);
-      if (d.required_laborers > 0) crewParts.push(`${d.required_laborers} laborer${d.required_laborers !== 1 ? 's' : ''}`);
-      if (d.required_carpenters > 0) crewParts.push(`${d.required_carpenters} carpenter${d.required_carpenters !== 1 ? 's' : ''}`);
-      if (d.required_masons > 0) crewParts.push(`${d.required_masons} mason${d.required_masons !== 1 ? 's' : ''}`);
-      const crewText = crewParts.length > 0 ? ` with ${crewParts.join(', ')}` : '';
-      const dateText = d.start_date ? ` starting ${d.start_date}` : '';
-      const locationText = d.location ? ` at ${d.location}` : '';
-      updatedIntent.summary = `Create task "${d.task_name}"${locationText}${dateText}${crewText}`;
-
+      // All questions answered — rebuild summary and confirm
+      const newSummary = rebuildSummary(updatedIntent.action, updatedData);
+      if (newSummary) updatedIntent.summary = newSummary;
       setIntent(updatedIntent);
       setQuestionQueue([]);
       setState('confirming');
     }
   };
 
-  // Execute command
+  // Execute the confirmed intent
   const executeCommand = async () => {
     if (!intent) return;
 
     setState('processing');
 
     try {
-      // Get session token
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
+      if (!token) throw new Error('Not authenticated');
 
       const response = await fetch('/api/voice/execute', {
         method: 'POST',
@@ -354,18 +372,26 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         throw new Error(result.details || result.error || 'Failed to execute command');
       }
 
-      // For query results, show detailed information
-      if (result.data && intent.action === 'query_info') {
+      // Handle special result types
+      if (result.data?.navigate_to) {
+        toast.success(`Opening ${result.data.page || result.data.navigate_to}...`);
+        handleClose();
+        navigate(result.data.navigate_to);
+      } else if (result.data?.file_url) {
+        toast.success(`Opening "${result.data.file_name}"...`);
+        window.open(result.data.file_url, '_blank');
+        handleClose();
+      } else if (result.data && intent.action === 'query_info') {
         const { worker, task, location, date } = result.data;
         toast.success(
           `${worker} is working at ${task}${location ? ` (${location})` : ''} on ${date}`,
           { duration: 6000 }
         );
+        handleClose();
       } else {
         toast.success(result.message || 'Command executed successfully');
+        handleClose();
       }
-
-      handleClose();
     } catch (err) {
       console.error('Execute error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to execute command. Please try again.';
@@ -385,7 +411,6 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     setState('idle');
   };
 
-  // Enhanced close handler to ensure cleanup
   const handleClose = () => {
     stopListening();
     onClose();
@@ -393,35 +418,24 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopListening();
-    };
+    return () => { stopListening(); };
   }, []);
 
   // Cleanup when app goes to background or loses visibility
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // App went to background — stop microphone immediately
         stopListening();
-        if (state === 'listening') {
-          setState('idle');
-        }
+        if (state === 'listening') setState('idle');
       }
     };
-
-    const handleBeforeUnload = () => {
-      stopListening();
-    };
+    const handleBeforeUnload = () => { stopListening(); };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);
-    // NOTE: Do NOT listen to window 'blur' here.
-    // When the browser shows the microphone permission dialog it fires window.blur
-    // immediately — before React has re-rendered with state='listening'. The stale
-    // closure would abort recognition but not reset state, permanently freezing the
-    // UI in "Listening..." mode. visibilitychange is sufficient for backgrounding.
+    // NOTE: Do NOT listen to window 'blur' here — fires on permission dialog
+    // before React re-renders, causing a permanent "Listening..." freeze.
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -430,11 +444,12 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
     };
   }, [state]);
 
-  // Example commands
   const exampleCommands = [
     "Move Jose to concrete pour tomorrow",
-    "Where is Panama today?",
-    "Show Friday's schedule"
+    "Add Miguel Santos as a laborer",
+    "Create job site downtown hospital",
+    "Open the safety plan",
+    "Go to workers",
   ];
 
   return (
@@ -452,8 +467,9 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
           </button>
         </div>
 
-        {/* Content - changes based on state */}
+        {/* Content */}
         <div className="flex-1 flex flex-col items-center justify-center p-6 min-h-[300px]">
+
           {state === 'idle' && (
             <div className="text-center space-y-6">
               <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
@@ -461,14 +477,9 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
               </div>
               <div>
                 <h3 className="text-2xl font-bold mb-2">Ready to Listen</h3>
-                <p className="text-text-secondary">
-                  Tap the button below to start speaking
-                </p>
+                <p className="text-text-secondary">Tap the button below to start speaking</p>
               </div>
-              <Button
-                onClick={startListening}
-                className="w-full max-w-xs h-14 text-lg"
-              >
+              <Button onClick={startListening} className="w-full max-w-xs h-14 text-lg">
                 <Mic className="mr-2" size={24} />
                 Tap to Speak
               </Button>
@@ -482,9 +493,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
               </div>
               <div>
                 <h3 className="text-2xl font-bold mb-2">Listening...</h3>
-                <p className="text-text-secondary">
-                  Speak your command now
-                </p>
+                <p className="text-text-secondary">Speak your command now</p>
               </div>
               <Button
                 onClick={() => { stopListening(); setState('idle'); }}
@@ -513,7 +522,6 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
 
           {state === 'questioning' && questionQueue.length > 0 && (
             <div className="space-y-6 w-full">
-              {/* Icon + progress */}
               <div className="text-center">
                 <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3">
                   <HelpCircle className="text-primary" size={36} />
@@ -522,16 +530,12 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
                   Question {questionIndex + 1} of {questionQueue.length}
                 </p>
               </div>
-
-              {/* Question */}
               <div>
                 <h3 className="text-lg font-bold text-text-primary mb-1">
                   {questionQueue[questionIndex].question}
                 </h3>
                 {transcript && (
-                  <p className="text-xs text-text-secondary italic mb-3">
-                    From: "{transcript}"
-                  </p>
+                  <p className="text-xs text-text-secondary italic mb-3">From: "{transcript}"</p>
                 )}
                 <input
                   autoFocus
@@ -543,15 +547,8 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
                   className="w-full px-4 py-3 bg-bg-primary border border-border rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:ring-2 focus:ring-primary text-base"
                 />
               </div>
-
-              {/* Actions */}
               <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={cancelCommand}
-                  className="flex-1"
-                >
+                <Button type="button" variant="secondary" onClick={cancelCommand} className="flex-1">
                   Cancel
                 </Button>
                 <Button
@@ -580,23 +577,16 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
                   <p className="text-text-primary font-medium">{intent.summary}</p>
                   {intent.confidence < 0.9 && (
                     <p className="text-xs text-warning mt-2">
-                      ⚠️ Medium confidence - please verify
+                      ⚠️ Medium confidence — please verify
                     </p>
                   )}
                 </div>
               </div>
               <div className="flex gap-3 w-full max-w-xs mx-auto">
-                <Button
-                  onClick={cancelCommand}
-                  variant="secondary"
-                  className="flex-1"
-                >
+                <Button onClick={cancelCommand} variant="secondary" className="flex-1">
                   ❌ Cancel
                 </Button>
-                <Button
-                  onClick={executeCommand}
-                  className="flex-1"
-                >
+                <Button onClick={executeCommand} className="flex-1">
                   ✅ Confirm
                 </Button>
               </div>
@@ -612,10 +602,7 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
                 <h3 className="text-2xl font-bold mb-2">Error</h3>
                 <p className="text-text-secondary">{error}</p>
               </div>
-              <Button
-                onClick={cancelCommand}
-                className="w-full max-w-xs"
-              >
+              <Button onClick={cancelCommand} className="w-full max-w-xs">
                 Try Again
               </Button>
             </div>
@@ -625,14 +612,10 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
         {/* Footer - Example Commands */}
         {state === 'idle' && (
           <div className="p-4 border-t border-border bg-bg-primary/50">
-            <p className="text-xs text-text-secondary mb-2 font-medium">
-              Example commands:
-            </p>
+            <p className="text-xs text-text-secondary mb-2 font-medium">Example commands:</p>
             <div className="space-y-1">
               {exampleCommands.map((cmd, i) => (
-                <p key={i} className="text-xs text-text-secondary italic">
-                  • "{cmd}"
-                </p>
+                <p key={i} className="text-xs text-text-secondary italic">• "{cmd}"</p>
               ))}
             </div>
           </div>
