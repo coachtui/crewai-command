@@ -851,8 +851,8 @@ function Footer() {
           </Link>
 
           <nav className="flex flex-wrap gap-6" aria-label="Footer navigation">
-            <a href="#" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Terms</a>
-            <a href="#" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Privacy</a>
+            <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Terms</Link>
+            <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-300 transition-colors">Privacy</Link>
             <a
               href="mailto:hello@cruwork.app"
               className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
