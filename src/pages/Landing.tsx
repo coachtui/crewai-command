@@ -636,23 +636,100 @@ function FAQ() {
 }
 
 // ============================================================================
-// Pricing placeholder
+// Pricing
 // ============================================================================
 
 function Pricing() {
   return (
     <section id="pricing" className="py-20 bg-bg-primary px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto text-center">
-        <h2 className="text-3xl font-bold text-text-primary mb-4">Simple pricing, coming soon</h2>
-        <p className="text-text-secondary mb-8 leading-relaxed">
-          We're in early access. Request access now and lock in founder pricing when we launch.
-        </p>
-        <Link
-          to="/request-access"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover transition-colors"
-        >
-          Request early access <ArrowRight size={16} />
-        </Link>
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-text-primary mb-4">Simple, transparent pricing</h2>
+          <p className="text-text-secondary max-w-xl mx-auto">
+            One price. No per-seat fees. No hidden charges.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 items-start">
+          {/* Main plan card */}
+          <div className="bg-white rounded-2xl border-2 border-primary p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold text-primary uppercase tracking-wide">Per job site</span>
+            </div>
+            <div className="flex items-end gap-1 mb-1">
+              <span className="text-5xl font-black text-text-primary">$149</span>
+              <span className="text-text-secondary mb-2">/month</span>
+            </div>
+            <p className="text-sm text-text-secondary mb-6">
+              Unlimited workers and tasks per site. Add as many sites as your company runs.
+            </p>
+
+            <ul className="space-y-3 mb-8">
+              {[
+                'Unlimited crew members',
+                'Unlimited tasks & assignments',
+                'Daily hours tracking',
+                'Calendar & Gantt views',
+                'File attachments on tasks',
+                'Voice input',
+                'Real-time sync across devices',
+              ].map((feature) => (
+                <li key={feature} className="flex items-center gap-3 text-sm text-text-primary">
+                  <span className="w-4 h-4 rounded-full bg-primary-subtle flex-shrink-0 flex items-center justify-center">
+                    <span className="text-primary text-xs font-bold">✓</span>
+                  </span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+
+            <div className="bg-primary-subtle rounded-xl p-4 mb-6">
+              <p className="text-sm font-semibold text-primary mb-0.5">Annual plan — save one month</p>
+              <p className="text-xs text-text-secondary">
+                Pay for 11 months, get 12. That's $1,639/year per site.
+              </p>
+            </div>
+
+            <Link
+              to="/request-access"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary-hover transition-colors"
+            >
+              Get started <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          {/* Custom / enterprise card */}
+          <div className="bg-gray-900 rounded-2xl p-8">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Custom</span>
+            </div>
+            <div className="text-2xl font-bold text-white mb-3">Need something specific?</div>
+            <p className="text-sm text-gray-400 leading-relaxed mb-6">
+              Custom integrations, dedicated support, white-label options, or pricing for large fleets of sites — reach out and we'll build a plan around you.
+            </p>
+            <ul className="space-y-3 mb-8">
+              {[
+                'Custom feature development',
+                'Priority support',
+                'Bulk site discounts',
+                'Onboarding assistance',
+              ].map((feature) => (
+                <li key={feature} className="flex items-center gap-3 text-sm text-gray-300">
+                  <span className="w-4 h-4 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs font-bold">✓</span>
+                  </span>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="mailto:cru@aigaai.com"
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 border border-white/20 text-white rounded-xl font-semibold hover:bg-white/20 transition-colors"
+            >
+              Contact us
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   );
