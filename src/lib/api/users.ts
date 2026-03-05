@@ -99,6 +99,14 @@ export async function inviteUser(userData: InviteUserData): Promise<InviteUserRe
   return { user: completeProfile };
 }
 
+export async function resendInvite(email: string): Promise<void> {
+  const { error } = await supabase.functions.invoke('resend-invite', {
+    body: { email }
+  });
+
+  if (error) throw error;
+}
+
 export async function updateUserBaseRole(userId: string, role: BaseRole): Promise<UserProfile> {
   const { data, error } = await supabase
     .from('user_profiles')

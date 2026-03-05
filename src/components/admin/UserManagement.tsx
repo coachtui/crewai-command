@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit2, UserPlus } from 'lucide-react';
+import { Plus, Search, Edit2, UserPlus, Mail } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
 import { UserForm } from './UserForm';
-import { fetchUsers, inviteUser, updateUserBaseRole, assignUserToJobSite, removeJobSiteAssignment, importExistingAuthUsers } from '../../lib/api/users';
+import { fetchUsers, inviteUser, resendInvite, updateUserBaseRole, assignUserToJobSite, removeJobSiteAssignment, importExistingAuthUsers } from '../../lib/api/users';
 import { fetchJobSites } from '../../lib/api/jobSites';
 import { getBaseRoleDisplayName, getRoleColor } from '../../lib/roleHelpers';
 import type { UserProfile, JobSite } from '../../types';
@@ -23,6 +23,7 @@ export function UserManagement() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [resendingInvite, setResendingInvite] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.org_id) {
@@ -152,6 +153,19 @@ export function UserManagement() {
     setEditingUser(null);
   };
 
+  const handleResendInvite = async (email: string) => {
+    setResendingInvite(email);
+    try {
+      await resendInvite(email);
+      toast.success(`Invite resent to ${email}`);
+    } catch (error: any) {
+      console.error('Error resending invite:', error);
+      toast.error(error.message || 'Failed to resend invite');
+    } finally {
+      setResendingInvite(null);
+    }
+  };
+
   const handleImportAuthUsers = async () => {
     if (!user?.org_id) return;
 
@@ -277,15 +291,28 @@ export function UserManagement() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => handleEdit(userProfile)}
-                        className="flex items-center gap-1"
-                      >
-                        <Edit2 size={14} />
-                        Edit
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleEdit(userProfile)}
+                          className="flex items-center gap-1"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleResendInvite(userProfile.email)}
+                          disabled={resendingInvite === userProfile.email}
+                          className="flex items-center gap-1"
+                          title="Resend invite email"
+                        >
+                          <Mail size={14} />
+                          {resendingInvite === userProfile.email ? 'Sending...' : 'Resend Invite'}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
