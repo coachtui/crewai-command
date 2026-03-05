@@ -641,44 +641,51 @@ function FAQ() {
 
 function Pricing() {
   return (
-    <section id="pricing" className="py-20 bg-bg-primary px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-12">
+    <section id="pricing" className="py-20 bg-white px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-14">
           <h2 className="text-3xl font-bold text-text-primary mb-4">Simple, transparent pricing</h2>
           <p className="text-text-secondary max-w-xl mx-auto">
             One price. No per-seat fees. No hidden charges.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 items-start">
-          {/* Main plan card */}
-          <div className="bg-white rounded-2xl border-2 border-primary p-8 shadow-sm">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold text-primary uppercase tracking-wide">Per job site</span>
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Standard plan */}
+          <div className="bg-bg-primary rounded-2xl p-8 border border-gray-100">
+            <div className="flex items-center gap-3 mb-7">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center" aria-hidden="true">
+                <Activity size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-text-primary">Standard Plan</h3>
+                <p className="text-xs text-text-secondary">Per job site, per month</p>
+              </div>
             </div>
-            <div className="flex items-end gap-1 mb-1">
+
+            <div className="flex items-end gap-1 mb-2">
               <span className="text-5xl font-black text-text-primary">$149</span>
-              <span className="text-text-secondary mb-2">/month</span>
+              <span className="text-text-secondary mb-2">/mo</span>
             </div>
             <p className="text-sm text-text-secondary mb-6">
               Unlimited workers and tasks per site. Add as many sites as your company runs.
             </p>
 
-            <ul className="space-y-3 mb-8">
+            <ul className="space-y-4 mb-8">
               {[
-                'Unlimited crew members',
-                'Unlimited tasks & assignments',
-                'Daily hours tracking',
-                'Calendar & Gantt views',
-                'File attachments on tasks',
-                'Voice input',
-                'Real-time sync across devices',
-              ].map((feature) => (
-                <li key={feature} className="flex items-center gap-3 text-sm text-text-primary">
-                  <span className="w-4 h-4 rounded-full bg-primary-subtle flex-shrink-0 flex items-center justify-center">
-                    <span className="text-primary text-xs font-bold">✓</span>
-                  </span>
-                  {feature}
+                { icon: Users,          label: 'Unlimited crew members' },
+                { icon: CheckSquare,    label: 'Unlimited tasks & assignments' },
+                { icon: Clock,          label: 'Daily hours tracking' },
+                { icon: Calendar,       label: 'Calendar & Gantt views' },
+                { icon: FileText,       label: 'File attachments on tasks' },
+                { icon: Mic,            label: 'Voice input' },
+                { icon: RefreshCw,      label: 'Real-time sync across devices' },
+              ].map(({ icon: Icon, label }) => (
+                <li key={label} className="flex gap-3">
+                  <div className="mt-0.5 flex-shrink-0 w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center" aria-hidden="true">
+                    <Icon size={14} className="text-primary" />
+                  </div>
+                  <div className="text-sm text-text-secondary pt-1.5">{label}</div>
                 </li>
               ))}
             </ul>
@@ -698,30 +705,42 @@ function Pricing() {
             </Link>
           </div>
 
-          {/* Custom / enterprise card */}
+          {/* Custom */}
           <div className="bg-gray-900 rounded-2xl p-8">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Custom</span>
+            <div className="flex items-center gap-3 mb-7">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center" aria-hidden="true">
+                <Users size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Custom</h3>
+                <p className="text-xs text-gray-400">Tailored to your operation</p>
+              </div>
             </div>
-            <div className="text-2xl font-bold text-white mb-3">Need something specific?</div>
+
+            <div className="text-2xl font-bold text-white mb-2">Need something specific?</div>
             <p className="text-sm text-gray-400 leading-relaxed mb-6">
               Custom integrations, dedicated support, white-label options, or pricing for large fleets of sites — reach out and we'll build a plan around you.
             </p>
+
             <ul className="space-y-3 mb-8">
               {[
-                'Custom feature development',
-                'Priority support',
-                'Bulk site discounts',
-                'Onboarding assistance',
-              ].map((feature) => (
-                <li key={feature} className="flex items-center gap-3 text-sm text-gray-300">
-                  <span className="w-4 h-4 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs font-bold">✓</span>
-                  </span>
-                  {feature}
+                { label: 'Custom feature development', desc: 'We build what your workflow needs.' },
+                { label: 'Priority support',           desc: 'Direct line to the team.' },
+                { label: 'Bulk site discounts',        desc: 'Volume pricing for large fleets.' },
+                { label: 'Onboarding assistance',      desc: 'We help get your crew set up.' },
+              ].map(({ label, desc }) => (
+                <li key={label} className="flex items-start gap-3">
+                  <div className="mt-0.5 w-5 h-5 rounded bg-primary/20 flex-shrink-0 flex items-center justify-center" aria-hidden="true">
+                    <span className="text-primary text-xs font-bold">✓</span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white">{label}</div>
+                    <div className="text-xs text-gray-400">{desc}</div>
+                  </div>
                 </li>
               ))}
             </ul>
+
             <a
               href="mailto:cru@aigaai.com"
               className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-white/10 border border-white/20 text-white rounded-xl font-semibold hover:bg-white/20 transition-colors"
