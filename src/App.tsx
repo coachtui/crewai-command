@@ -16,6 +16,7 @@ import { Tasks } from './pages/admin/Tasks';
 import { Calendar } from './pages/admin/Calendar';
 import { Activities } from './pages/admin/Activities';
 import { DailyHours } from './pages/admin/DailyHours';
+import { SharedFiles } from './pages/admin/SharedFiles';
 import { Today } from './pages/foreman/Today';
 import { Sidebar } from './components/layout/Sidebar';
 import { VoiceFloatingButton } from './components/mobile/VoiceFloatingButton';
@@ -208,6 +209,16 @@ function App() {
                 <ProtectedRoute>
                   <ProtectedLayout>
                     <Today />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/files"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <SharedFiles />
                   </ProtectedLayout>
                 </ProtectedRoute>
               }
