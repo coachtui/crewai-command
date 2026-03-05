@@ -228,25 +228,32 @@ async function handleCreateTask(data: any, user: any, client: any) {
     taskEndDate = endDates[0];
   }
 
-  // Resolve job_site_id: try to match location against job site names, fall back to first active site
-  const { data: jobSites } = await client
-    .from('job_sites')
-    .select('id, name, location')
-    .eq('organization_id', user.org_id)
-    .eq('status', 'active');
+  // Prefer the job_site_id injected by the client (currently selected job site).
+  // Fall back to fuzzy-matching location or the first active site.
+  let jobSiteId: string | null = data.job_site_id || null;
+  let jobSites: any[] = [];
 
-  let jobSiteId = null;
-  if (jobSites && jobSites.length > 0) {
-    if (location) {
-      const normalizedLocation = location.toLowerCase();
-      const matched = jobSites.find((s: any) =>
-        s.name?.toLowerCase().includes(normalizedLocation) ||
-        s.location?.toLowerCase().includes(normalizedLocation) ||
-        normalizedLocation.includes(s.name?.toLowerCase())
-      );
-      jobSiteId = matched?.id || jobSites[0].id;
-    } else {
-      jobSiteId = jobSites[0].id;
+  if (!jobSiteId) {
+    const { data: sites } = await client
+      .from('job_sites')
+      .select('id, name, location')
+      .eq('organization_id', user.org_id)
+      .eq('status', 'active');
+
+    jobSites = sites || [];
+
+    if (jobSites.length > 0) {
+      if (location) {
+        const normalizedLocation = location.toLowerCase();
+        const matched = jobSites.find((s: any) =>
+          s.name?.toLowerCase().includes(normalizedLocation) ||
+          s.location?.toLowerCase().includes(normalizedLocation) ||
+          normalizedLocation.includes(s.name?.toLowerCase())
+        );
+        jobSiteId = matched?.id || jobSites[0].id;
+      } else {
+        jobSiteId = jobSites[0].id;
+      }
     }
   }
 
@@ -272,7 +279,7 @@ async function handleCreateTask(data: any, user: any, client: any) {
   return {
     task_id: task.id,
     task_name: task.name,
-    job_site: jobSiteId ? jobSites?.find((s: any) => s.id === jobSiteId)?.name : null,
+    job_site: jobSiteId ? (jobSites.find((s: any) => s.id === jobSiteId)?.name || null) : null,
   };
 }
 

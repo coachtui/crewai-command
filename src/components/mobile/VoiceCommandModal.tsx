@@ -4,6 +4,7 @@ import { X, Mic, Loader2, CheckCircle, AlertCircle, HelpCircle } from 'lucide-re
 import { Button } from '../ui/Button';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { useJobSite } from '../../contexts';
 import { parseRelativeDate } from '../../lib/voiceHelpers';
 
 type ModalState = 'idle' | 'listening' | 'processing' | 'questioning' | 'confirming' | 'error';
@@ -154,6 +155,7 @@ function rebuildSummary(action: string, data: any): string {
 
 export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
   const navigate = useNavigate();
+  const { currentJobSite } = useJobSite();
 
   const [state, setState] = useState<ModalState>('idle');
   const [transcript, setTranscript] = useState('');
@@ -357,13 +359,20 @@ export function VoiceCommandModal({ onClose }: VoiceCommandModalProps) {
       const token = session?.access_token;
       if (!token) throw new Error('Not authenticated');
 
+      // For create_task, inject the currently selected job site so the task
+      // lands in the same site the user is viewing.
+      const enrichedIntent = { ...intent };
+      if (intent.action === 'create_task' && currentJobSite) {
+        enrichedIntent.data = { ...intent.data, job_site_id: currentJobSite.id };
+      }
+
       const response = await fetch('/api/voice/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ intent }),
+        body: JSON.stringify({ intent: enrichedIntent }),
       });
 
       const result = await response.json();
