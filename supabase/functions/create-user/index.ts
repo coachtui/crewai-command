@@ -87,22 +87,17 @@ Deno.serve(async (req) => {
     // Get request body
     const { email, name, phone, base_role, organization_id, job_site_assignments } = await req.json()
 
-    // Generate invite link — embed org in metadata so the auth trigger can pick it up
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite',
-      email: email,
-      options: {
-        data: {
-          full_name: name,
-          organization_id: organization_id
-        }
+    // Invite user — sends email automatically, embeds org in metadata for the auth trigger
+    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      data: {
+        full_name: name,
+        organization_id: organization_id
       }
     })
 
-    if (linkError) throw linkError
+    if (inviteError) throw inviteError
 
-    const newUserId = linkData.user.id
-    const inviteLink = linkData.properties?.action_link
+    const newUserId = inviteData.user.id
 
     // Upsert user profile (org uses org_id column on user_profiles)
     const { data: userProfile, error: upsertError } = await supabaseAdmin
@@ -163,7 +158,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, user: userProfile, inviteLink }), {
+    return new Response(JSON.stringify({ success: true, user: userProfile }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })

@@ -57,7 +57,6 @@ export async function importExistingAuthUsers(orgId: string): Promise<{ imported
 
 export interface InviteUserResult {
   user: UserProfile;
-  inviteLink?: string;
 }
 
 export async function inviteUser(userData: InviteUserData): Promise<InviteUserResult> {
@@ -77,7 +76,6 @@ export async function inviteUser(userData: InviteUserData): Promise<InviteUserRe
   if (!data.success) throw new Error(data.error || 'Failed to create user');
 
   const userProfile = data.user as UserProfile;
-  const inviteLink = data.inviteLink as string | undefined;
 
   // Fetch the complete user profile with assignments
   const { data: completeProfile, error: fetchError } = await supabase
@@ -98,7 +96,7 @@ export async function inviteUser(userData: InviteUserData): Promise<InviteUserRe
     .single();
 
   if (fetchError) throw fetchError;
-  return { user: completeProfile, inviteLink };
+  return { user: completeProfile };
 }
 
 export async function updateUserBaseRole(userId: string, role: BaseRole): Promise<UserProfile> {
