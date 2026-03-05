@@ -85,29 +85,30 @@ Deno.serve(async (req) => {
     console.log('Admin verified:', user.email)
 
     // Get request body
-    const { email, name, phone, base_role, organization_id } = await req.json()
+    const { email, name, phone, base_role, organization_id, job_site_assignments } = await req.json()
 
-    // Generate invite link (doesn't send email - avoids rate limits)
+    // Generate invite link — embed org in metadata so the auth trigger can pick it up
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'invite',
       email: email,
       options: {
         data: {
-          full_name: name
+          full_name: name,
+          organization_id: organization_id
         }
       }
     })
 
     if (linkError) throw linkError
 
-    const authData = { user: linkData.user }
+    const newUserId = linkData.user.id
     const inviteLink = linkData.properties?.action_link
 
-    // Create user profile (using upsert in case trigger already created it)
+    // Upsert user profile (org uses org_id column on user_profiles)
     const { data: userProfile, error: upsertError } = await supabaseAdmin
       .from('user_profiles')
       .upsert({
-        id: authData.user.id,
+        id: newUserId,
         email,
         name,
         phone,
@@ -121,11 +122,11 @@ Deno.serve(async (req) => {
 
     if (upsertError) throw upsertError
 
-    // Also create in legacy users table for backward compatibility
+    // Also upsert into legacy users table for backward compatibility
     const { error: usersError } = await supabaseAdmin
       .from('users')
       .upsert({
-        id: authData.user.id,
+        id: newUserId,
         org_id: organization_id,
         email,
         name,
@@ -139,6 +140,27 @@ Deno.serve(async (req) => {
     if (usersError) {
       console.error('Users table upsert error:', usersError)
       // Don't throw - user_profiles was created successfully
+    }
+
+    // Create job site assignments if provided
+    if (job_site_assignments && job_site_assignments.length > 0) {
+      const assignments = job_site_assignments.map((a: { job_site_id: string; role: string; start_date?: string }) => ({
+        user_id: newUserId,
+        job_site_id: a.job_site_id,
+        role: a.role,
+        start_date: a.start_date || new Date().toISOString().split('T')[0],
+        is_active: true,
+        assigned_by: user.id
+      }))
+
+      const { error: assignmentError } = await supabaseAdmin
+        .from('job_site_assignments')
+        .insert(assignments)
+
+      if (assignmentError) {
+        console.error('Job site assignment error:', assignmentError)
+        // Don't throw - user was created successfully
+      }
     }
 
     return new Response(JSON.stringify({ success: true, user: userProfile, inviteLink }), {

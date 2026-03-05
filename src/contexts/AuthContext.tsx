@@ -359,15 +359,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Refresh user profile
   const refreshUser = async (): Promise<void> => {
     if (!user?.id) return;
-    
+
     try {
-      const profile = await fetchUserProfile(user.id);
+      const profile = await fetchUserProfile(user.id, true);
       if (profile) {
         setUserAndRef(profile);
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
     }
+  };
+
+  // Update profile info (name, phone, email)
+  const updateProfile = async (updates: { name?: string; phone?: string; email?: string }): Promise<void> => {
+    if (!user?.id) throw new Error('Not authenticated');
+
+    // Update user_profiles table
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .update(updates)
+      .eq('id', user.id);
+
+    if (profileError) throw profileError;
+
+    // Keep legacy users table in sync
+    const { error: usersError } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', user.id);
+
+    if (usersError) {
+      console.warn('[Auth] Could not update legacy users table:', usersError);
+    }
+
+    // If email changed, update auth email (Supabase sends confirmation to new address)
+    if (updates.email && updates.email !== user.email) {
+      const { error: authError } = await supabase.auth.updateUser({ email: updates.email });
+      if (authError) throw authError;
+    }
+
+    // Update local state immediately
+    setUserAndRef({ ...user, ...updates });
   };
 
   const value: AuthContextType = {
@@ -377,6 +409,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signIn,
     signOut,
     refreshUser,
+    updateProfile,
   };
 
   return (

@@ -247,7 +247,10 @@ export function Sidebar() {
         {/* User Profile and Logout */}
         <div className="p-4 border-t border-gray-100 space-y-1">
           {/* User Profile */}
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-bg-hover transition-all duration-150">
+          <Link
+            to="/profile"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-bg-hover transition-all duration-150"
+          >
             {user?.avatar_url ? (
               <img
                 src={user.avatar_url}
@@ -264,7 +267,7 @@ export function Sidebar() {
                 {user?.name || 'User'}
               </p>
             </div>
-          </div>
+          </Link>
 
           {/* Logout Button */}
           <button

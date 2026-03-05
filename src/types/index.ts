@@ -328,6 +328,7 @@ export interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateProfile: (updates: { name?: string; phone?: string; email?: string }) => Promise<void>;
 }
 
 export interface JobSiteContextType {

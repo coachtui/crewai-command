@@ -61,14 +61,15 @@ export interface InviteUserResult {
 }
 
 export async function inviteUser(userData: InviteUserData): Promise<InviteUserResult> {
-  // Call the edge function to create auth user + profile
+  // Call the edge function to create auth user + profile + job site assignments
   const { data, error: functionError } = await supabase.functions.invoke('create-user', {
     body: {
       email: userData.email,
       name: userData.name,
       phone: userData.phone,
       base_role: userData.base_role,
-      organization_id: userData.organization_id
+      organization_id: userData.organization_id,
+      job_site_assignments: userData.job_site_assignments ?? []
     }
   });
 
@@ -77,25 +78,6 @@ export async function inviteUser(userData: InviteUserData): Promise<InviteUserRe
 
   const userProfile = data.user as UserProfile;
   const inviteLink = data.inviteLink as string | undefined;
-
-  // Then, create job site assignments if provided
-  if (userData.job_site_assignments && userData.job_site_assignments.length > 0) {
-    const { data: { user: adminUser } } = await supabase.auth.getUser();
-    const assignments = userData.job_site_assignments.map(assignment => ({
-      user_id: userProfile.id,
-      job_site_id: assignment.job_site_id,
-      role: assignment.role,
-      start_date: assignment.start_date || new Date().toISOString().split('T')[0],
-      is_active: true,
-      assigned_by: adminUser?.id ?? userProfile.id
-    }));
-
-    const { error: assignmentError } = await supabase
-      .from('job_site_assignments')
-      .insert(assignments);
-
-    if (assignmentError) throw assignmentError;
-  }
 
   // Fetch the complete user profile with assignments
   const { data: completeProfile, error: fetchError } = await supabase
