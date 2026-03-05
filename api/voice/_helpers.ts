@@ -82,7 +82,7 @@ export async function findTaskByName(partialName: string, orgId: string, client:
   const { data: tasks, error} = await client
     .from('tasks')
     .select('*')
-    .eq('org_id', orgId)
+    .eq('organization_id', orgId)
     .in('status', ['planned', 'active']);
 
   if (error) throw error;

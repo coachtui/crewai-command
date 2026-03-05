@@ -194,20 +194,43 @@ async function handleReassignWorker(data: any, user: any, client: any) {
 // Handle task creation
 async function handleCreateTask(data: any, user: any, client: any) {
   const { task_name, location, required_operators, required_laborers, start_date, end_date } = data;
-  
+
   const dates = start_date ? parseRelativeDate(start_date) : parseRelativeDate('tomorrow');
-  
+
   // If no end_date provided, default to same as start_date (single-day task)
   let taskEndDate = dates[0];
   if (end_date) {
     const endDates = parseRelativeDate(end_date);
     taskEndDate = endDates[0];
   }
-  
+
+  // Resolve job_site_id: try to match location against job site names, fall back to first active site
+  const { data: jobSites } = await client
+    .from('job_sites')
+    .select('id, name, location')
+    .eq('organization_id', user.org_id)
+    .eq('status', 'active');
+
+  let jobSiteId = null;
+  if (jobSites && jobSites.length > 0) {
+    if (location) {
+      const normalizedLocation = location.toLowerCase();
+      const matched = jobSites.find((s: any) =>
+        s.name?.toLowerCase().includes(normalizedLocation) ||
+        s.location?.toLowerCase().includes(normalizedLocation) ||
+        normalizedLocation.includes(s.name?.toLowerCase())
+      );
+      jobSiteId = matched?.id || jobSites[0].id;
+    } else {
+      jobSiteId = jobSites[0].id;
+    }
+  }
+
   const { data: task, error } = await client
     .from('tasks')
     .insert({
-      org_id: user.org_id,
+      organization_id: user.org_id,  // tasks table uses organization_id, not org_id
+      job_site_id: jobSiteId,
       name: task_name,
       location: location || null,
       start_date: dates[0],
@@ -219,12 +242,13 @@ async function handleCreateTask(data: any, user: any, client: any) {
     })
     .select()
     .single();
-  
+
   if (error) throw error;
-  
+
   return {
     task_id: task.id,
     task_name: task.name,
+    job_site: jobSiteId ? jobSites?.find((s: any) => s.id === jobSiteId)?.name : null,
   };
 }
 

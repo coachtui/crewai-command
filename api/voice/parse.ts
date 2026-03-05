@@ -69,6 +69,7 @@ AVAILABLE ACTIONS:
 2. create_task
    - Create new task with crew requirements
    - Example: "Create welding task at HCC next week, 2 welders"
+   - data schema: { task_name, location, start_date (ISO or relative string), end_date (ISO or relative string, defaults to same as start_date), required_operators, required_laborers }
    
 3. query_info
    - Answer questions about workers, tasks, schedules

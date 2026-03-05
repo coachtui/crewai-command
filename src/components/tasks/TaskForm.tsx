@@ -35,6 +35,7 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
     include_sunday: false,
     include_holidays: false,
   });
+  const [isDateRange, setIsDateRange] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -59,6 +60,8 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
         include_holidays: task.include_holidays || false,
       });
       setAttachments(task.attachments || []);
+      // Detect if existing task spans multiple days
+      setIsDateRange(!!task.start_date && !!task.end_date && task.start_date !== task.end_date);
     } else if (draft) {
       setFormData({
         name: draft.name,
@@ -184,20 +187,57 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
         placeholder="Job site location"
       />
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Start Date"
-          type="date"
-          value={formData.start_date}
-          onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-        />
+      {/* Date mode toggle */}
+      <div>
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-sm font-medium text-text-primary">Date</span>
+          <div className="flex items-center bg-bg-secondary border border-border rounded-lg p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setIsDateRange(false);
+                // Sync end_date to start_date when switching to single day
+                if (formData.start_date) {
+                  setFormData(f => ({ ...f, end_date: f.start_date }));
+                }
+              }}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${!isDateRange ? 'bg-primary text-white' : 'text-text-secondary hover:text-text-primary'}`}
+            >
+              Single day
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsDateRange(true)}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${isDateRange ? 'bg-primary text-white' : 'text-text-secondary hover:text-text-primary'}`}
+            >
+              Date range
+            </button>
+          </div>
+        </div>
 
-        <Input
-          label="End Date"
-          type="date"
-          value={formData.end_date}
-          onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-        />
+        {!isDateRange ? (
+          <Input
+            label="Date"
+            type="date"
+            value={formData.start_date}
+            onChange={(e) => setFormData({ ...formData, start_date: e.target.value, end_date: e.target.value })}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Start Date"
+              type="date"
+              value={formData.start_date}
+              onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={formData.end_date}
+              onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+            />
+          </div>
+        )}
       </div>
 
       {/* Work Schedule Options */}
