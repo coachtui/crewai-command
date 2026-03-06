@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.0'
+import { createTransport } from 'npm:nodemailer@6.9.15';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,28 +63,85 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use a regular (anon key) client to send the password reset email —
-    // this goes through Supabase's configured SMTP and generates a recovery
-    // token that SetPassword.tsx already handles (type=recovery in URL hash)
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-
     const siteUrl = Deno.env.get('SITE_URL') || 'https://cruwork.app'
 
-    const { error: resetError } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/set-password`
+    // Generate a recovery link via the admin API — reliable, no rate limits,
+    // no redirectTo allowlist dependency. SetPassword.tsx handles type=recovery.
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: {
+        redirectTo: `${siteUrl}/set-password`,
+      },
     })
 
-    if (resetError) {
-      console.error('Reset password error:', resetError)
-      return new Response(JSON.stringify({ error: resetError.message }), {
+    if (linkError || !linkData?.properties?.action_link) {
+      console.error('generateLink error:', linkError)
+      return new Response(JSON.stringify({ error: linkError?.message ?? 'Failed to generate invite link' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
+
+    const inviteLink = linkData.properties.action_link
+
+    // Send via SMTP — same credentials used by notify-lead
+    const smtpHost = Deno.env.get('SMTP_HOST')
+    const smtpUser = Deno.env.get('SMTP_USER')
+    const smtpPass = Deno.env.get('SMTP_PASSWORD')
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.error('Missing SMTP env vars')
+      return new Response(JSON.stringify({ error: 'Server misconfiguration: missing SMTP credentials' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const transporter = createTransport({
+      host: smtpHost,
+      port: 465,
+      secure: true,
+      auth: { user: smtpUser, pass: smtpPass },
+    })
+
+    const htmlBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; margin: 0; padding: 0; background: #f9fafb; }
+  .wrap { max-width: 480px; margin: 32px auto; background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+  .header { background: #14B8A6; padding: 24px 32px; }
+  .header h1 { color: #fff; margin: 0; font-size: 18px; font-weight: 600; }
+  .body { padding: 28px 32px; }
+  .body p { font-size: 15px; color: #374151; line-height: 1.6; margin: 0 0 16px; }
+  .btn { display: inline-block; margin: 8px 0 24px; padding: 12px 24px; background: #14B8A6; color: #fff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; }
+  .footer { padding: 16px 32px; border-top: 1px solid #f3f4f6; font-size: 12px; color: #9ca3af; }
+  .link { font-size: 12px; color: #9ca3af; word-break: break-all; }
+</style></head>
+<body>
+<div class="wrap">
+  <div class="header"><h1>Your Cru invite</h1></div>
+  <div class="body">
+    <p>You've been invited to join your team on <strong>Cru</strong> — construction crew management built for the field.</p>
+    <p>Click the button below to set your password and get started:</p>
+    <a href="${inviteLink}" class="btn">Set your password</a>
+    <p>This link expires in 24 hours. If you didn't expect this email, you can ignore it.</p>
+    <p class="link">${inviteLink}</p>
+  </div>
+  <div class="footer">Sent by Cru · cruwork.app</div>
+</div>
+</body></html>`
+
+    const textBody = `You've been invited to join your team on Cru.\n\nSet your password here:\n${inviteLink}\n\nThis link expires in 24 hours.`
+
+    await transporter.sendMail({
+      from: `"Cru" <${smtpUser}>`,
+      to: email,
+      subject: 'Your Cru invite',
+      text: textBody,
+      html: htmlBody,
+    })
 
     console.log(`Resent invite to ${email} by admin ${user.email}`)
 
