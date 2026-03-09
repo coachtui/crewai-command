@@ -319,6 +319,7 @@ export interface DailyHours {
   hours_worked: number;
   task_id?: string;
   transferred_to_task_id?: string;
+  transferred_to_job_site_id?: string;
   notes?: string;
   logged_by?: string;
   created_at: string;
@@ -327,6 +328,7 @@ export interface DailyHours {
   worker?: Worker;
   task?: Task;
   transferred_to_task?: Task;
+  transferred_to_job_site?: JobSite;
   job_site?: JobSite;
 }
 

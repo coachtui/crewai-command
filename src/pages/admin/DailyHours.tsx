@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
-import type { Worker, DailyHours as DailyHoursType, Task, User, Crew } from '../../types';
+import type { Worker, DailyHours as DailyHoursType, Task, User, Crew, JobSite } from '../../types';
 import { canEdit, isViewer } from '../../lib/roleHelpers';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -53,8 +53,13 @@ export function DailyHours() {
   // Form states
   const [notes, setNotes] = useState('');
   const [transferTaskId, setTransferTaskId] = useState('');
+  const [transferJobSiteId, setTransferJobSiteId] = useState('');
   const [workTaskId, setWorkTaskId] = useState('');
   const [hoursWorked, setHoursWorked] = useState('8');
+
+  // Job sites for transfer dropdown
+  const [jobSites, setJobSites] = useState<JobSite[]>([]);
+  const [transferSiteTasks, setTransferSiteTasks] = useState<Task[]>([]);
 
   // Inline editing states
   const [editedHours, setEditedHours] = useState<Map<string, EditedHours>>(new Map());
@@ -138,7 +143,7 @@ export function DailyHours() {
       const workerIds = (workersData || []).map(w => w.id);
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
         .from('daily_hours')
-        .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*)')
+        .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*), transferred_to_job_site:job_sites!transferred_to_job_site_id(*)')
         .eq('organization_id', userData.org_id)
         .eq('log_date', selectedDate)
         .in('worker_id', workerIds.length > 0 ? workerIds : ['00000000-0000-0000-0000-000000000000']);
@@ -164,6 +169,16 @@ export function DailyHours() {
         .order('name');
       if (crewsError) throw crewsError;
       setCrews(crewsData || []);
+      setCollapsedCrews(new Set([...(crewsData || []).map(c => c.id), '__no_crew__']));
+
+      // Load active job sites for transfer dropdown
+      const { data: jobSitesData } = await supabase
+        .from('job_sites')
+        .select('*')
+        .eq('organization_id', userData.org_id)
+        .eq('status', 'active')
+        .order('name');
+      setJobSites(jobSitesData || []);
 
       // Combine workers with their daily hours
       const workerStatuses: WorkerDayStatus[] = (workersData || []).map((worker) => ({
@@ -291,7 +306,25 @@ export function DailyHours() {
     setSelectedWorker(worker);
     setNotes('');
     setTransferTaskId('');
+    setTransferJobSiteId('');
+    setTransferSiteTasks([]);
     setTransferModalOpen(true);
+  };
+
+  const handleTransferJobSiteChange = async (siteId: string) => {
+    setTransferJobSiteId(siteId);
+    setTransferTaskId('');
+    if (!siteId) {
+      setTransferSiteTasks([]);
+      return;
+    }
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('job_site_id', siteId)
+      .in('status', ['active', 'planned'])
+      .order('name');
+    setTransferSiteTasks(data || []);
   };
 
   const handleLogHours = (worker: Worker) => {
@@ -330,6 +363,7 @@ export function DailyHours() {
           hours_worked: 0,
           task_id: null,
           transferred_to_task_id: null,
+          transferred_to_job_site_id: null,
           logged_by: userId,
         }, {
           onConflict: 'worker_id,log_date,organization_id'
@@ -374,6 +408,7 @@ export function DailyHours() {
           status: 'transferred',
           notes,
           transferred_to_task_id: transferTaskId || null,
+          transferred_to_job_site_id: transferJobSiteId || null,
           hours_worked: 8,
           task_id: null,
           logged_by: userId,
@@ -421,6 +456,7 @@ export function DailyHours() {
           task_id: workTaskId || null,
           hours_worked: hours,
           transferred_to_task_id: null,
+          transferred_to_job_site_id: null,
           logged_by: userId,
         }, {
           onConflict: 'worker_id,log_date,organization_id'
@@ -840,6 +876,8 @@ export function DailyHours() {
           {dailyHours?.status === 'transferred'
             ? dailyHours.transferred_to_task
               ? `→ ${dailyHours.transferred_to_task.name}`
+              : dailyHours.transferred_to_job_site
+              ? `→ ${dailyHours.transferred_to_job_site.name}`
               : `→ ${dailyHours.notes || 'Transferred to another project'}`
             : dailyHours?.task
             ? dailyHours.task.name
@@ -1116,32 +1154,44 @@ export function DailyHours() {
         size="sm"
       >
         <div className="space-y-4">
-          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-            <p className="text-sm text-text-secondary">
-              Transfer worker to another project for the day or week. Task selection is optional.
-            </p>
-          </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Transfer To Task (Optional)</label>
+            <label className="block text-sm font-medium mb-2">Transfer To Job Site</label>
             <select
-              value={transferTaskId}
-              onChange={(e) => setTransferTaskId(e.target.value)}
+              value={transferJobSiteId}
+              onChange={(e) => handleTransferJobSiteChange(e.target.value)}
               className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             >
-              <option value="">No specific task - Transferred to another project</option>
-              {tasks.map((task) => (
-                <option key={task.id} value={task.id}>
-                  {task.name} {task.location ? `- ${task.location}` : ''}
+              <option value="">Select a job site...</option>
+              {jobSites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
                 </option>
               ))}
             </select>
           </div>
+          {transferJobSiteId && (
+            <div>
+              <label className="block text-sm font-medium mb-2">Task (Optional)</label>
+              <select
+                value={transferTaskId}
+                onChange={(e) => setTransferTaskId(e.target.value)}
+                className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+              >
+                <option value="">No specific task</option>
+                {transferSiteTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.name} {task.location ? `- ${task.location}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
-            <label className="block text-sm font-medium mb-2">Notes</label>
+            <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Where are they being transferred? (e.g., 'Working at XYZ project', 'Helping ABC Construction')"
+              placeholder="Additional notes about the transfer"
               rows={3}
             />
           </div>

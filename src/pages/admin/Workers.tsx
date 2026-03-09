@@ -111,6 +111,7 @@ export function Workers() {
 
       if (error) throw error;
       setCrews(data || []);
+      setCollapsedCrews(new Set([...(data || []).map(c => c.id), '__no_crew__']));
     } catch (error) {
       console.error('Failed to load crews:', error);
     }
