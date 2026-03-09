@@ -74,6 +74,7 @@ export function DailyHours() {
     totalHours: number;
   }[]>([]);
   const [showWeeklyChart, setShowWeeklyChart] = useState(false);
+  const [weeklyViewMode, setWeeklyViewMode] = useState<'flat' | 'crew' | 'role'>('flat');
 
   useEffect(() => {
     if (currentJobSite) {
@@ -758,6 +759,53 @@ export function DailyHours() {
     });
   };
 
+  // Pre-compute weekly groups (derived from weeklyData + crews)
+  const weeklyCrewGroups = (() => {
+    const crewMap = new Map<string, typeof weeklyData>();
+    weeklyData.forEach(row => {
+      const key = row.worker.crew_id || '__no_crew__';
+      const list = crewMap.get(key) || [];
+      list.push(row);
+      crewMap.set(key, list);
+    });
+    const result: { groupId: string; groupName: string; groupColor: string; rows: typeof weeklyData }[] = [];
+    crews.forEach(crew => {
+      if (crewMap.has(crew.id)) {
+        result.push({ groupId: crew.id, groupName: crew.name, groupColor: crew.color || '#6366f1', rows: crewMap.get(crew.id)! });
+      }
+    });
+    const noCrewRows = crewMap.get('__no_crew__');
+    if (noCrewRows?.length) {
+      result.push({ groupId: '__no_crew__', groupName: 'No Crew', groupColor: '#9ca3af', rows: noCrewRows });
+    }
+    return result;
+  })();
+
+  const ROLE_COLORS: Record<string, string> = {
+    operator: '#3b82f6', laborer: '#eab308', carpenter: '#22c55e', mason: '#8b5cf6',
+  };
+  const weeklyRoleGroups = (['operator', 'laborer', 'carpenter', 'mason'] as const)
+    .map(role => ({ groupId: role, groupName: ({ operator: 'Operators', laborer: 'Laborers', carpenter: 'Carpenters', mason: 'Masons' } as const)[role], groupColor: ROLE_COLORS[role], rows: weeklyData.filter(r => r.worker.role === role) }))
+    .filter(g => g.rows.length > 0);
+
+  // Shared weekly row renderer
+  const renderWeeklyWorkerRow = ({ worker, hours, totalHours }: typeof weeklyData[0], indent = false) => (
+    <tr key={worker.id} className="border-b border-border hover:bg-bg-hover">
+      <td className={`p-2 font-medium sticky left-0 bg-bg-secondary ${indent ? 'pl-6' : ''}`}>{worker.name}</td>
+      {hours.map((day, i) => (
+        <td key={i} className="p-2 text-center align-top">
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="font-medium">{day.hours > 0 ? day.hours.toFixed(1) : '-'}</div>
+            {day.notes && <div className="text-[10px] text-text-secondary max-w-[80px] truncate" title={day.notes}>{day.notes}</div>}
+            {day.status === 'off' && <div className="text-[10px] px-1 rounded bg-red-500/20 text-red-600 dark:text-red-400">Off</div>}
+            {day.status === 'transferred' && <div className="text-[10px] px-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400">Trans.</div>}
+          </div>
+        </td>
+      ))}
+      <td className="p-2 text-right font-semibold">{totalHours.toFixed(1)}h</td>
+    </tr>
+  );
+
   const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum?: number) => {
     const edited = editedHours.get(worker.id);
     const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
@@ -1172,16 +1220,36 @@ export function DailyHours() {
         size="lg"
       >
         <div className="space-y-4">
-          <div className="flex justify-end gap-2 mb-4">
-            <Button onClick={exportToCSV} variant="secondary">
-              <Download size={16} className="mr-2" />
-              CSV
-            </Button>
-            <Button onClick={exportToPDF} variant="secondary">
-              <FileText size={16} className="mr-2" />
-              PDF
-            </Button>
+          {/* Controls: view toggle + export */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {/* 3-way view toggle */}
+            <div className="flex items-center gap-0.5 bg-bg-secondary border border-border rounded-xl p-1">
+              {(['flat', 'crew', 'role'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setWeeklyViewMode(mode)}
+                  className={`px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
+                    weeklyViewMode === mode
+                      ? 'bg-bg-primary shadow-sm text-text-primary'
+                      : 'text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {mode === 'flat' ? 'All Workers' : mode === 'crew' ? 'By Crew' : 'By Role'}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={exportToCSV} variant="secondary">
+                <Download size={16} className="mr-2" />
+                CSV
+              </Button>
+              <Button onClick={exportToPDF} variant="secondary">
+                <FileText size={16} className="mr-2" />
+                PDF
+              </Button>
+            </div>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -1193,18 +1261,15 @@ export function DailyHours() {
                     const dayOfWeek = date.getDay();
                     const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
                     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                    
                     return dayNames.map((dayName, i) => {
                       const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
                       const m = String(currentDate.getMonth() + 1).padStart(2, '0');
                       const d = String(currentDate.getDate()).padStart(2, '0');
                       const y = String(currentDate.getFullYear()).slice(-2);
-                      const dateStr = `${m}/${d}/${y}`;
-                      
                       return (
                         <th key={i} className="text-center p-2 font-semibold">
                           <div>{dayName}</div>
-                          <div className="text-xs font-normal text-text-secondary">{dateStr}</div>
+                          <div className="text-xs font-normal text-text-secondary">{`${m}/${d}/${y}`}</div>
                         </th>
                       );
                     });
@@ -1212,49 +1277,78 @@ export function DailyHours() {
                   <th className="text-right p-2 font-semibold">Total</th>
                 </tr>
               </thead>
+
               <tbody>
-                {weeklyData.map(({ worker, hours, totalHours }) => (
-                  <tr key={worker.id} className="border-b border-border">
-                    <td className="p-2 font-medium sticky left-0 bg-bg-secondary">{worker.name}</td>
-                    {hours.map((day, index) => (
-                      <td key={index} className="p-2 text-center align-top">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="font-medium">
-                            {day.hours > 0 ? day.hours.toFixed(1) : '-'}
-                          </div>
-                          {day.notes && (
-                            <div className="text-xs text-text-secondary max-w-[100px] truncate" title={day.notes}>
-                              {day.notes}
-                            </div>
-                          )}
-                          {day.status === 'off' && (
-                            <div className="text-xs px-1 rounded bg-red-500/20 text-red-600 dark:text-red-400">
-                              Off
-                            </div>
-                          )}
-                          {day.status === 'transferred' && (
-                            <div className="text-xs px-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400">
-                              Transferred
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                    ))}
-                    <td className="p-2 text-right font-semibold">{totalHours.toFixed(1)}h</td>
-                  </tr>
-                ))}
-                {weeklyData.length === 0 && (
+                {weeklyData.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="p-8 text-center text-text-secondary">
                       No hours logged this week
                     </td>
                   </tr>
+                ) : weeklyViewMode === 'crew' ? (
+                  <>
+                    {weeklyCrewGroups.map(({ groupId, groupName, groupColor, rows }) => (
+                      <Fragment key={groupId}>
+                        {/* Group header row */}
+                        <tr className="border-b border-border">
+                          <td colSpan={9} className="p-0">
+                            <div
+                              className="flex items-center justify-between px-3 py-2"
+                              style={{ backgroundColor: groupColor + '15', borderLeft: `3px solid ${groupColor}` }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: groupColor }} />
+                                <span className="font-semibold text-[13px] text-text-primary">{groupName}</span>
+                                <span className="text-[11px] text-text-secondary">
+                                  {rows.length} worker{rows.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <span className="text-[13px] font-semibold pr-1" style={{ color: groupColor }}>
+                                {rows.reduce((s, r) => s + r.totalHours, 0).toFixed(1)}h
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                        {rows.map(row => renderWeeklyWorkerRow(row, true))}
+                      </Fragment>
+                    ))}
+                  </>
+                ) : weeklyViewMode === 'role' ? (
+                  <>
+                    {weeklyRoleGroups.map(({ groupId, groupName, groupColor, rows }) => (
+                      <Fragment key={groupId}>
+                        <tr className="border-b border-border">
+                          <td colSpan={9} className="p-0">
+                            <div
+                              className="flex items-center justify-between px-3 py-2"
+                              style={{ backgroundColor: groupColor + '15', borderLeft: `3px solid ${groupColor}` }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: groupColor }} />
+                                <span className="font-semibold text-[13px] text-text-primary">{groupName}</span>
+                                <span className="text-[11px] text-text-secondary">
+                                  {rows.length} worker{rows.length !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                              <span className="text-[13px] font-semibold pr-1" style={{ color: groupColor }}>
+                                {rows.reduce((s, r) => s + r.totalHours, 0).toFixed(1)}h
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                        {rows.map(row => renderWeeklyWorkerRow(row, true))}
+                      </Fragment>
+                    ))}
+                  </>
+                ) : (
+                  weeklyData.map(row => renderWeeklyWorkerRow(row))
                 )}
               </tbody>
+
               {weeklyData.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-border font-bold">
-                    <td className="p-2 text-right">Total:</td>
+                    <td className="p-2 sticky left-0 bg-bg-secondary text-text-secondary text-[12px]">Total</td>
                     {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
                       const dayTotal = weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0);
                       return (
