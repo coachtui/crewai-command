@@ -12,7 +12,7 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, X, Clock, MapPin, Edit2, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Edit2, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
