@@ -28,7 +28,9 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
   const [newCrewColor, setNewCrewColor] = useState(CREW_COLORS[0]);
   const [editingCrewId, setEditingCrewId] = useState<string | null>(null);
   const [editingCrewName, setEditingCrewName] = useState('');
+  // Multi-select worker picker state
   const [addingWorkerToCrewId, setAddingWorkerToCrewId] = useState<string | null>(null);
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen && currentJobSite) {
@@ -118,18 +120,22 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
     }
   };
 
-  const handleAssignWorker = async (workerId: string, crewId: string) => {
+  // Bulk-assign all selected workers to a crew in one shot
+  const handleConfirmAddWorkers = async (crewId: string) => {
+    if (selectedWorkerIds.size === 0) return;
+    const ids = Array.from(selectedWorkerIds);
     try {
       const { error } = await supabase
         .from('workers')
         .update({ crew_id: crewId })
-        .eq('id', workerId);
+        .in('id', ids);
       if (error) throw error;
-      setAddingWorkerToCrewId(null);
+      toast.success(`${ids.length} worker${ids.length !== 1 ? 's' : ''} added to crew`);
+      closePicker();
       fetchData();
       onUpdate();
     } catch (err) {
-      toast.error('Failed to assign worker');
+      toast.error('Failed to assign workers');
       console.error(err);
     }
   };
@@ -149,7 +155,27 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
     }
   };
 
+  const openPicker = (crewId: string) => {
+    setAddingWorkerToCrewId(crewId);
+    setSelectedWorkerIds(new Set());
+  };
+
+  const closePicker = () => {
+    setAddingWorkerToCrewId(null);
+    setSelectedWorkerIds(new Set());
+  };
+
+  const toggleWorker = (workerId: string) => {
+    setSelectedWorkerIds(prev => {
+      const next = new Set(prev);
+      if (next.has(workerId)) next.delete(workerId);
+      else next.add(workerId);
+      return next;
+    });
+  };
+
   const getCrewWorkers = (crewId: string) => workers.filter(w => w.crew_id === crewId);
+  // "available" = not already in THIS crew (can move from another)
   const getAvailableWorkers = (crewId: string) => workers.filter(w => w.crew_id !== crewId);
   const unassignedCount = workers.filter(w => !w.crew_id).length;
 
@@ -207,6 +233,7 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
                 const available = getAvailableWorkers(crew.id);
                 const isEditing = editingCrewId === crew.id;
                 const isAddingWorker = addingWorkerToCrewId === crew.id;
+                const allSelected = available.length > 0 && available.every(w => selectedWorkerIds.has(w.id));
 
                 return (
                   <div key={crew.id} className="border border-border rounded-xl overflow-hidden">
@@ -305,41 +332,100 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
                         <p className="text-[13px] text-text-secondary italic">No workers in this crew</p>
                       )}
 
-                      {/* Add worker picker */}
+                      {/* Multi-select worker picker */}
                       {isAddingWorker ? (
-                        <div className="mt-1 p-3 bg-bg-primary border border-primary/40 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[13px] font-medium">Add to crew</span>
-                            <button onClick={() => setAddingWorkerToCrewId(null)}>
-                              <X size={14} className="text-text-secondary" />
+                        <div className="mt-1 border border-primary/40 rounded-lg overflow-hidden">
+                          {/* Picker header: select-all + close */}
+                          <div className="flex items-center justify-between px-3 py-2 bg-bg-primary border-b border-border">
+                            <button
+                              onClick={() => {
+                                if (allSelected) {
+                                  setSelectedWorkerIds(new Set());
+                                } else {
+                                  setSelectedWorkerIds(new Set(available.map(w => w.id)));
+                                }
+                              }}
+                              className="flex items-center gap-2 text-[13px] font-medium text-text-primary hover:text-primary transition-colors"
+                            >
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                                allSelected
+                                  ? 'bg-primary border-primary'
+                                  : selectedWorkerIds.size > 0
+                                  ? 'bg-primary/20 border-primary'
+                                  : 'border-gray-300 bg-bg-secondary'
+                              }`}>
+                                {allSelected && <Check size={10} className="text-white" />}
+                                {!allSelected && selectedWorkerIds.size > 0 && (
+                                  <span className="w-2 h-0.5 bg-primary rounded" />
+                                )}
+                              </div>
+                              {allSelected ? 'Deselect all' : 'Select all'}
+                            </button>
+                            <button onClick={closePicker} className="p-1 hover:text-text-primary text-text-secondary">
+                              <X size={14} />
                             </button>
                           </div>
+
+                          {/* Worker list */}
                           {available.length === 0 ? (
-                            <p className="text-[13px] text-text-secondary italic">No other workers available</p>
+                            <p className="px-3 py-3 text-[13px] text-text-secondary italic">
+                              No other workers available
+                            </p>
                           ) : (
-                            <div className="space-y-1 max-h-44 overflow-y-auto">
-                              {available.map(worker => (
-                                <button
-                                  key={worker.id}
-                                  onClick={() => handleAssignWorker(worker.id, crew.id)}
-                                  className="w-full text-left px-3 py-2 hover:bg-bg-hover rounded-lg text-[13px] flex items-center justify-between"
-                                >
-                                  <span>{worker.name} <span className="text-text-secondary capitalize">({worker.role})</span></span>
-                                  {worker.crew_id && (
-                                    <span className="text-[11px] text-warning">moves from another crew</span>
-                                  )}
-                                </button>
-                              ))}
+                            <div className="max-h-52 overflow-y-auto">
+                              {available.map(worker => {
+                                const checked = selectedWorkerIds.has(worker.id);
+                                return (
+                                  <button
+                                    key={worker.id}
+                                    onClick={() => toggleWorker(worker.id)}
+                                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                                      checked ? 'bg-primary/5' : 'hover:bg-bg-hover'
+                                    }`}
+                                  >
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                                      checked ? 'bg-primary border-primary' : 'border-gray-300 bg-bg-secondary'
+                                    }`}>
+                                      {checked && <Check size={10} className="text-white" />}
+                                    </div>
+                                    <span className="text-[13px] flex-1">{worker.name}</span>
+                                    <span className="text-[11px] text-text-secondary capitalize">{worker.role}</span>
+                                    {worker.crew_id && (
+                                      <span className="text-[10px] text-warning">moves crew</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Confirm footer */}
+                          {available.length > 0 && (
+                            <div className="px-3 py-2 bg-bg-primary border-t border-border flex items-center justify-between gap-2">
+                              <span className="text-[12px] text-text-secondary">
+                                {selectedWorkerIds.size > 0
+                                  ? `${selectedWorkerIds.size} selected`
+                                  : 'Select workers above'}
+                              </span>
+                              <Button
+                                size="sm"
+                                onClick={() => handleConfirmAddWorkers(crew.id)}
+                                disabled={selectedWorkerIds.size === 0}
+                                className="h-8 px-3"
+                              >
+                                <Check size={13} className="mr-1" />
+                                Add {selectedWorkerIds.size > 0 ? selectedWorkerIds.size : ''} to crew
+                              </Button>
                             </div>
                           )}
                         </div>
                       ) : (
                         <button
-                          onClick={() => setAddingWorkerToCrewId(crew.id)}
+                          onClick={() => openPicker(crew.id)}
                           className="flex items-center gap-1.5 text-[13px] text-primary hover:opacity-80 transition-opacity mt-1"
                         >
                           <Plus size={14} />
-                          Add worker
+                          Add workers
                         </button>
                       )}
                     </div>
