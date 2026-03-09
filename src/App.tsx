@@ -16,6 +16,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Workers } from './pages/admin/Workers';
 import { Tasks } from './pages/admin/Tasks';
 import { Calendar } from './pages/admin/Calendar';
+import { SiteEvents } from './pages/admin/SiteEvents';
 import { Activities } from './pages/admin/Activities';
 import { DailyHours } from './pages/admin/DailyHours';
 import { SharedFiles } from './pages/admin/SharedFiles';
@@ -234,6 +235,16 @@ function App() {
                 <ProtectedRoute>
                   <ProtectedLayout>
                     <SharedFiles />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/site-events"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <SiteEvents />
                   </ProtectedLayout>
                 </ProtectedRoute>
               }

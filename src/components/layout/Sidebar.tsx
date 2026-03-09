@@ -10,6 +10,7 @@ import {
   Users,
   Briefcase,
   Calendar,
+  CalendarClock,
   Clock,
   FolderOpen,
   LogOut,
@@ -124,6 +125,7 @@ export function Sidebar() {
     { path: '/workers', icon: Users, label: 'Workers' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/calendar', icon: Calendar, label: 'Calendar' },
+    { path: '/site-events', icon: CalendarClock, label: 'Site Schedule' },
     { path: '/daily-hours', icon: Clock, label: 'Daily Hours' },
     { path: '/files', icon: FolderOpen, label: 'Shared Files' },
   ];

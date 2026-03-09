@@ -81,7 +81,7 @@ export function Tasks() {
         .from('assignments')
         .select(`
           *,
-          worker:workers(*),
+          worker:workers(*, crew:crews(id, name, color)),
           task:tasks!inner(job_site_id, organization_id)
         `)
         .eq('organization_id', user.org_id)

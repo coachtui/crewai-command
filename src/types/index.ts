@@ -94,6 +94,23 @@ export interface JobSiteAssignment {
 }
 
 // ============================================================================
+// CREWS
+// ============================================================================
+
+export interface Crew {
+  id: string;
+  job_site_id: string;
+  organization_id: string;
+  name: string;
+  color?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
+  // Joined data
+  workers?: Worker[];
+}
+
+// ============================================================================
 // WORKERS
 // ============================================================================
 
@@ -106,6 +123,7 @@ export interface Worker {
   organization_id?: string; // New field (same as org_id)
   job_site_id?: string;
   user_id?: string; // Link to user account if worker has login
+  crew_id?: string; // Crew membership (null = no crew)
   name: string;
   role: WorkerRole;
   skills: string[];
@@ -116,6 +134,7 @@ export interface Worker {
   // Joined data
   job_site?: JobSite;
   user?: User;
+  crew?: Crew;
 }
 
 // ============================================================================
@@ -309,6 +328,23 @@ export interface DailyHours {
   task?: Task;
   transferred_to_task?: Task;
   job_site?: JobSite;
+}
+
+// ============================================================================
+// SITE EVENTS
+// ============================================================================
+
+export interface SiteEvent {
+  id: string;
+  job_site_id: string;
+  organization_id: string;
+  title: string;
+  event_date: string; // DATE, e.g. "2026-03-15"
+  start_time?: string; // TIME, e.g. "06:00"
+  location?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 // ============================================================================

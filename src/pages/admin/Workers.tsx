@@ -1,27 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, ChevronDown } from 'lucide-react';
+import { Plus, Search, ChevronDown, Settings } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
-import { useAuth, useJobSite } from '../../contexts';
+import { useAuth, useJobSite, useCanManageSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { WorkerCard } from '../../components/workers/WorkerCard';
 import { WorkerForm } from '../../components/workers/WorkerForm';
+import { CrewManagementPanel } from '../../components/crews/CrewManagementPanel';
 import { Modal } from '../../components/ui/Modal';
 import { ListContainer } from '../../components/ui/ListContainer';
-import type { Worker } from '../../types';
+import type { Worker, Crew } from '../../types';
 import { toast } from 'sonner';
 
 export function Workers() {
   const { user } = useAuth();
   const { currentJobSite, availableJobSites } = useJobSite();
+  const canManage = useCanManageSite();
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [unassignedWorkers, setUnassignedWorkers] = useState<Worker[]>([]);
+  const [crews, setCrews] = useState<Crew[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
   const [showUnassigned, setShowUnassigned] = useState(true);
+  const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
+  const [isCrewPanelOpen, setIsCrewPanelOpen] = useState(false);
 
   // Get the "Unassigned" system job site
   const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
@@ -30,10 +35,11 @@ export function Workers() {
     if (user?.org_id) {
       fetchWorkers();
       fetchUnassignedWorkers();
+      fetchCrews();
     }
   }, [currentJobSite?.id, user?.org_id, unassignedSite?.id]);
 
-  // Enable real-time subscriptions for workers
+  // Real-time subscriptions
   useRealtimeSubscription('workers', useCallback(() => {
     fetchWorkers();
     fetchUnassignedWorkers();
@@ -49,20 +55,16 @@ export function Workers() {
     try {
       let query = supabase
         .from('workers')
-        .select('*')
+        .select('*, crew:crews(id, name, color)')
         .eq('organization_id', user.org_id);
 
-      // Filter by job site if one is selected
       if (currentJobSite) {
         query = query.eq('job_site_id', currentJobSite.id);
       } else {
-        // If no job site selected, don't show any workers in main section
-        // (they'll appear in unassigned section if applicable)
         query = query.is('job_site_id', null).limit(0);
       }
 
       const { data, error } = await query.order('name');
-
       if (error) throw error;
       setWorkers(data || []);
     } catch (error) {
@@ -80,7 +82,7 @@ export function Workers() {
     }
 
     try {
-      const { data, error} = await supabase
+      const { data, error } = await supabase
         .from('workers')
         .select('*')
         .eq('organization_id', user.org_id)
@@ -91,12 +93,30 @@ export function Workers() {
       setUnassignedWorkers(data || []);
     } catch (error) {
       console.error('Failed to load unassigned workers:', error);
-      // Don't show error toast for unassigned workers - it's not critical
+    }
+  };
+
+  const fetchCrews = async () => {
+    if (!user?.org_id || !currentJobSite) {
+      setCrews([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('crews')
+        .select('*')
+        .eq('job_site_id', currentJobSite.id)
+        .order('name');
+
+      if (error) throw error;
+      setCrews(data || []);
+    } catch (error) {
+      console.error('Failed to load crews:', error);
     }
   };
 
   const handleSaveWorker = async (workerData: Partial<Worker>) => {
-    // Validate user has org_id
     if (!user?.org_id) {
       toast.error('Unable to determine organization');
       return;
@@ -104,24 +124,19 @@ export function Workers() {
 
     try {
       if (editingWorker) {
-        // Update existing worker
         const { error } = await supabase
           .from('workers')
           .update(workerData)
           .eq('id', editingWorker.id);
-
         if (error) throw error;
         toast.success('Worker updated successfully');
       } else {
-        // Create new worker with user's org_id and optional job_site_id from form
         const { error } = await supabase
           .from('workers')
           .insert([{
             ...workerData,
             organization_id: user.org_id,
-            // job_site_id comes from workerData (can be undefined/null for unassigned)
           }]);
-
         if (error) throw error;
         toast.success('Worker created successfully');
       }
@@ -149,7 +164,6 @@ export function Workers() {
         .from('workers')
         .delete()
         .eq('id', workerId);
-
       if (error) throw error;
       toast.success('Worker deleted successfully');
       fetchWorkers();
@@ -160,17 +174,45 @@ export function Workers() {
     }
   };
 
-  const filteredWorkers = workers.filter((worker) => {
-    const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
+  const toggleCrew = (crewId: string) => {
+    setCollapsedCrews(prev => {
+      const next = new Set(prev);
+      if (next.has(crewId)) next.delete(crewId);
+      else next.add(crewId);
+      return next;
+    });
+  };
+
+  // Apply search + role filter
+  const filteredWorkers = workers.filter(w => {
+    const matchesSearch = w.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'all' || w.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const filteredUnassignedWorkers = unassignedWorkers.filter((worker) => {
-    const matchesSearch = worker.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || worker.role === roleFilter;
+  const filteredUnassignedWorkers = unassignedWorkers.filter(w => {
+    const matchesSearch = w.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'all' || w.role === roleFilter;
     return matchesSearch && matchesRole;
   });
+
+  // Group filteredWorkers by crew
+  const workersByCrew = new Map<string, Worker[]>();
+  const noCrewWorkers: Worker[] = [];
+
+  filteredWorkers.forEach(worker => {
+    if (worker.crew_id) {
+      const list = workersByCrew.get(worker.crew_id) || [];
+      list.push(worker);
+      workersByCrew.set(worker.crew_id, list);
+    } else {
+      noCrewWorkers.push(worker);
+    }
+  });
+
+  // Crews that have workers (after filter) — preserve crew order
+  const crewsWithWorkers = crews.filter(c => workersByCrew.has(c.id));
+  const hasAnyWorkers = filteredWorkers.length > 0;
 
   return (
     <div className="p-6 md:p-8">
@@ -205,6 +247,17 @@ export function Workers() {
           <option value="mason">Masons</option>
         </select>
 
+        {canManage && currentJobSite && (
+          <Button
+            variant="secondary"
+            onClick={() => setIsCrewPanelOpen(true)}
+            className="w-full sm:w-auto h-10 whitespace-nowrap"
+          >
+            <Settings size={16} className="mr-2" />
+            Manage Crews
+          </Button>
+        )}
+
         <Button
           onClick={() => {
             setEditingWorker(null);
@@ -217,7 +270,7 @@ export function Workers() {
         </Button>
       </div>
 
-      {/* Unassigned Workers Section */}
+      {/* Unassigned (system site) Workers Section */}
       {filteredUnassignedWorkers.length > 0 && (
         <div className="mb-6">
           <button
@@ -251,26 +304,96 @@ export function Workers() {
         </div>
       )}
 
-      {/* Workers List */}
+      {/* Workers grouped by crew */}
       {loading ? (
         <div className="text-center py-12">
           <p className="text-text-secondary">Loading workers...</p>
         </div>
-      ) : filteredWorkers.length === 0 ? (
+      ) : !hasAnyWorkers ? (
         <div className="text-center py-12">
           <p className="text-text-secondary">No workers found</p>
         </div>
       ) : (
-        <ListContainer>
-          {filteredWorkers.map((worker) => (
-            <WorkerCard
-              key={worker.id}
-              worker={worker}
-              onEdit={handleEditWorker}
-              onDelete={handleDeleteWorker}
-            />
-          ))}
-        </ListContainer>
+        <div className="space-y-4">
+          {/* Named crew sections */}
+          {crewsWithWorkers.map(crew => {
+            const crewWorkers = workersByCrew.get(crew.id) || [];
+            const isCollapsed = collapsedCrews.has(crew.id);
+
+            return (
+              <div key={crew.id}>
+                <button
+                  onClick={() => toggleCrew(crew.id)}
+                  className="flex items-center justify-between w-full px-4 py-3 bg-bg-secondary border border-gray-100 rounded-xl hover:bg-bg-hover transition-colors shadow-sm-soft"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: crew.color || '#6366f1' }}
+                    />
+                    <h2 className="text-[15px] font-semibold text-text-primary">{crew.name}</h2>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-bg-primary text-text-secondary border border-border">
+                      {crewWorkers.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={16}
+                    className={`text-text-secondary transition-transform duration-150 ${isCollapsed ? '' : 'rotate-180'}`}
+                  />
+                </button>
+
+                {!isCollapsed && (
+                  <ListContainer className="mt-3">
+                    {crewWorkers.map(worker => (
+                      <WorkerCard
+                        key={worker.id}
+                        worker={worker}
+                        crew={crew}
+                        onEdit={handleEditWorker}
+                        onDelete={handleDeleteWorker}
+                      />
+                    ))}
+                  </ListContainer>
+                )}
+              </div>
+            );
+          })}
+
+          {/* No Crew section */}
+          {noCrewWorkers.length > 0 && (
+            <div>
+              <button
+                onClick={() => toggleCrew('__no_crew__')}
+                className="flex items-center justify-between w-full px-4 py-3 bg-bg-secondary border border-gray-100 rounded-xl hover:bg-bg-hover transition-colors shadow-sm-soft"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-400" />
+                  <h2 className="text-[15px] font-semibold text-text-primary">No Crew</h2>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-bg-primary text-text-secondary border border-border">
+                    {noCrewWorkers.length}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-text-secondary transition-transform duration-150 ${collapsedCrews.has('__no_crew__') ? '' : 'rotate-180'}`}
+                />
+              </button>
+
+              {!collapsedCrews.has('__no_crew__') && (
+                <ListContainer className="mt-3">
+                  {noCrewWorkers.map(worker => (
+                    <WorkerCard
+                      key={worker.id}
+                      worker={worker}
+                      onEdit={handleEditWorker}
+                      onDelete={handleDeleteWorker}
+                    />
+                  ))}
+                </ListContainer>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Worker Form Modal */}
@@ -291,6 +414,16 @@ export function Workers() {
           }}
         />
       </Modal>
+
+      {/* Crew Management Panel */}
+      <CrewManagementPanel
+        isOpen={isCrewPanelOpen}
+        onClose={() => setIsCrewPanelOpen(false)}
+        onUpdate={() => {
+          fetchWorkers();
+          fetchCrews();
+        }}
+      />
     </div>
   );
 }
