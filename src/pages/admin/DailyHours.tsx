@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
-import type { Worker, DailyHours as DailyHoursType, Task, User } from '../../types';
+import type { Worker, DailyHours as DailyHoursType, Task, User, Crew } from '../../types';
 import { canEdit, isViewer } from '../../lib/roleHelpers';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -62,6 +62,11 @@ export function DailyHours() {
   // Group by role
   const [groupByRole, setGroupByRole] = useState(false);
 
+  // Group by crew
+  const [groupByCrew, setGroupByCrew] = useState(false);
+  const [crews, setCrews] = useState<Crew[]>([]);
+  const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
+
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
     worker: Worker;
@@ -117,10 +122,10 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Load workers filtered by current job site
+      // Load workers filtered by current job site (include crew join)
       const { data: workersData, error: workersError } = await supabase
         .from('workers')
-        .select('*')
+        .select('*, crew:crews(id, name, color)')
         .eq('organization_id', userData.org_id)
         .eq('job_site_id', currentJobSite.id)
         .eq('status', 'active')
@@ -149,6 +154,15 @@ export function DailyHours() {
         .order('name');
 
       if (tasksError) throw tasksError;
+
+      // Load crews for current job site
+      const { data: crewsData, error: crewsError } = await supabase
+        .from('crews')
+        .select('*')
+        .eq('job_site_id', currentJobSite.id)
+        .order('name');
+      if (crewsError) throw crewsError;
+      setCrews(crewsData || []);
 
       // Combine workers with their daily hours
       const workerStatuses: WorkerDayStatus[] = (workersData || []).map((worker) => ({
@@ -722,6 +736,99 @@ export function DailyHours() {
     );
   }
 
+  // Crew grouping helpers
+  const workersGroupedByCrew = new Map<string, WorkerDayStatus[]>();
+  const noCrewWorkers: WorkerDayStatus[] = [];
+  workers.forEach((ws) => {
+    if (ws.worker.crew_id) {
+      if (!workersGroupedByCrew.has(ws.worker.crew_id)) workersGroupedByCrew.set(ws.worker.crew_id, []);
+      workersGroupedByCrew.get(ws.worker.crew_id)!.push(ws);
+    } else {
+      noCrewWorkers.push(ws);
+    }
+  });
+  const crewsWithWorkers = crews.filter((c) => workersGroupedByCrew.has(c.id));
+
+  const toggleCrew = (crewId: string) => {
+    setCollapsedCrews((prev) => {
+      const next = new Set(prev);
+      if (next.has(crewId)) next.delete(crewId);
+      else next.add(crewId);
+      return next;
+    });
+  };
+
+  const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum?: number) => {
+    const edited = editedHours.get(worker.id);
+    const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
+    const isEdited = edited !== undefined;
+    return (
+      <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
+        {rowNum !== undefined && (
+          <td className="p-4 text-center text-text-secondary">{rowNum}</td>
+        )}
+        <td className="p-4 font-medium">{worker.name}</td>
+        <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
+        <td className="p-4">{getStatusBadge(dailyHours)}</td>
+        <td className="p-4">
+          {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+            <Input
+              type="number"
+              step="0.5"
+              min="0"
+              max="24"
+              value={currentHours}
+              onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
+              className="w-20"
+              placeholder="8"
+            />
+          ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
+            `${dailyHours.hours_worked || 0}h`
+          ) : (
+            '-'
+          )}
+        </td>
+        <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
+          {dailyHours?.status === 'transferred'
+            ? dailyHours.transferred_to_task
+              ? `→ ${dailyHours.transferred_to_task.name}`
+              : `→ ${dailyHours.notes || 'Transferred to another project'}`
+            : dailyHours?.task
+            ? dailyHours.task.name
+            : dailyHours?.notes || '-'}
+        </td>
+        <td className="p-4">
+          {canEdit(currentUser) ? (
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="secondary" onClick={() => handleLogHours(worker)} title="Log hours with details">
+                <Clock size={16} />
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => handleMarkOff(worker)} title="Mark as off">
+                <UserX size={16} />
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => handleMarkTransferred(worker)} title="Mark as transferred">
+                <ArrowRightLeft size={16} />
+              </Button>
+            </div>
+          ) : (
+            <div className="text-text-secondary text-sm text-right">View only</div>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
+  const crewTableHeader = (
+    <tr className="border-b border-border">
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Worker</th>
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Role</th>
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Status</th>
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Hours</th>
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Task/Notes</th>
+      <th className="text-right p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Actions</th>
+    </tr>
+  );
+
   return (
     <div className="p-6 md:p-8">
       <div className="mb-6">
@@ -758,156 +865,171 @@ export function DailyHours() {
               Accept All ({editedHours.size})
             </Button>
           )}
+          <Button
+            onClick={() => setGroupByCrew(!groupByCrew)}
+            variant={groupByCrew ? 'primary' : 'secondary'}
+            title={groupByCrew ? 'Switch to flat view' : 'Group by crew'}
+          >
+            {groupByCrew ? 'Flat View' : 'Group by Crew'}
+          </Button>
           <Button onClick={loadWeeklyData} variant="secondary">
             View Weekly Summary
           </Button>
         </div>
       </div>
 
-      <Card className="mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-center p-4 font-semibold w-12">#</th>
-                <th className="text-left p-4 font-semibold">Worker</th>
-                <th
-                  className="text-left p-4 font-semibold cursor-pointer select-none hover:text-primary transition-colors"
-                  onClick={() => setGroupByRole(!groupByRole)}
-                  title={groupByRole ? 'Click to ungroup' : 'Click to group by role'}
+      {groupByCrew ? (
+        <div className="space-y-3 mb-6">
+          {crewsWithWorkers.map((crew) => {
+            const crewWorkers = workersGroupedByCrew.get(crew.id) || [];
+            const isCollapsed = collapsedCrews.has(crew.id);
+            const crewTotalHours = crewWorkers.reduce(
+              (sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0),
+              0
+            );
+            return (
+              <div key={crew.id} className="border border-border rounded-xl overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-hover transition-colors"
+                  onClick={() => toggleCrew(crew.id)}
                 >
-                  <span className="inline-flex items-center gap-1">
-                    Role
-                    {groupByRole ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: crew.color || '#6366f1' }} />
+                    <span className="text-[14px] font-semibold text-text-primary">{crew.name}</span>
+                    <span className="text-[12px] text-text-secondary">
+                      {crewWorkers.length} {crewWorkers.length === 1 ? 'worker' : 'workers'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {crewTotalHours > 0 && (
+                      <span className="text-[13px] text-text-secondary font-medium">{crewTotalHours.toFixed(1)}h</span>
+                    )}
+                    {isCollapsed ? <ChevronRight size={16} className="text-text-secondary" /> : <ChevronDown size={16} className="text-text-secondary" />}
+                  </div>
+                </button>
+                {!isCollapsed && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>{crewTableHeader}</thead>
+                      <tbody>{crewWorkers.map((ws) => renderWorkerRow(ws))}</tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {noCrewWorkers.length > 0 && (
+            <div className="border border-border rounded-xl overflow-hidden">
+              <button
+                className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-hover transition-colors"
+                onClick={() => toggleCrew('__no_crew__')}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0 bg-gray-400" />
+                  <span className="text-[14px] font-semibold text-text-primary">No Crew</span>
+                  <span className="text-[12px] text-text-secondary">
+                    {noCrewWorkers.length} {noCrewWorkers.length === 1 ? 'worker' : 'workers'}
                   </span>
-                </th>
-                <th className="text-left p-4 font-semibold">Status</th>
-                <th className="text-left p-4 font-semibold">Hours</th>
-                <th className="text-left p-4 font-semibold">Task/Notes</th>
-                <th className="text-right p-4 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(() => {
-                const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum: number) => {
-                  const edited = editedHours.get(worker.id);
-                  const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
-                  const isEdited = edited !== undefined;
-
-                  return (
-                    <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
-                      <td className="p-4 text-center text-text-secondary">{rowNum}</td>
-                      <td className="p-4 font-medium">{worker.name}</td>
-                      <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
-                      <td className="p-4">{getStatusBadge(dailyHours)}</td>
-                      <td className="p-4">
-                        {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
-                          <Input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            max="24"
-                            value={currentHours}
-                            onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
-                            className="w-20"
-                            placeholder="8"
-                          />
-                        ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
-                          `${dailyHours.hours_worked || 0}h`
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
-                        {dailyHours?.status === 'transferred'
-                          ? dailyHours.transferred_to_task
-                            ? `→ ${dailyHours.transferred_to_task.name}`
-                            : `→ ${dailyHours.notes || 'Transferred to another project'}`
-                          : dailyHours?.task
-                          ? dailyHours.task.name
-                          : dailyHours?.notes || '-'}
-                      </td>
-                      <td className="p-4">
-                        {canEdit(currentUser) ? (
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleLogHours(worker)}
-                              title="Log hours with details"
-                            >
-                              <Clock size={16} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleMarkOff(worker)}
-                              title="Mark as off"
-                            >
-                              <UserX size={16} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleMarkTransferred(worker)}
-                              title="Mark as transferred"
-                            >
-                              <ArrowRightLeft size={16} />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="text-text-secondary text-sm text-right">View only</div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                };
-
-                if (groupByRole) {
-                  const roleGroups = new Map<string, WorkerDayStatus[]>();
-                  workers.forEach((ws) => {
-                    const role = ws.worker.role || 'unassigned';
-                    if (!roleGroups.has(role)) roleGroups.set(role, []);
-                    roleGroups.get(role)!.push(ws);
-                  });
-
-                  let runningIndex = 0;
-                  return Array.from(roleGroups.entries()).map(([role, group]) => {
-                    const rows = group.map((ws) => {
-                      runningIndex++;
-                      return renderWorkerRow(ws, runningIndex);
-                    });
-                    return (
-                      <Fragment key={role}>
-                        <tr className="bg-bg-secondary">
-                          <td colSpan={7} className="p-3 font-semibold capitalize">
-                            {role}
-                            <span className="ml-2 text-xs font-normal text-text-secondary">
-                              ({group.length} {group.length === 1 ? 'person' : 'people'})
-                            </span>
-                          </td>
-                        </tr>
-                        {rows}
-                      </Fragment>
+                </div>
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const t = noCrewWorkers.reduce(
+                      (s, ws) => s + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0),
+                      0
                     );
-                  });
-                }
+                    return t > 0 ? <span className="text-[13px] text-text-secondary font-medium">{t.toFixed(1)}h</span> : null;
+                  })()}
+                  {collapsedCrews.has('__no_crew__') ? <ChevronRight size={16} className="text-text-secondary" /> : <ChevronDown size={16} className="text-text-secondary" />}
+                </div>
+              </button>
+              {!collapsedCrews.has('__no_crew__') && (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>{crewTableHeader}</thead>
+                    <tbody>{noCrewWorkers.map((ws) => renderWorkerRow(ws))}</tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
-                return workers.map((ws, index) => renderWorkerRow(ws, index + 1));
-              })()}
-            </tbody>
-            {workers.length > 0 && (
-              <tfoot>
-                <tr className="border-t-2 border-border">
-                  <td colSpan={7} className="p-4 font-semibold text-right text-text-secondary">
-                    Total on site: {workers.length} {workers.length === 1 ? 'person' : 'people'}
-                  </td>
-                </tr>
-              </tfoot>
-            )}
-          </table>
+          {crewsWithWorkers.length === 0 && noCrewWorkers.length === 0 && (
+            <Card>
+              <p className="text-center text-text-secondary py-8">No workers on this job site.</p>
+            </Card>
+          )}
         </div>
-      </Card>
+      ) : (
+        <Card className="mb-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-center p-4 font-semibold w-12">#</th>
+                  <th className="text-left p-4 font-semibold">Worker</th>
+                  <th
+                    className="text-left p-4 font-semibold cursor-pointer select-none hover:text-primary transition-colors"
+                    onClick={() => setGroupByRole(!groupByRole)}
+                    title={groupByRole ? 'Click to ungroup' : 'Click to group by role'}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Role
+                      {groupByRole ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </th>
+                  <th className="text-left p-4 font-semibold">Status</th>
+                  <th className="text-left p-4 font-semibold">Hours</th>
+                  <th className="text-left p-4 font-semibold">Task/Notes</th>
+                  <th className="text-right p-4 font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  if (groupByRole) {
+                    const roleGroups = new Map<string, WorkerDayStatus[]>();
+                    workers.forEach((ws) => {
+                      const role = ws.worker.role || 'unassigned';
+                      if (!roleGroups.has(role)) roleGroups.set(role, []);
+                      roleGroups.get(role)!.push(ws);
+                    });
+                    let runningIndex = 0;
+                    return Array.from(roleGroups.entries()).map(([role, group]) => {
+                      const rows = group.map((ws) => {
+                        runningIndex++;
+                        return renderWorkerRow(ws, runningIndex);
+                      });
+                      return (
+                        <Fragment key={role}>
+                          <tr className="bg-bg-secondary">
+                            <td colSpan={7} className="p-3 font-semibold capitalize">
+                              {role}
+                              <span className="ml-2 text-xs font-normal text-text-secondary">
+                                ({group.length} {group.length === 1 ? 'person' : 'people'})
+                              </span>
+                            </td>
+                          </tr>
+                          {rows}
+                        </Fragment>
+                      );
+                    });
+                  }
+                  return workers.map((ws, index) => renderWorkerRow(ws, index + 1));
+                })()}
+              </tbody>
+              {workers.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-border">
+                    <td colSpan={7} className="p-4 font-semibold text-right text-text-secondary">
+                      Total on site: {workers.length} {workers.length === 1 ? 'person' : 'people'}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </Card>
+      )}
 
       {/* Off Modal */}
       <Modal
