@@ -43,7 +43,7 @@ export interface JobSite {
 // ============================================================================
 
 // Base roles that a user can have at the organization level
-export type BaseRole = 'admin' | 'superintendent' | 'engineer' | 'foreman' | 'worker';
+export type BaseRole = 'manager' | 'admin' | 'superintendent' | 'engineer' | 'foreman' | 'worker';
 
 // Roles that can be assigned at the job site level
 export type JobSiteRole = 'superintendent' | 'engineer' | 'engineer_as_superintendent' | 'foreman' | 'worker';
@@ -373,7 +373,8 @@ export interface JobSiteContextType {
   currentJobSite: JobSite | null;
   availableJobSites: JobSite[];
   isLoading: boolean;
-  isAdmin: boolean;
+  isAdmin: boolean; // true for manager OR admin (elevated access)
+  isManager: boolean; // true only for manager (company-wide authority)
   userSiteRole: JobSiteRole | null;
   switchJobSite: (siteId: string) => Promise<void>;
   refreshJobSites: () => Promise<void>;

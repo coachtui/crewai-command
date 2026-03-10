@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Edit2, UserPlus, Mail } from 'lucide-react';
+import { Plus, Search, Edit2, UserPlus, Mail, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useAuth } from '../../contexts';
+import { useJobSite } from '../../contexts/JobSiteContext';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -15,6 +16,8 @@ import { toast } from 'sonner';
 
 export function UserManagement() {
   const { user } = useAuth();
+  const { availableJobSites } = useJobSite();
+  const isManager = user?.base_role === 'manager';
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [jobSites, setJobSites] = useState<JobSite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +27,8 @@ export function UserManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [resendingInvite, setResendingInvite] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<'name' | 'email' | 'base_role' | 'sites' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (user?.org_id) {
@@ -50,7 +55,21 @@ export function UserManagement() {
 
     try {
       const data = await fetchUsers(user.org_id);
-      setUsers(data);
+
+      // Admins are scoped to users who share at least one active job site with them
+      if (user.base_role === 'admin') {
+        const adminSiteIds = new Set(
+          user.job_site_assignments?.filter((a: any) => a.is_active).map((a: any) => a.job_site_id) || []
+        );
+        const scopedData = data.filter(
+          (u) =>
+            u.id === user.id ||
+            u.job_site_assignments?.some((a: any) => a.is_active && adminSiteIds.has(a.job_site_id))
+        );
+        setUsers(scopedData);
+      } else {
+        setUsers(data);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users');
@@ -63,8 +82,13 @@ export function UserManagement() {
     if (!user?.org_id) return;
 
     try {
-      const data = await fetchJobSites(user.org_id);
-      setJobSites(data);
+      // Admins only see job sites they're assigned to; managers see all
+      if (user.base_role === 'admin') {
+        setJobSites(availableJobSites);
+      } else {
+        const data = await fetchJobSites(user.org_id);
+        setJobSites(data);
+      }
     } catch (error) {
       console.error('Error fetching job sites:', error);
     }
@@ -187,13 +211,43 @@ export function UserManagement() {
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'all' || u.base_role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const handleSort = (col: typeof sortColumn) => {
+    if (sortColumn === col) {
+      setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(col);
+      setSortDirection('asc');
+    }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortColumn }) => {
+    if (sortColumn !== col) return <ArrowUpDown size={14} className="text-text-secondary opacity-50" />;
+    return sortDirection === 'asc'
+      ? <ArrowUp size={14} className="text-primary" />
+      : <ArrowDown size={14} className="text-primary" />;
+  };
+
+  const filteredUsers = users
+    .filter((u) => {
+      const matchesSearch =
+        u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesRole = roleFilter === 'all' || u.base_role === roleFilter;
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      if (!sortColumn) return 0;
+      const dir = sortDirection === 'asc' ? 1 : -1;
+      if (sortColumn === 'name') return a.name.localeCompare(b.name) * dir;
+      if (sortColumn === 'email') return a.email.localeCompare(b.email) * dir;
+      if (sortColumn === 'base_role') return (a.base_role || '').localeCompare(b.base_role || '') * dir;
+      if (sortColumn === 'sites') {
+        const aCount = a.job_site_assignments?.filter((x: any) => x.is_active).length ?? 0;
+        const bCount = b.job_site_assignments?.filter((x: any) => x.is_active).length ?? 0;
+        return (aCount - bCount) * dir;
+      }
+      return 0;
+    });
 
   if (loading) {
     return <div className="text-center py-12">Loading users...</div>;
@@ -219,6 +273,7 @@ export function UserManagement() {
           className="px-4 py-2 bg-bg-secondary border border-border-primary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="all">All Roles</option>
+          <option value="manager">Manager</option>
           <option value="admin">Admin</option>
           <option value="superintendent">Superintendent</option>
           <option value="engineer">Engineer</option>
@@ -236,10 +291,12 @@ export function UserManagement() {
           {importing ? 'Importing...' : 'Import Existing'}
         </Button>
 
-        <Button onClick={handleAddNew} className="flex items-center gap-2">
-          <Plus size={20} />
-          Invite User
-        </Button>
+        {isManager && (
+          <Button onClick={handleAddNew} className="flex items-center gap-2">
+            <Plus size={20} />
+            Invite User
+          </Button>
+        )}
       </div>
 
       {filteredUsers.length === 0 ? (
@@ -253,10 +310,18 @@ export function UserManagement() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border-primary">
-                <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Name</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Email</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Base Role</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Assigned Sites</th>
+                {(['name', 'email', 'base_role', 'sites'] as const).map((col) => (
+                  <th
+                    key={col}
+                    className="text-left py-3 px-4 text-sm font-medium text-text-secondary cursor-pointer select-none hover:text-text-primary"
+                    onClick={() => handleSort(col)}
+                  >
+                    <span className="flex items-center gap-1">
+                      {col === 'name' ? 'Name' : col === 'email' ? 'Email' : col === 'base_role' ? 'Base Role' : 'Assigned Sites'}
+                      <SortIcon col={col} />
+                    </span>
+                  </th>
+                ))}
                 <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Actions</th>
               </tr>
             </thead>

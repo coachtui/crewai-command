@@ -428,10 +428,16 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Helper hook to check if user is admin
+// Helper hook to check if user is manager (company-wide authority)
+export function useIsManager(): boolean {
+  const { user } = useAuth();
+  return user?.base_role === 'manager';
+}
+
+// Helper hook to check if user is admin or manager (elevated access)
 export function useIsAdmin(): boolean {
   const { user } = useAuth();
-  return user?.base_role === 'admin' || user?.role === 'admin';
+  return user?.base_role === 'manager' || user?.base_role === 'admin' || user?.role === 'admin';
 }
 
 // Helper hook to get user's organization ID

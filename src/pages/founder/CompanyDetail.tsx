@@ -352,7 +352,7 @@ function InviteUserModal({ companyId, onInvited, isOpen, onClose }: {
               onChange={f('base_role')}
               className="w-full px-3 py-2 text-[13px] bg-bg-primary border border-border rounded-md text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              {['admin', 'superintendent', 'engineer', 'foreman', 'worker'].map((r) => (
+              {['manager', 'admin', 'superintendent', 'engineer', 'foreman', 'worker'].map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
@@ -409,7 +409,7 @@ function UsersTab({ users, companyId, onUserAdded }: {
                   <div className="text-[13px] font-medium text-text-primary">{u.name}</div>
                   <div className="text-[11px] text-text-secondary">{u.email}</div>
                 </div>
-                <Badge variant={u.base_role === 'admin' ? 'info' : 'default'}>{u.base_role}</Badge>
+                <Badge variant={u.base_role === 'manager' ? 'warning' : u.base_role === 'admin' ? 'info' : 'default'}>{u.base_role}</Badge>
                 <div className="text-[12px] text-text-secondary">{u.phone ?? '—'}</div>
                 <div className="text-[12px] text-text-secondary">{fmt(u.created_at)}</div>
               </div>

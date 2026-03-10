@@ -15,12 +15,12 @@ import type { User, UserProfile, BaseRole, JobSiteRole, Permissions } from '../t
  */
 export const canEdit = (user: User | UserProfile | null): boolean => {
   if (!user) return false;
-  
+
   // Check base_role first (new system)
   if (user.base_role) {
-    return ['admin', 'superintendent', 'engineer', 'foreman'].includes(user.base_role);
+    return ['manager', 'admin', 'superintendent', 'engineer', 'foreman'].includes(user.base_role);
   }
-  
+
   // Fall back to legacy role
   return user.role === 'admin' || user.role === 'foreman';
 };
@@ -40,7 +40,23 @@ export const isViewer = (user: User | UserProfile | null): boolean => {
 };
 
 /**
- * Check if user is an admin
+ * Check if user is a manager (company-wide authority, above admin)
+ */
+export const isManager = (user: User | UserProfile | null): boolean => {
+  if (!user) return false;
+  return user.base_role === 'manager';
+};
+
+/**
+ * Check if user is a manager or admin (elevated access)
+ */
+export const isManagerOrAdmin = (user: User | UserProfile | null): boolean => {
+  if (!user) return false;
+  return user.base_role === 'manager' || user.base_role === 'admin' || user.role === 'admin';
+};
+
+/**
+ * Check if user is an admin (job-site-scoped authority)
  */
 export const isAdmin = (user: User | UserProfile | null): boolean => {
   if (!user) return false;
@@ -196,38 +212,38 @@ export const canViewAllWorkers = (role: JobSiteRole | null, isAdmin: boolean): b
 // ============================================================================
 
 /**
- * Check if user can create new job sites (admin only)
+ * Check if user can create new job sites (manager only)
  */
 export const canCreateJobSites = (user: User | UserProfile | null): boolean => {
-  return isAdmin(user);
+  return isManager(user);
 };
 
 /**
- * Check if user can move workers between job sites (admin only)
+ * Check if user can move workers between job sites (manager only)
  */
 export const canMoveWorkersBetweenSites = (user: User | UserProfile | null): boolean => {
-  return isAdmin(user);
+  return isManager(user);
 };
 
 /**
- * Check if user can manage user roles and assignments (admin only)
+ * Check if user can manage user roles and assignments (manager or admin)
  */
 export const canManageUsers = (user: User | UserProfile | null): boolean => {
-  return isAdmin(user);
+  return isManagerOrAdmin(user);
 };
 
 /**
- * Check if user can access company-wide data (admin only)
+ * Check if user can access company-wide data (manager only)
  */
 export const canAccessCompanyWideData = (user: User | UserProfile | null): boolean => {
-  return isAdmin(user);
+  return isManager(user);
 };
 
 /**
- * Check if user can manage billing and settings (admin only)
+ * Check if user can manage billing and settings (manager only)
  */
 export const canManageSettings = (user: User | UserProfile | null): boolean => {
-  return isAdmin(user);
+  return isManager(user);
 };
 
 // ============================================================================
@@ -242,38 +258,40 @@ export const getPermissions = (
   siteRole: JobSiteRole | null = null
 ): Permissions => {
   const userIsAdmin = isAdmin(user);
-  
+  const userIsManager = isManager(user);
+  const userIsManagerOrAdmin = userIsManager || userIsAdmin;
+
   return {
     // Job Site Level
-    canViewJobSite: userIsAdmin || siteRole !== null,
-    canManageJobSite: canManageJobSite(siteRole, userIsAdmin),
+    canViewJobSite: userIsManagerOrAdmin || siteRole !== null,
+    canManageJobSite: canManageJobSite(siteRole, userIsManagerOrAdmin),
     canCreateJobSite: canCreateJobSites(user),
-    canDeleteJobSite: userIsAdmin,
-    
+    canDeleteJobSite: userIsManager,
+
     // Worker Level
-    canViewWorkers: canViewAllWorkers(siteRole, userIsAdmin),
-    canManageWorkers: canManageJobSite(siteRole, userIsAdmin),
+    canViewWorkers: canViewAllWorkers(siteRole, userIsManagerOrAdmin),
+    canManageWorkers: canManageJobSite(siteRole, userIsManagerOrAdmin),
     canMoveWorkersBetweenSites: canMoveWorkersBetweenSites(user),
-    
+
     // Task Level
-    canViewTasks: userIsAdmin || siteRole !== null,
-    canCreateTasks: canCreateTasks(siteRole, userIsAdmin),
-    canEditTasks: canCreateTasks(siteRole, userIsAdmin),
-    canDeleteTasks: canCreateTasks(siteRole, userIsAdmin),
-    canAssignWorkers: canAssignWorkers(siteRole, userIsAdmin),
-    
+    canViewTasks: userIsManagerOrAdmin || siteRole !== null,
+    canCreateTasks: canCreateTasks(siteRole, userIsManagerOrAdmin),
+    canEditTasks: canCreateTasks(siteRole, userIsManagerOrAdmin),
+    canDeleteTasks: canCreateTasks(siteRole, userIsManagerOrAdmin),
+    canAssignWorkers: canAssignWorkers(siteRole, userIsManagerOrAdmin),
+
     // Assignment Level
-    canRequestReassignment: canRequestReassignment(siteRole, userIsAdmin),
-    canApproveReassignments: canApproveRequests(siteRole, userIsAdmin),
-    
+    canRequestReassignment: canRequestReassignment(siteRole, userIsManagerOrAdmin),
+    canApproveReassignments: canApproveRequests(siteRole, userIsManagerOrAdmin),
+
     // Hours Level
-    canLogHours: canClockWorkers(siteRole, userIsAdmin),
-    canEditHours: canManageJobSite(siteRole, userIsAdmin),
-    
+    canLogHours: canClockWorkers(siteRole, userIsManagerOrAdmin),
+    canEditHours: canClockWorkers(siteRole, userIsManagerOrAdmin),
+
     // Admin Level
     canManageUsers: canManageUsers(user),
-    canManageOrganization: userIsAdmin,
-    canViewAllSites: userIsAdmin,
+    canManageOrganization: userIsManager,
+    canViewAllSites: userIsManager,
   };
 };
 
@@ -286,6 +304,7 @@ export const getPermissions = (
  */
 export const getBaseRoleDisplayName = (role: BaseRole): string => {
   const displayNames: Record<BaseRole, string> = {
+    manager: 'Manager',
     admin: 'Admin',
     superintendent: 'Superintendent',
     engineer: 'Engineer',
@@ -314,6 +333,7 @@ export const getJobSiteRoleDisplayName = (role: JobSiteRole): string => {
  */
 export const getRoleColor = (role: BaseRole | JobSiteRole | string): string => {
   const colors: Record<string, string> = {
+    manager: 'bg-orange-100 text-orange-800',
     admin: 'bg-purple-100 text-purple-800',
     superintendent: 'bg-blue-100 text-blue-800',
     engineer: 'bg-cyan-100 text-cyan-800',
@@ -333,13 +353,13 @@ export const shouldShowJobSiteSelector = (
   numAssignedSites: number
 ): boolean => {
   if (!user) return false;
-  
-  // Admins see company-wide dashboard, not job site selector
-  if (isAdmin(user)) return false;
-  
+
+  // Managers see all sites company-wide — no selector needed
+  if (isManager(user)) return false;
+
   // Workers don't switch sites manually
   if (isWorker(user)) return false;
-  
+
   // Show selector only if user has multiple sites
   return numAssignedSites > 1;
 };

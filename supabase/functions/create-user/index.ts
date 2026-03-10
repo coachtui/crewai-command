@@ -74,9 +74,9 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (!profile || profile.base_role !== 'admin') {
-      console.error('User is not admin:', user.email, profile?.base_role)
-      return new Response(JSON.stringify({ error: 'Only admins can create users. Your role: ' + (profile?.base_role || 'none') }), {
+    if (!profile || profile.base_role !== 'manager') {
+      console.error('User is not manager:', user.email, profile?.base_role)
+      return new Response(JSON.stringify({ error: 'Only managers can create users. Your role: ' + (profile?.base_role || 'none') }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })

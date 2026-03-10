@@ -535,7 +535,7 @@ async function handleInviteUser(
   }
 
   // Validate base_role
-  const validRoles = ['admin', 'superintendent', 'engineer', 'foreman', 'worker']
+  const validRoles = ['manager', 'admin', 'superintendent', 'engineer', 'foreman', 'worker']
   if (!validRoles.includes(base_role)) {
     return json({ error: `base_role must be one of: ${validRoles.join(', ')}` }, 400)
   }

@@ -3,6 +3,7 @@ import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Button } from '../ui/Button';
 import { UserRoleManager, type JobSiteAssignmentData, type UserRoleManagerHandle } from './UserRoleManager';
+import { useAuth } from '../../contexts';
 import type { UserProfile, JobSite, BaseRole } from '../../types';
 
 interface UserFormProps {
@@ -19,6 +20,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, availableJobSites, onSave, onCancel }: UserFormProps) {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -72,13 +74,19 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
     });
   };
 
-  const baseRoleOptions = [
+  const allBaseRoleOptions = [
+    { value: 'manager', label: 'Manager' },
     { value: 'admin', label: 'Admin' },
     { value: 'superintendent', label: 'Superintendent' },
     { value: 'engineer', label: 'Engineer' },
     { value: 'foreman', label: 'Foreman' },
     { value: 'worker', label: 'Worker' },
   ];
+
+  // Only managers can assign the manager role
+  const baseRoleOptions = allBaseRoleOptions.filter(
+    opt => opt.value !== 'manager' || currentUser?.base_role === 'manager'
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

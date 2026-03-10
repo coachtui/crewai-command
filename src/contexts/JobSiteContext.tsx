@@ -31,7 +31,8 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [userSiteRole, setUserSiteRole] = useState<JobSiteRole | null>(null);
 
-  // Determine if user is admin
+  // Determine role levels
+  const isManager = user?.base_role === 'manager';
   const isAdmin = user?.base_role === 'admin' || user?.role === 'admin';
 
   // Fetch available job sites based on user role
@@ -39,8 +40,8 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
     if (!user?.org_id) return [];
 
     try {
-      if (isAdmin) {
-        // Admins can see all job sites in their organization
+      if (isManager) {
+        // Managers can see all job sites in their organization
         const { data, error } = await supabase
           .from('job_sites')
           .select('*')
@@ -95,14 +96,14 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
       if (isDev) console.error('[JobSite] Error in fetchJobSites:', error);
       return [];
     }
-  }, [user, isAdmin]);
+  }, [user, isManager, isAdmin]);
 
   // Get user's role on a specific job site
   const getUserSiteRole = useCallback(async (siteId: string): Promise<JobSiteRole | null> => {
     if (!user) return null;
-    
-    // Admins don't need a specific site role
-    if (isAdmin) return null;
+
+    // Managers don't need a specific site role — they have company-wide authority
+    if (isManager) return null;
 
     // Check user's job_site_assignments
     if (user.job_site_assignments) {
@@ -130,7 +131,7 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
     }
 
     return null;
-  }, [user, isAdmin]);
+  }, [user, isManager, isAdmin]);
 
   // Switch to a different job site
   const switchJobSite = useCallback(async (siteId: string): Promise<void> => {
@@ -267,19 +268,20 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
   }, [isAuthenticated, user?.org_id]);
 
   // Computed permissions
-  const canManageSite = isAdmin || 
-    userSiteRole === 'superintendent' || 
+  const canManageSite = isManager || isAdmin ||
+    userSiteRole === 'superintendent' ||
     userSiteRole === 'engineer_as_superintendent';
-  
-  const canViewSite = isAdmin || 
-    userSiteRole !== null || 
+
+  const canViewSite = isManager || isAdmin ||
+    userSiteRole !== null ||
     availableJobSites.some(s => s.id === currentJobSite?.id);
 
   const value: JobSiteContextType = {
     currentJobSite,
     availableJobSites,
     isLoading,
-    isAdmin,
+    isAdmin: isAdmin || isManager, // true for both manager and admin (backward compat)
+    isManager,
     userSiteRole,
     switchJobSite,
     refreshJobSites,
@@ -320,10 +322,13 @@ export function useShouldShowJobSiteSelector(): boolean {
   const { user } = useAuth();
   const { availableJobSites } = useJobSite();
 
+  // Managers see all sites company-wide — no selector needed
+  if (user?.base_role === 'manager') return false;
+
   // Don't show for workers (they don't switch sites manually)
   if (user?.base_role === 'worker' || user?.role === 'viewer') return false;
 
-  // Show if user has multiple job sites (works for admins and non-admins)
+  // Show if user has multiple job sites
   return availableJobSites.length > 1;
 }
 
