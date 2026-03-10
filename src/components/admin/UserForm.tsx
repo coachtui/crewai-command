@@ -39,21 +39,8 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
         phone: user.phone || '',
         base_role: user.base_role || 'worker',
       });
-
-      // Convert existing assignments to the format expected by UserRoleManager
-      if (user.job_site_assignments) {
-        const converted = user.job_site_assignments
-          .filter((a: any) => a.is_active)
-          .map((a: any) => ({
-            id: a.id,
-            job_site_id: a.job_site_id,
-            role: a.role,
-            start_date: a.start_date,
-            end_date: a.end_date,
-            is_active: a.is_active,
-          }));
-        setAssignments(converted);
-      }
+      // Assignments start empty — existing ones are removed unless explicitly re-added
+      setAssignments([]);
     }
   }, [user]);
 
@@ -130,9 +117,15 @@ export function UserForm({ user, availableJobSites, onSave, onCancel }: UserForm
       </div>
 
       <div>
-        <h3 className="text-lg font-medium text-text-primary border-b border-border-primary pb-2 mb-4">
-          Job Site Assignments
-        </h3>
+        <div className="flex items-center justify-between border-b border-border-primary pb-2 mb-4">
+          <h3 className="text-lg font-medium text-text-primary">Job Site Assignments</h3>
+          {user && (() => {
+            const count = user.job_site_assignments?.filter((a: any) => a.is_active).length ?? 0;
+            return count > 0 ? (
+              <span className="text-xs text-text-secondary">{count} existing assignment{count !== 1 ? 's' : ''} will be removed unless re-added</span>
+            ) : null;
+          })()}
+        </div>
         <UserRoleManager
           ref={roleManagerRef}
           assignments={assignments}
