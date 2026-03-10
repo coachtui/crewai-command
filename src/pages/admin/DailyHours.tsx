@@ -480,6 +480,13 @@ export function DailyHours() {
     setEditedHours(newEditedHours);
   };
 
+  const handleInlineNotesChange = (workerId: string, notes: string, currentHours: string) => {
+    const newEditedHours = new Map(editedHours);
+    const existing = newEditedHours.get(workerId) || { workerId, hours: currentHours };
+    newEditedHours.set(workerId, { ...existing, notes });
+    setEditedHours(newEditedHours);
+  };
+
   const saveAllHours = async () => {
     if (editedHours.size === 0) {
       toast.info('No hours to save');
@@ -872,16 +879,28 @@ export function DailyHours() {
             '-'
           )}
         </td>
-        <td className="p-4 text-text-secondary text-sm max-w-xs truncate">
-          {dailyHours?.status === 'transferred'
-            ? dailyHours.transferred_to_task
-              ? `→ ${dailyHours.transferred_to_task.name}`
-              : dailyHours.transferred_to_job_site
-              ? `→ ${dailyHours.transferred_to_job_site.name}`
-              : `→ ${dailyHours.notes || 'Transferred to another project'}`
-            : dailyHours?.task
-            ? dailyHours.task.name
-            : dailyHours?.notes || '-'}
+        <td className="p-4 text-text-secondary text-sm max-w-xs">
+          {dailyHours?.status === 'transferred' ? (
+            <span className="truncate block">
+              {dailyHours.transferred_to_task
+                ? `→ ${dailyHours.transferred_to_task.name}`
+                : dailyHours.transferred_to_job_site
+                ? `→ ${dailyHours.transferred_to_job_site.name}`
+                : `→ ${dailyHours.notes || 'Transferred to another project'}`}
+            </span>
+          ) : canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+            <input
+              type="text"
+              value={edited?.notes ?? dailyHours?.notes ?? ''}
+              onChange={(e) => handleInlineNotesChange(worker.id, e.target.value, currentHours)}
+              placeholder="Add note..."
+              className="w-full bg-transparent border-b border-transparent hover:border-border focus:border-border-focus focus:outline-none text-text-primary placeholder-text-tertiary py-0.5 text-sm"
+            />
+          ) : dailyHours?.task ? (
+            dailyHours.task.name
+          ) : (
+            <span className="truncate block">{dailyHours?.notes || '-'}</span>
+          )}
         </td>
         <td className="p-4">
           {canEdit(currentUser) ? (
