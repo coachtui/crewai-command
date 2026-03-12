@@ -322,9 +322,6 @@ export function useShouldShowJobSiteSelector(): boolean {
   const { user } = useAuth();
   const { availableJobSites } = useJobSite();
 
-  // Managers see all sites company-wide — no selector needed
-  if (user?.base_role === 'manager') return false;
-
   // Don't show for workers (they don't switch sites manually)
   if (user?.base_role === 'worker' || user?.role === 'viewer') return false;
 
