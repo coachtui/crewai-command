@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, ChevronDown, Settings } from 'lucide-react';
+import { Plus, Search, ChevronDown, Settings, Printer } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite, useCanManageSite } from '../../contexts';
@@ -27,6 +27,8 @@ export function Workers() {
   const [showUnassigned, setShowUnassigned] = useState(true);
   const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
   const [isCrewPanelOpen, setIsCrewPanelOpen] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printRoles, setPrintRoles] = useState<Set<string>>(new Set(['operator', 'laborer', 'carpenter', 'mason']));
 
   // Get the "Unassigned" system job site
   const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
@@ -215,6 +217,59 @@ export function Workers() {
   const crewsWithWorkers = crews.filter(c => workersByCrew.has(c.id));
   const hasAnyWorkers = filteredWorkers.length > 0;
 
+  const WORKER_ROLES = ['operator', 'laborer', 'carpenter', 'mason'] as const;
+  const ROLE_LABELS: Record<string, string> = {
+    operator: 'Operators',
+    laborer: 'Laborers',
+    carpenter: 'Carpenters',
+    mason: 'Masons',
+  };
+
+  const handlePrint = () => {
+    const selectedRoles = printRoles.size > 0 ? [...printRoles] : WORKER_ROLES;
+    const workersToPrint = workers
+      .filter(w => selectedRoles.includes(w.role))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const siteName = currentJobSite?.name || 'Job Site';
+    const allSelected = selectedRoles.length === WORKER_ROLES.length;
+    const roleLabel = allSelected
+      ? 'All Roles'
+      : selectedRoles.map(r => ROLE_LABELS[r] || r).join(', ');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>Workers – ${siteName}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; color: #111; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .meta { color: #666; font-size: 13px; margin-bottom: 28px; }
+    ol { padding-left: 24px; margin: 0; }
+    li { padding: 7px 0; border-bottom: 1px solid #e5e5e5; font-size: 15px; display: flex; align-items: center; gap: 10px; }
+    li:last-child { border-bottom: none; }
+    .role { color: #888; font-size: 12px; text-transform: capitalize; background: #f3f4f6; border-radius: 4px; padding: 2px 6px; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <h1>${siteName}</h1>
+  <p class="meta">${roleLabel} &middot; ${workersToPrint.length} worker${workersToPrint.length !== 1 ? 's' : ''} &middot; ${new Date().toLocaleDateString()}</p>
+  <ol>
+    ${workersToPrint.map(w => `<li><span>${w.name}</span><span class="role">${w.role}</span></li>`).join('\n    ')}
+  </ol>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.print();
+    }
+    setShowPrintModal(false);
+  };
+
   return (
     <div className="p-6 md:p-8">
       {/* Header */}
@@ -247,6 +302,17 @@ export function Workers() {
           <option value="carpenter">Carpenters</option>
           <option value="mason">Masons</option>
         </select>
+
+        {currentJobSite && (
+          <Button
+            variant="secondary"
+            onClick={() => setShowPrintModal(true)}
+            className="w-full sm:w-auto h-10 whitespace-nowrap"
+          >
+            <Printer size={16} className="mr-2" />
+            Print List
+          </Button>
+        )}
 
         {canManage && currentJobSite && (
           <Button
@@ -394,6 +460,45 @@ export function Workers() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Print List Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowPrintModal(false)}>
+          <div className="bg-bg-primary rounded-2xl p-6 w-80 shadow-xl border border-border" onClick={e => e.stopPropagation()}>
+            <h3 className="text-[16px] font-semibold text-text-primary mb-1">Print Worker List</h3>
+            <p className="text-[13px] text-text-secondary mb-4">Select roles to include:</p>
+            <div className="space-y-2 mb-5">
+              {WORKER_ROLES.map(role => (
+                <label key={role} className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={printRoles.has(role)}
+                    onChange={(e) => {
+                      setPrintRoles(prev => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(role);
+                        else next.delete(role);
+                        return next;
+                      });
+                    }}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className="text-[14px] text-text-primary">{ROLE_LABELS[role]}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setShowPrintModal(false)} className="flex-1 h-9">
+                Cancel
+              </Button>
+              <Button onClick={handlePrint} disabled={printRoles.size === 0} className="flex-1 h-9">
+                <Printer size={14} className="mr-1.5" />
+                Print
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
