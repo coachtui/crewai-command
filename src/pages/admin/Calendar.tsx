@@ -45,6 +45,18 @@ export function Calendar() {
     }
   }, [currentJobSite?.id, user?.org_id]);
 
+  // Auto-open task from navigation state (e.g. clicked from Site Schedule)
+  useEffect(() => {
+    const openTaskId = (location.state as { openTaskId?: string } | null)?.openTaskId;
+    if (openTaskId && tasks.length > 0) {
+      const task = tasks.find(t => t.id === openTaskId);
+      if (task) {
+        setSelectedTask(task);
+        setShowTaskDetails(true);
+      }
+    }
+  }, [tasks, location.state]);
+
   // Enable real-time subscriptions
   useRealtimeSubscriptions([
     { table: 'tasks', onUpdate: useCallback(() => fetchData(), []) },

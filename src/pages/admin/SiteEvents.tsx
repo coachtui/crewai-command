@@ -548,7 +548,7 @@ export function SiteEvents() {
                           {visible.map(t => (
                             <button
                               key={t.id}
-                              onClick={() => navigate('/calendar')}
+                              onClick={() => navigate('/calendar', { state: { openTaskId: t.id } })}
                               className="w-full text-left px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
                               title={t.name}
                             >
@@ -558,7 +558,12 @@ export function SiteEvents() {
                             </button>
                           ))}
                           {extra > 0 && (
-                            <p className="text-[10px] text-text-secondary/60 pl-0.5">+{extra} more</p>
+                            <button
+                              onClick={() => navigate('/calendar')}
+                              className="text-[10px] text-indigo-600 hover:text-indigo-800 pl-0.5 transition-colors"
+                            >
+                              +{extra} more
+                            </button>
                           )}
                         </div>
                       );
