@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
+import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 import type { SiteEvent, Task } from '../../types';
 import { toast } from 'sonner';
 
@@ -224,6 +225,7 @@ export function SiteEvents() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState<ModalMode>({ type: 'closed' });
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -548,7 +550,7 @@ export function SiteEvents() {
                           {visible.map(t => (
                             <button
                               key={t.id}
-                              onClick={() => navigate('/calendar', { state: { openTaskId: t.id } })}
+                              onClick={() => setSelectedTask(t)}
                               className="w-full text-left px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
                               title={t.name}
                             >
@@ -657,6 +659,16 @@ export function SiteEvents() {
           />
         )}
       </Modal>
+
+      {/* Task Details Modal */}
+      {selectedTask && (
+        <TaskDetailsModal
+          isOpen={!!selectedTask}
+          onClose={() => setSelectedTask(null)}
+          task={selectedTask}
+          assignments={[]}
+        />
+      )}
     </div>
   );
 }
