@@ -25,7 +25,8 @@ interface SharedFile {
 
 export function SharedFiles() {
   const { user } = useAuth();
-  const { currentJobSite } = useJobSite();
+  const { currentJobSite, availableJobSites } = useJobSite();
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [files, setFiles] = useState<SharedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -34,33 +35,41 @@ export function SharedFiles() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const projectSites = availableJobSites.filter(s => !s.is_system_site);
+  const activeSiteId = selectedSiteId ?? currentJobSite?.id ?? null;
+  const activeSite = projectSites.find(s => s.id === activeSiteId) ?? null;
+
   // Workers (viewer/worker role) get read-only; everyone else can manage
   const canManage = ['admin', 'superintendent', 'engineer', 'foreman'].includes(
     user?.base_role || user?.role || ''
   );
 
+  // When the global job site context changes, reset local selection so it tracks automatically
+  useEffect(() => {
+    setSelectedSiteId(null);
+  }, [currentJobSite?.id]);
+
   useEffect(() => {
     if (user?.org_id) {
       fetchFiles();
     }
-  }, [user?.org_id, currentJobSite?.id]);
+  }, [user?.org_id, activeSiteId]);
 
   const fetchFiles = async () => {
-    if (!user?.org_id) return;
+    if (!user?.org_id || !activeSiteId) {
+      setFiles([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('shared_files')
         .select('*, uploader:users!uploaded_by(name)')
         .eq('organization_id', user.org_id)
+        .eq('job_site_id', activeSiteId)
         .order('created_at', { ascending: false });
 
-      if (currentJobSite?.id) {
-        // Show files scoped to this job site + org-wide files (job_site_id is null)
-        query = query.or(`job_site_id.eq.${currentJobSite.id},job_site_id.is.null`);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
       setFiles(data || []);
     } catch (error) {
@@ -72,7 +81,7 @@ export function SharedFiles() {
   };
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !user?.org_id) return;
+    if (!e.target.files || !user?.org_id || !activeSiteId) return;
     setUploading(true);
     const filesToUpload = Array.from(e.target.files);
     let successCount = 0;
@@ -97,7 +106,7 @@ export function SharedFiles() {
           .from('shared_files')
           .insert({
             organization_id: user.org_id,
-            job_site_id: currentJobSite?.id || null,
+            job_site_id: activeSiteId,
             name: file.name,
             storage_path: storagePath,
             url: publicUrl,
@@ -187,13 +196,26 @@ export function SharedFiles() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-1">Shared Files</h1>
-            <p className="text-[14px] text-text-secondary">
-              {currentJobSite ? `Files for ${currentJobSite.name}` : 'Organization-wide shared files'}
-            </p>
+            {projectSites.length > 1 ? (
+              <select
+                value={activeSiteId ?? ''}
+                onChange={e => setSelectedSiteId(e.target.value || null)}
+                className="mt-1 text-sm border border-border rounded-md px-2 py-1 bg-bg-primary text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">Select a project...</option>
+                {projectSites.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-[14px] text-text-secondary">
+                {activeSite ? `Files for ${activeSite.name}` : 'Select a project to view shared files'}
+              </p>
+            )}
           </div>
-          {canManage && (
+          {canManage && activeSiteId && (
             <div>
               <input
                 ref={fileInputRef}
@@ -219,6 +241,12 @@ export function SharedFiles() {
       {loading ? (
         <div className="text-center py-12">
           <p className="text-text-secondary">Loading files...</p>
+        </div>
+      ) : !activeSiteId ? (
+        <div className="text-center py-16 bg-bg-secondary border border-gray-100 rounded-xl shadow-sm-soft">
+          <File size={40} className="mx-auto text-text-secondary mb-3 opacity-40" />
+          <p className="text-text-secondary font-medium">No project selected</p>
+          <p className="text-sm text-text-secondary mt-1">Select a project to view its shared files</p>
         </div>
       ) : files.length === 0 ? (
         <div className="text-center py-16 bg-bg-secondary border border-gray-100 rounded-xl shadow-sm-soft">
@@ -292,9 +320,6 @@ export function SharedFiles() {
                     <span className="text-xs text-text-secondary">
                       {new Date(file.created_at).toLocaleDateString()}
                     </span>
-                    {file.job_site_id === null && currentJobSite && (
-                      <span className="text-xs text-text-secondary italic">org-wide</span>
-                    )}
                   </div>
                 </div>
 

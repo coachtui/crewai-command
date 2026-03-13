@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
 import type { Worker } from '../../types';
 import { useJobSite } from '../../contexts/JobSiteContext';
+import { WorkerSiteManager } from './WorkerSiteManager';
 
 interface WorkerFormProps {
   worker: Worker | null;
@@ -172,6 +173,15 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
           label: site.name
         }))}
       />
+
+      {worker && (
+        <div className="pt-2 border-t border-border">
+          <WorkerSiteManager
+            workerId={worker.id}
+            primarySiteId={worker.job_site_id}
+          />
+        </div>
+      )}
 
       <div className="flex gap-3 pt-4">
         <Button type="submit" className="flex-1">

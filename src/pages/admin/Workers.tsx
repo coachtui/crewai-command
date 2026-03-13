@@ -68,7 +68,40 @@ export function Workers() {
 
       const { data, error } = await query.order('name');
       if (error) throw error;
-      setWorkers(data || []);
+
+      let allWorkers = data || [];
+
+      // Also include workers with an active temporary assignment at this site
+      if (currentJobSite && allWorkers !== null) {
+        const today = new Date().toISOString().split('T')[0];
+        const { data: assignments } = await supabase
+          .from('worker_site_assignments')
+          .select('worker_id')
+          .eq('job_site_id', currentJobSite.id)
+          .eq('is_active', true)
+          .or(`start_date.is.null,start_date.lte.${today}`)
+          .or(`end_date.is.null,end_date.gte.${today}`);
+
+        if (assignments?.length) {
+          const primaryIds = new Set(allWorkers.map(w => w.id));
+          const extraIds = assignments
+            .map(a => a.worker_id)
+            .filter(id => !primaryIds.has(id));
+
+          if (extraIds.length) {
+            const { data: extraWorkers } = await supabase
+              .from('workers')
+              .select('*, crew:crews(id, name, color)')
+              .in('id', extraIds)
+              .eq('organization_id', user.org_id)
+              .order('name');
+
+            allWorkers = [...allWorkers, ...(extraWorkers || [])];
+          }
+        }
+      }
+
+      setWorkers(allWorkers);
     } catch (error) {
       toast.error('Failed to load workers');
       console.error(error);

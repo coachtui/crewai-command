@@ -1,5 +1,6 @@
 import { Edit2, Trash2, MapPin, Calendar } from 'lucide-react';
 import { ListItem } from '../ui/ListItem';
+import { Badge } from '../ui/Badge';
 import type { Task, Assignment } from '../../types';
 import { formatDate } from '../../lib/utils';
 import { useState } from 'react';
@@ -16,6 +17,10 @@ interface TaskCardProps {
 
 export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: TaskCardProps) {
   const [showAttachments, setShowAttachments] = useState(false);
+
+  // Strip "ON HOLD" prefix from display name if present in task name string
+  // TODO: Migrate on_hold to a proper `status` DB column for tasks when ready
+  const displayName = task.name.replace(/^\*{0,2}\s*ON HOLD\s*\*{0,2}\s*[-–]?\s*/i, '').trim();
 
   // Get assignments for this task
   const taskAssignments = assignments.filter(a => a.task_id === task.id);
@@ -42,7 +47,7 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
   const assignedOperators = uniqueOperators.length;
   const assignedLaborers = uniqueLaborers.length;
 
-  // Map task status to color
+  // Map task status to left-border color
   const statusColorMap: Record<string, 'blue' | 'green' | 'gray'> = {
     active: 'blue',
     completed: 'green',
@@ -50,6 +55,32 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
     planned: 'gray',
   };
   const statusColor = statusColorMap[task.status] || 'gray';
+
+  // Status badge
+  const statusBadgeVariantMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
+    active: 'success',
+    completed: 'default',
+    planned: 'info',
+    draft: 'default',
+  };
+  const statusLabelMap: Record<string, string> = {
+    active: 'Active',
+    completed: 'Completed',
+    planned: 'Planned',
+    draft: 'Draft',
+  };
+  const statusBadge = (
+    <Badge variant={statusBadgeVariantMap[task.status] ?? 'default'}>
+      {statusLabelMap[task.status] ?? task.status}
+    </Badge>
+  );
+
+  // Count color: gray for 0/0, amber for partially filled, green for fully filled
+  const getCountClass = (assigned: number, required: number) => {
+    if (required === 0) return 'text-text-secondary font-medium';
+    if (assigned >= required) return 'text-status-complete font-medium';
+    return 'text-warning font-semibold';
+  };
 
   // Build metadata array
   const metadata = [];
@@ -72,13 +103,13 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
       <div className="text-[13px]">
         <div className="mb-2">
           <span className="text-text-secondary">Operators: </span>
-          <span className={assignedOperators >= task.required_operators ? 'text-status-complete font-medium' : 'text-warning font-semibold'}>
+          <span className={getCountClass(assignedOperators, task.required_operators)}>
             {assignedOperators}/{task.required_operators}
           </span>
         </div>
         <div>
           <span className="text-text-secondary">Laborers: </span>
-          <span className={assignedLaborers >= task.required_laborers ? 'text-status-complete font-medium' : 'text-warning font-semibold'}>
+          <span className={getCountClass(assignedLaborers, task.required_laborers)}>
             {assignedLaborers}/{task.required_laborers}
           </span>
         </div>
@@ -112,7 +143,8 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
     <>
       <ListItem
         statusColor={statusColor}
-        title={task.name}
+        title={displayName}
+        badge={statusBadge}
         metadata={metadata}
         rightContent={rightContent}
         onClick={() => onAssign?.(task)}

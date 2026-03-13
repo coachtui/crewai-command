@@ -9,6 +9,7 @@ export interface MetadataItem {
 export interface ListItemProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'> {
   statusColor: 'blue' | 'green' | 'gray' | 'orange' | 'red';
   title: string;
+  badge?: React.ReactNode;
   metadata?: MetadataItem[];
   rightContent?: React.ReactNode;
 }
@@ -24,6 +25,7 @@ const statusColorMap = {
 export function ListItem({
   statusColor,
   title,
+  badge,
   metadata = [],
   rightContent,
   className,
@@ -40,9 +42,12 @@ export function ListItem({
     >
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-[15px] font-semibold text-text-primary mb-1.5 truncate">
-          {title}
-        </h3>
+        <div className="flex items-center gap-2 mb-1.5">
+          <h3 className="text-[15px] font-semibold text-text-primary truncate">
+            {title}
+          </h3>
+          {badge}
+        </div>
         {metadata.length > 0 && (
           <div className="flex items-center gap-5 text-[13px] text-text-secondary flex-wrap">
             {metadata.map((item, i) => (

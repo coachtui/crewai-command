@@ -94,6 +94,25 @@ export interface JobSiteAssignment {
 }
 
 // ============================================================================
+// WORKER SITE ASSIGNMENTS
+// ============================================================================
+
+export interface WorkerSiteAssignment {
+  id: string;
+  worker_id: string;
+  job_site_id: string;
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  assigned_by?: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+  // Joined data
+  job_site?: JobSite;
+}
+
+// ============================================================================
 // CREWS
 // ============================================================================
 
