@@ -40,7 +40,7 @@ export function SharedFiles() {
   const activeSite = projectSites.find(s => s.id === activeSiteId) ?? null;
 
   // Workers (viewer/worker role) get read-only; everyone else can manage
-  const canManage = ['admin', 'superintendent', 'engineer', 'foreman'].includes(
+  const canManage = ['manager', 'admin', 'superintendent', 'engineer', 'foreman'].includes(
     user?.base_role || user?.role || ''
   );
 
