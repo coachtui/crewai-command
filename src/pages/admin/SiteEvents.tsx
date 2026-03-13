@@ -22,7 +22,7 @@ import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 import type { SiteEvent, Task } from '../../types';
 import { toast } from 'sonner';
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // Can this user create/edit site events?
 function useCanManageEvents() {
@@ -352,8 +352,8 @@ export function SiteEvents() {
   // Build calendar grid: weeks covering the full month
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Mon
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sun
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const calDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
   // Group events by date string
@@ -364,13 +364,18 @@ export function SiteEvents() {
     eventsByDate.set(ev.event_date, list);
   });
 
-  // Group tasks by date (any day within their start_date–end_date range)
+  // Group tasks by date — respect include_saturday / include_sunday flags
   const tasksByDate = new Map<string, Task[]>();
   calDays.forEach(day => {
     const dateKey = format(day, 'yyyy-MM-dd');
-    const dayTasks = tasks.filter(t =>
-      t.start_date && t.end_date && dateKey >= t.start_date && dateKey <= t.end_date
-    );
+    const dow = day.getDay(); // 0 = Sun, 6 = Sat
+    const dayTasks = tasks.filter(t => {
+      if (!t.start_date || !t.end_date) return false;
+      if (dateKey < t.start_date || dateKey > t.end_date) return false;
+      if (dow === 0 && !t.include_sunday) return false;
+      if (dow === 6 && !t.include_saturday) return false;
+      return true;
+    });
     if (dayTasks.length > 0) tasksByDate.set(dateKey, dayTasks);
   });
 
