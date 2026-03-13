@@ -264,11 +264,8 @@ export function Calendar() {
               >
                 {/* Week Header */}
                 <div className="mb-4 pb-3 border-b border-border">
-                  <h2 className="font-bold text-lg">
-                    Week {week.weekNumber}
-                  </h2>
-                  <p className="text-sm text-text-secondary">
-                    {format(week.weekStart, 'MMM d')} - {format(week.weekEnd, 'MMM d')}
+                  <p className="text-sm font-semibold text-text-secondary">
+                    {format(week.weekStart, 'MMM d')} – {format(week.weekEnd, 'MMM d')}
                   </p>
                 </div>
 

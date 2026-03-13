@@ -226,6 +226,7 @@ export function SiteEvents() {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState<ModalMode>({ type: 'closed' });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -548,7 +549,8 @@ export function SiteEvents() {
                     {(() => {
                       const dayTasks = tasksByDate.get(dateKey) || [];
                       if (dayTasks.length === 0) return null;
-                      const visible = dayTasks.slice(0, 2);
+                      const isExpanded = expandedDays.has(dateKey);
+                      const visible = isExpanded ? dayTasks : dayTasks.slice(0, 2);
                       const extra = dayTasks.length - 2;
                       return (
                         <div className={`space-y-0.5 ${dayEvents.length > 0 ? 'mt-1 pt-1 border-t border-gray-100' : ''}`}>
@@ -566,10 +568,15 @@ export function SiteEvents() {
                           ))}
                           {extra > 0 && (
                             <button
-                              onClick={() => navigate('/calendar')}
+                              onClick={() => setExpandedDays(prev => {
+                                const next = new Set(prev);
+                                if (next.has(dateKey)) next.delete(dateKey);
+                                else next.add(dateKey);
+                                return next;
+                              })}
                               className="text-[10px] text-indigo-600 hover:text-indigo-800 pl-0.5 transition-colors"
                             >
-                              +{extra} more
+                              {isExpanded ? '▲ less' : `+${extra} more`}
                             </button>
                           )}
                         </div>
