@@ -163,8 +163,8 @@ export function Calendar() {
     const today = new Date();
 
     for (let i = 0; i < 4; i++) {
-      const weekStart = startOfWeek(addWeeks(today, i), { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(addWeeks(today, i), { weekStartsOn: 1 });
+      const weekStart = startOfWeek(addWeeks(today, i), { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(addWeeks(today, i), { weekStartsOn: 0 });
       const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
       weeks.push({
