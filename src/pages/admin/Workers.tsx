@@ -24,7 +24,7 @@ export function Workers() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
-  const [showUnassigned, setShowUnassigned] = useState(true);
+  const [showUnassigned, setShowUnassigned] = useState(false);
   const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
   const [isCrewPanelOpen, setIsCrewPanelOpen] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -337,40 +337,6 @@ export function Workers() {
         </Button>
       </div>
 
-      {/* Unassigned (system site) Workers Section */}
-      {filteredUnassignedWorkers.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => setShowUnassigned(!showUnassigned)}
-            className="flex items-center justify-between w-full px-4 py-3 bg-bg-secondary border border-gray-100 rounded-xl hover:bg-bg-hover transition-colors shadow-sm-soft"
-          >
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-[15px] font-semibold text-text-primary">Unassigned Workers</h2>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-warning/10 text-warning border border-warning/20">
-                {filteredUnassignedWorkers.length}
-              </span>
-            </div>
-            <ChevronDown
-              size={16}
-              className={`text-text-secondary transition-transform duration-150 ${showUnassigned ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {showUnassigned && (
-            <ListContainer className="mt-4">
-              {filteredUnassignedWorkers.map((worker) => (
-                <WorkerCard
-                  key={worker.id}
-                  worker={worker}
-                  onEdit={handleEditWorker}
-                  onDelete={handleDeleteWorker}
-                />
-              ))}
-            </ListContainer>
-          )}
-        </div>
-      )}
-
       {/* Workers grouped by crew */}
       {loading ? (
         <div className="text-center py-12">
@@ -459,6 +425,40 @@ export function Workers() {
                 </ListContainer>
               )}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Unassigned (system site) Workers Section */}
+      {filteredUnassignedWorkers.length > 0 && (
+        <div className="mt-4">
+          <button
+            onClick={() => setShowUnassigned(!showUnassigned)}
+            className="flex items-center justify-between w-full px-4 py-3 bg-bg-secondary border border-gray-100 rounded-xl hover:bg-bg-hover transition-colors shadow-sm-soft"
+          >
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-[15px] font-semibold text-text-primary">Unassigned Workers</h2>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-medium bg-warning/10 text-warning border border-warning/20">
+                {filteredUnassignedWorkers.length}
+              </span>
+            </div>
+            <ChevronDown
+              size={16}
+              className={`text-text-secondary transition-transform duration-150 ${showUnassigned ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showUnassigned && (
+            <ListContainer className="mt-4">
+              {filteredUnassignedWorkers.map((worker) => (
+                <WorkerCard
+                  key={worker.id}
+                  worker={worker}
+                  onEdit={handleEditWorker}
+                  onDelete={handleDeleteWorker}
+                />
+              ))}
+            </ListContainer>
           )}
         </div>
       )}
