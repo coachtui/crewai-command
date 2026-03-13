@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   format,
   startOfMonth,
@@ -12,12 +13,12 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
-import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Edit2, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Clock, MapPin, Edit2, Trash2, CalendarDays, BarChart2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import type { SiteEvent } from '../../types';
+import type { SiteEvent, Task } from '../../types';
 import { toast } from 'sonner';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -215,9 +216,11 @@ export function SiteEvents() {
   const { user } = useAuth();
   const { currentJobSite } = useJobSite();
   const canEdit = useCanManageEvents();
+  const navigate = useNavigate();
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState<SiteEvent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState<ModalMode>({ type: 'closed' });
@@ -225,6 +228,7 @@ export function SiteEvents() {
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
       fetchEvents();
+      fetchTasks();
     }
   }, [currentJobSite?.id, user?.org_id, currentMonth]);
 
@@ -256,6 +260,25 @@ export function SiteEvents() {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTasks = async () => {
+    if (!currentJobSite || !user?.org_id) { setTasks([]); return; }
+    const monthStart = format(startOfMonth(currentMonth), 'yyyy-MM-dd');
+    const monthEnd = format(endOfMonth(currentMonth), 'yyyy-MM-dd');
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('organization_id', user.org_id)
+        .eq('job_site_id', currentJobSite.id)
+        .lte('start_date', monthEnd)
+        .gte('end_date', monthStart);
+      if (error) throw error;
+      setTasks(data || []);
+    } catch (err) {
+      console.error('Failed to load tasks for schedule', err);
     }
   };
 
@@ -339,6 +362,16 @@ export function SiteEvents() {
     eventsByDate.set(ev.event_date, list);
   });
 
+  // Group tasks by date (any day within their start_date–end_date range)
+  const tasksByDate = new Map<string, Task[]>();
+  calDays.forEach(day => {
+    const dateKey = format(day, 'yyyy-MM-dd');
+    const dayTasks = tasks.filter(t =>
+      t.start_date && t.end_date && dateKey >= t.start_date && dateKey <= t.end_date
+    );
+    if (dayTasks.length > 0) tasksByDate.set(dateKey, dayTasks);
+  });
+
   const today = new Date();
 
   const modalTitle =
@@ -350,7 +383,7 @@ export function SiteEvents() {
   return (
     <div className="p-6 md:p-8">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6 gap-4">
+      <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary tracking-tight mb-1">
             Site Schedule
@@ -359,15 +392,33 @@ export function SiteEvents() {
             Concrete pours, inspections, tie-ins, and other site events
           </p>
         </div>
-        {canEdit && currentJobSite && (
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
-            onClick={() => setModal({ type: 'create' })}
-            className="whitespace-nowrap flex-shrink-0"
+            variant="secondary"
+            onClick={() => navigate('/calendar')}
+            className="whitespace-nowrap flex-shrink-0 h-10"
           >
-            <Plus size={18} className="mr-2" />
-            Add Event
+            <CalendarDays size={16} className="mr-2" />
+            Calendar
           </Button>
-        )}
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/calendar', { state: { defaultView: 'gantt' } })}
+            className="whitespace-nowrap flex-shrink-0 h-10"
+          >
+            <BarChart2 size={16} className="mr-2" />
+            Gantt Chart
+          </Button>
+          {canEdit && currentJobSite && (
+            <Button
+              onClick={() => setModal({ type: 'create' })}
+              className="whitespace-nowrap flex-shrink-0"
+            >
+              <Plus size={18} className="mr-2" />
+              Add Event
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* No job site selected */}
@@ -450,7 +501,7 @@ export function SiteEvents() {
                       </span>
                     </div>
 
-                    {/* Events */}
+                    {/* Site Events */}
                     <div className="space-y-0.5">
                       {dayEvents.map(ev => (
                         <button
@@ -475,7 +526,7 @@ export function SiteEvents() {
                       ))}
 
                       {/* Tap empty day to add event (editors only) */}
-                      {canEdit && isCurrentMonth && dayEvents.length === 0 && (
+                      {canEdit && isCurrentMonth && dayEvents.length === 0 && (tasksByDate.get(dateKey) || []).length === 0 && (
                         <button
                           onClick={() => setModal({ type: 'create', defaultDate: dateKey })}
                           className="w-full h-6 rounded-md text-[11px] text-text-secondary/0 hover:text-text-secondary/40 hover:bg-bg-hover transition-colors"
@@ -485,6 +536,32 @@ export function SiteEvents() {
                         </button>
                       )}
                     </div>
+
+                    {/* Task badges */}
+                    {(() => {
+                      const dayTasks = tasksByDate.get(dateKey) || [];
+                      if (dayTasks.length === 0) return null;
+                      const visible = dayTasks.slice(0, 2);
+                      const extra = dayTasks.length - 2;
+                      return (
+                        <div className={`space-y-0.5 ${dayEvents.length > 0 ? 'mt-1 pt-1 border-t border-gray-100' : ''}`}>
+                          {visible.map(t => (
+                            <div
+                              key={t.id}
+                              className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200"
+                              title={t.name}
+                            >
+                              <p className="text-[10px] font-medium text-indigo-800 truncate leading-tight">
+                                {t.name}
+                              </p>
+                            </div>
+                          ))}
+                          {extra > 0 && (
+                            <p className="text-[10px] text-text-secondary/60 pl-0.5">+{extra} more</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

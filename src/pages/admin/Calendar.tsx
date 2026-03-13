@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeSubscriptions } from '../../lib/hooks/useRealtime';
 import { useAuth, useJobSite } from '../../contexts';
@@ -25,11 +26,14 @@ type ViewMode = 'calendar' | 'gantt';
 export function Calendar() {
   const { user } = useAuth();
   const { currentJobSite } = useJobSite();
+  const location = useLocation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    (location.state as { defaultView?: ViewMode } | null)?.defaultView ?? 'calendar'
+  );
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
