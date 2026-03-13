@@ -546,15 +546,16 @@ export function SiteEvents() {
                       return (
                         <div className={`space-y-0.5 ${dayEvents.length > 0 ? 'mt-1 pt-1 border-t border-gray-100' : ''}`}>
                           {visible.map(t => (
-                            <div
+                            <button
                               key={t.id}
-                              className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200"
+                              onClick={() => navigate('/calendar')}
+                              className="w-full text-left px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 transition-colors"
                               title={t.name}
                             >
                               <p className="text-[10px] font-medium text-indigo-800 truncate leading-tight">
                                 {t.name}
                               </p>
-                            </div>
+                            </button>
                           ))}
                           {extra > 0 && (
                             <p className="text-[10px] text-text-secondary/60 pl-0.5">+{extra} more</p>
