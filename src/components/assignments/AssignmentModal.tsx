@@ -60,7 +60,37 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
       if (assignmentsData.error) throw assignmentsData.error;
       if (crewsData.error) throw crewsData.error;
 
-      setWorkers(workersData.data || []);
+      let allWorkers = workersData.data || [];
+
+      // Also include active workers temporarily assigned to this site via worker_site_assignments
+      const today = new Date().toISOString().split('T')[0];
+      const { data: siteAssignments } = await supabase
+        .from('worker_site_assignments')
+        .select('worker_id')
+        .eq('job_site_id', currentJobSite.id)
+        .eq('is_active', true)
+        .or(`start_date.is.null,start_date.lte.${today}`)
+        .or(`end_date.is.null,end_date.gte.${today}`);
+
+      if (siteAssignments?.length) {
+        const primaryIds = new Set(allWorkers.map(w => w.id));
+        const extraIds = siteAssignments
+          .map(a => a.worker_id)
+          .filter(id => !primaryIds.has(id));
+
+        if (extraIds.length) {
+          const { data: extraWorkers } = await supabase
+            .from('workers')
+            .select('*, crew:crews(id, name, color)')
+            .in('id', extraIds)
+            .eq('status', 'active')
+            .order('name');
+
+          allWorkers = [...allWorkers, ...(extraWorkers || [])];
+        }
+      }
+
+      setWorkers(allWorkers);
       setAssignments(assignmentsData.data || []);
       setCrews(crewsData.data || []);
     } catch (error) {
