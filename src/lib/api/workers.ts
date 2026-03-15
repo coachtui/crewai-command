@@ -15,6 +15,17 @@ export async function fetchAllWorkers(orgId: string): Promise<Worker[]> {
   return data || [];
 }
 
+// Fetch all active worker_site_assignments for an org (RLS filters by org automatically)
+export async function fetchOrgWorkerSiteAssignments(): Promise<WorkerSiteAssignment[]> {
+  const { data, error } = await supabase
+    .from('worker_site_assignments')
+    .select('*, job_site:job_sites(id, name)')
+    .eq('is_active', true);
+
+  if (error) throw error;
+  return data || [];
+}
+
 export async function moveWorker(workerId: string, toSiteId: string): Promise<Worker> {
   const { data, error } = await supabase
     .from('workers')
