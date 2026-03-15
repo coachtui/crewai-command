@@ -610,6 +610,232 @@ export function DailyHours() {
     toast.success('Weekly hours exported to CSV');
   };
 
+  const exportDailyPDF = () => {
+    if (workers.length === 0) {
+      toast.error('No workers to export');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+
+    const [yr, mo, dy] = selectedDate.split('-').map(Number);
+    const displayDate = new Date(yr, mo - 1, dy).toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+    let y = 18;
+
+    // ── HEADER ──────────────────────────────────────────────────────────────
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(20, 20, 20);
+    doc.text('Daily Hours Report', margin, y);
+    y += 8;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    if (currentJobSite) {
+      doc.text(currentJobSite.name, margin, y);
+      y += 6;
+    }
+    doc.text(displayDate, margin, y);
+    y += 5;
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated ${new Date().toLocaleString()}`, margin, y);
+    doc.setTextColor(20, 20, 20);
+    y += 7;
+
+    // Divider
+    doc.setDrawColor(210, 210, 210);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 7;
+
+    // ── MANHOURS TABLE ───────────────────────────────────────────────────────
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Manhours', margin, y);
+    y += 6;
+
+    // Column x-positions
+    const col = {
+      num:    margin,
+      name:   margin + 9,
+      role:   margin + 62,
+      status: margin + 86,
+      hours:  margin + 112,
+      notes:  margin + 130,
+    };
+
+    // Header row
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(110, 110, 110);
+    doc.text('#',           col.num,    y);
+    doc.text('Worker',      col.name,   y);
+    doc.text('Role',        col.role,   y);
+    doc.text('Status',      col.status, y);
+    doc.text('Hours',       col.hours,  y);
+    doc.text('Task / Notes',col.notes,  y);
+    y += 2;
+    doc.setDrawColor(180, 180, 180);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 4;
+    doc.setTextColor(20, 20, 20);
+
+    let totalHoursWorked = 0;
+    const notesColWidth = pageWidth - margin - col.notes;
+
+    workers.forEach((ws, index) => {
+      if (y > pageHeight - 30) {
+        doc.addPage();
+        y = 20;
+      }
+
+      const { worker, dailyHours: dh } = ws;
+      const hoursVal = dh?.status === 'worked' ? (dh.hours_worked || 0) : 0;
+      totalHoursWorked += hoursVal;
+
+      const statusLabel =
+        dh?.status === 'worked'      ? 'Worked' :
+        dh?.status === 'off'         ? 'Off' :
+        dh?.status === 'transferred' ? 'Transferred' :
+        'Not Logged';
+
+      const noteText =
+        (dh?.task as Task | undefined)?.name ||
+        (dh?.transferred_to_task as Task | undefined)?.name ||
+        (dh?.transferred_to_job_site as JobSite | undefined)?.name ||
+        dh?.notes || '';
+
+      // Alternating row tint
+      if (index % 2 === 0) {
+        doc.setFillColor(248, 249, 250);
+        doc.rect(margin, y - 3.5, contentWidth, 7, 'F');
+      }
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(index + 1),                       col.num,    y);
+      doc.text(worker.name.substring(0, 30),            col.name,   y);
+      doc.text(worker.role.charAt(0).toUpperCase() + worker.role.slice(1), col.role, y);
+      doc.text(statusLabel,                             col.status, y);
+      doc.text(hoursVal > 0 ? `${hoursVal.toFixed(1)}h` : '-', col.hours, y);
+      if (noteText) {
+        doc.text(doc.splitTextToSize(noteText, notesColWidth)[0], col.notes, y);
+      }
+
+      y += 6.5;
+    });
+
+    // Totals row
+    y += 1;
+    doc.setDrawColor(80, 80, 80);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.text(`${workers.length} ${workers.length === 1 ? 'worker' : 'workers'}`, col.name, y);
+    doc.text(`${totalHoursWorked.toFixed(1)}h total`, col.hours, y);
+    y += 10;
+
+    // ── DAILY NOTES ─────────────────────────────────────────────────────────
+    const NOTE_SECTIONS: { key: keyof DailyNote; label: string }[] = [
+      { key: 'general_notes',   label: 'General' },
+      { key: 'equipment_notes', label: 'Equipment' },
+      { key: 'tools_notes',     label: 'Tools' },
+      { key: 'safety_notes',    label: 'Safety' },
+      { key: 'weather_notes',   label: 'Weather' },
+    ];
+
+    const filledSections = NOTE_SECTIONS.filter(s => dailyNote?.[s.key]?.toString().trim());
+
+    if (filledSections.length > 0) {
+      if (y > pageHeight - 40) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setDrawColor(210, 210, 210);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(20, 20, 20);
+      doc.text('Daily Notes', margin, y);
+      y += 7;
+
+      filledSections.forEach(({ key, label }) => {
+        if (y > pageHeight - 20) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100, 100, 100);
+        doc.text(label.toUpperCase(), margin, y);
+        y += 4.5;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(20, 20, 20);
+        const lines = doc.splitTextToSize(dailyNote![key] as string, contentWidth);
+        lines.forEach((line: string) => {
+          if (y > pageHeight - 15) {
+            doc.addPage();
+            y = 20;
+          }
+          doc.text(line, margin, y);
+          y += 5;
+        });
+        y += 5;
+      });
+    } else if (!dailyNote) {
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+
+      doc.setDrawColor(210, 210, 210);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 7;
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(20, 20, 20);
+      doc.text('Daily Notes', margin, y);
+      y += 6;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(150, 150, 150);
+      doc.text('No notes recorded for this day.', margin, y);
+    }
+
+    // ── FOOTER on every page ─────────────────────────────────────────────────
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setTextColor(160, 160, 160);
+      doc.text(
+        `${currentJobSite?.name || ''} · ${displayDate} · Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 7,
+        { align: 'center' }
+      );
+    }
+
+    doc.save(`daily_report_${selectedDate}.pdf`);
+    toast.success('Daily report exported');
+  };
+
   const exportToPDF = () => {
     if (weeklyData.length === 0) {
       toast.error('No data to export');
@@ -1002,6 +1228,14 @@ export function DailyHours() {
               Accept All ({editedHours.size})
             </Button>
           )}
+          <Button
+            onClick={exportDailyPDF}
+            variant="secondary"
+            title="Export daily report as PDF"
+          >
+            <Download size={16} className="mr-2" />
+            Export PDF
+          </Button>
           <Button
             onClick={() => setDailyNotesOpen(true)}
             variant="secondary"
