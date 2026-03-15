@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight, NotebookPen } from 'lucide-react';
+import { DailyNotesModal } from '../../components/daily-notes/DailyNotesModal';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
 import type { Worker, DailyHours as DailyHoursType, Task, User, Crew, JobSite } from '../../types';
@@ -71,6 +72,9 @@ export function DailyHours() {
   const [groupByCrew, setGroupByCrew] = useState(false);
   const [crews, setCrews] = useState<Crew[]>([]);
   const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
+
+  // Daily notes modal
+  const [dailyNotesOpen, setDailyNotesOpen] = useState(false);
 
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
@@ -564,7 +568,8 @@ export function DailyHours() {
     const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
     rows.push(['TOTAL', '', ...dayTotals, grandTotal]);
 
-    const csvContent = [
+    const siteRow = currentJobSite ? [`"${currentJobSite.name}"`, ...Array(headers.length - 1).fill('""')].join(',') + '\n' : '';
+    const csvContent = siteRow + [
       headers.join(','),
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
@@ -601,7 +606,7 @@ export function DailyHours() {
     // Title
     doc.setFontSize(16);
     doc.text('Weekly Hours Summary', 14, 15);
-    
+
     doc.setFontSize(10);
     const formatDate = (d: Date) => {
       const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -609,7 +614,12 @@ export function DailyHours() {
       const y = String(d.getFullYear()).slice(-2);
       return `${m}/${day}/${y}`;
     };
-    doc.text(`Week: ${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`, 14, 22);
+    if (currentJobSite) {
+      doc.text(currentJobSite.name, 14, 22);
+      doc.text(`Week: ${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`, 14, 28);
+    } else {
+      doc.text(`Week: ${formatDate(startOfWeek)} - ${formatDate(endOfWeek)}`, 14, 22);
+    }
     
     // Table headers with dates
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -622,7 +632,7 @@ export function DailyHours() {
       headers.push(`${dayNames[i]}\n${dateStr}`);
     }
     headers.push('Total');
-    let yPosition = 32;
+    let yPosition = currentJobSite ? 38 : 32;
     
     // Draw header row
     doc.setFontSize(8);
@@ -971,6 +981,14 @@ export function DailyHours() {
             </Button>
           )}
           <Button
+            onClick={() => setDailyNotesOpen(true)}
+            variant="secondary"
+            title="Add or view daily notes"
+          >
+            <NotebookPen size={16} className="mr-2" />
+            Daily Notes
+          </Button>
+          <Button
             onClick={() => setGroupByCrew(!groupByCrew)}
             variant={groupByCrew ? 'primary' : 'secondary'}
             title={groupByCrew ? 'Switch to flat view' : 'Group by crew'}
@@ -1285,7 +1303,7 @@ export function DailyHours() {
       <Modal
         isOpen={showWeeklyChart}
         onClose={() => setShowWeeklyChart(false)}
-        title="Weekly Hours Summary"
+        title={`Weekly Hours Summary${currentJobSite ? ` — ${currentJobSite.name}` : ''}`}
         size="lg"
       >
         <div className="space-y-4">
@@ -1436,6 +1454,14 @@ export function DailyHours() {
           </div>
         </div>
       </Modal>
+
+      {/* Daily Notes Modal */}
+      <DailyNotesModal
+        isOpen={dailyNotesOpen}
+        onClose={() => setDailyNotesOpen(false)}
+        date={selectedDate}
+        readOnly={!canEdit(currentUser)}
+      />
     </div>
   );
 }

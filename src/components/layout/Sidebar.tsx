@@ -16,7 +16,8 @@ import {
   Menu,
   X,
   CircleUser,
-  ShieldCheck
+  ShieldCheck,
+  Truck
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
@@ -122,6 +123,7 @@ export function Sidebar() {
   const navItems: NavItem[] = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/workers', icon: Users, label: 'Workers' },
+    { path: '/equipment', icon: Truck, label: 'Equipment & Tools' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/site-events', icon: CalendarClock, label: 'Site Schedule' },
     { path: '/daily-hours', icon: Clock, label: 'Daily Hours' },

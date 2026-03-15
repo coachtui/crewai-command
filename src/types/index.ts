@@ -369,6 +369,63 @@ export interface SiteEvent {
 }
 
 // ============================================================================
+// DAILY NOTES
+// ============================================================================
+
+export interface DailyNote {
+  id: string;
+  organization_id: string;
+  job_site_id?: string;
+  note_date: string;
+  general_notes?: string;
+  equipment_notes?: string;
+  tools_notes?: string;
+  safety_notes?: string;
+  weather_notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// EQUIPMENT
+// ============================================================================
+
+export type EquipmentType = 'heavy_equipment' | 'small_equipment' | 'tools' | 'vehicles' | 'other';
+export type EquipmentStatus = 'available' | 'in_use' | 'maintenance' | 'retired';
+
+export interface Equipment {
+  id: string;
+  organization_id: string;
+  job_site_id?: string;
+  name: string;
+  type: EquipmentType;
+  model?: string;
+  serial_number?: string;
+  status: EquipmentStatus;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  // Joined data
+  job_site?: JobSite;
+}
+
+export interface EquipmentSiteAssignment {
+  id: string;
+  equipment_id: string;
+  job_site_id: string;
+  start_date?: string;
+  end_date?: string;
+  is_active: boolean;
+  assigned_by?: string;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
+  // Joined data
+  job_site?: JobSite;
+}
+
+// ============================================================================
 // UTILITY TYPES
 // ============================================================================
 

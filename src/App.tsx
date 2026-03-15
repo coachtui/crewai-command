@@ -14,6 +14,7 @@ import { RequestAccess } from './pages/RequestAccess';
 import { SetPassword } from './pages/SetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { Workers } from './pages/admin/Workers';
+import { Equipment } from './pages/admin/Equipment';
 import { Tasks } from './pages/admin/Tasks';
 import { Calendar } from './pages/admin/Calendar';
 import { SiteEvents } from './pages/admin/SiteEvents';
@@ -165,6 +166,16 @@ function App() {
                 <ProtectedRoute>
                   <ProtectedLayout>
                     <Workers />
+                  </ProtectedLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/equipment"
+              element={
+                <ProtectedRoute>
+                  <ProtectedLayout>
+                    <Equipment />
                   </ProtectedLayout>
                 </ProtectedRoute>
               }
