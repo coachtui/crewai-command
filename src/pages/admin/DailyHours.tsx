@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download,
 import { DailyNotesModal } from '../../components/daily-notes/DailyNotesModal';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
-import type { Worker, DailyHours as DailyHoursType, Task, User, Crew, JobSite } from '../../types';
+import type { Worker, DailyHours as DailyHoursType, Task, User, Crew, JobSite, DailyNote } from '../../types';
 import { canEdit, isViewer } from '../../lib/roleHelpers';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -76,6 +76,10 @@ export function DailyHours() {
   // Daily notes modal
   const [dailyNotesOpen, setDailyNotesOpen] = useState(false);
 
+  // Daily notes summary (displayed inline below the worker list)
+  const [dailyNote, setDailyNote] = useState<DailyNote | null>(null);
+  const [dailyNoteError, setDailyNoteError] = useState(false);
+
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
     worker: Worker;
@@ -132,14 +136,32 @@ export function DailyHours() {
 
       if (!userData) return;
 
-      // Load workers filtered by current job site (include crew join)
-      const { data: workersData, error: workersError } = await supabase
-        .from('workers')
-        .select('*, crew:crews(id, name, color)')
-        .eq('organization_id', userData.org_id)
-        .eq('job_site_id', currentJobSite.id)
-        .eq('status', 'active')
-        .order('name');
+      // Load workers and daily notes in parallel — both only need orgId + siteId
+      setDailyNoteError(false);
+      const [workersResult, noteResult] = await Promise.all([
+        supabase
+          .from('workers')
+          .select('*, crew:crews(id, name, color)')
+          .eq('organization_id', userData.org_id)
+          .eq('job_site_id', currentJobSite.id)
+          .eq('status', 'active')
+          .order('name'),
+        supabase
+          .from('daily_notes')
+          .select('*')
+          .eq('organization_id', userData.org_id)
+          .eq('job_site_id', currentJobSite.id)
+          .eq('note_date', selectedDate)
+          .maybeSingle(),
+      ]);
+
+      const { data: workersData, error: workersError } = workersResult;
+      if (noteResult.error) {
+        setDailyNoteError(true);
+        setDailyNote(null);
+      } else {
+        setDailyNote(noteResult.data ?? null);
+      }
 
       if (workersError) throw workersError;
 
@@ -1142,9 +1164,14 @@ export function DailyHours() {
               </tbody>
               {workers.length > 0 && (
                 <tfoot>
-                  <tr className="border-t-2 border-border">
-                    <td colSpan={7} className="p-4 font-semibold text-right text-text-secondary">
-                      Total on site: {workers.length} {workers.length === 1 ? 'person' : 'people'}
+                  <tr className="border-t-2 border-border bg-bg-hover/30">
+                    <td colSpan={4} className="p-4 text-[13px] text-text-secondary">
+                      {workers.length} {workers.length === 1 ? 'person' : 'people'} on site
+                    </td>
+                    <td colSpan={3} className="p-4 font-semibold text-right text-text-primary">
+                      Total: {workers
+                        .reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0), 0)
+                        .toFixed(1)}h
                     </td>
                   </tr>
                 </tfoot>
@@ -1153,6 +1180,57 @@ export function DailyHours() {
           </div>
         </Card>
       )}
+
+      {/* Daily Notes Summary — rendered inline below worker list */}
+      {!dailyNoteError && (() => {
+        const NOTE_SECTIONS: { key: keyof DailyNote; label: string }[] = [
+          { key: 'general_notes', label: 'General' },
+          { key: 'equipment_notes', label: 'Equipment' },
+          { key: 'tools_notes', label: 'Tools' },
+          { key: 'safety_notes', label: 'Safety' },
+          { key: 'weather_notes', label: 'Weather' },
+        ];
+        const filledSections = NOTE_SECTIONS.filter(s => dailyNote?.[s.key]?.toString().trim());
+        const hasNotes = filledSections.length > 0;
+
+        const formatTime = (ts: string) => {
+          const d = new Date(ts);
+          return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        };
+
+        return (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <NotebookPen size={16} className="text-text-secondary" />
+              <h2 className="text-[15px] font-semibold text-text-primary">Daily Notes</h2>
+              {dailyNote && (
+                <span className="text-[12px] text-text-tertiary ml-1">
+                  last updated {formatTime(dailyNote.updated_at)}
+                </span>
+              )}
+            </div>
+
+            {!hasNotes ? (
+              <div className="rounded-xl border border-border bg-bg-secondary px-5 py-6 text-center text-[14px] text-text-secondary">
+                No notes recorded for this day.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filledSections.map(({ key, label }) => (
+                  <div key={key} className="rounded-xl border border-border bg-bg-secondary px-5 py-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-text-tertiary mb-2">
+                      {label}
+                    </p>
+                    <p className="text-[14px] text-text-primary whitespace-pre-wrap leading-relaxed">
+                      {dailyNote![key] as string}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Off Modal */}
       <Modal
