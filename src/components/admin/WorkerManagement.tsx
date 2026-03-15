@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 
 export function WorkerManagement() {
   const { user } = useAuth();
-  const { availableJobSites } = useJobSite();
+  useJobSite(); // provides JobSiteContext for WorkerSiteManager children
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [jobSites, setJobSites] = useState<JobSite[]>([]);
   // Map of workerId -> active additional site assignments
