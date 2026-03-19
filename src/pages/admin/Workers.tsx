@@ -47,6 +47,10 @@ export function Workers() {
     fetchUnassignedWorkers();
   }, []));
 
+  useRealtimeSubscription('worker_site_assignments', useCallback(() => {
+    fetchWorkers();
+  }, []));
+
   const fetchWorkers = async () => {
     if (!user?.org_id) {
       setWorkers([]);
