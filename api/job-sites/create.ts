@@ -65,8 +65,8 @@ export default async function handler(req: Request) {
       });
     }
 
-    if (creator.base_role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Only admins can create job sites' }), {
+    if (creator.base_role !== 'manager' && creator.base_role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Only managers or admins can create job sites' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
       });
