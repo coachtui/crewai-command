@@ -165,6 +165,32 @@ export function DailyHours() {
 
       if (workersError) throw workersError;
 
+      // Also include workers temporarily assigned to this site via worker_site_assignments
+      const { data: tempAssignments } = await supabase
+        .from('worker_site_assignments')
+        .select('worker_id')
+        .eq('job_site_id', currentJobSite.id)
+        .eq('is_active', true)
+        .or(`start_date.is.null,start_date.lte.${selectedDate}`)
+        .or(`end_date.is.null,end_date.gte.${selectedDate}`);
+
+      if (tempAssignments?.length) {
+        const primaryIds = new Set((workersData || []).map(w => w.id));
+        const extraIds = tempAssignments.map(a => a.worker_id).filter(id => !primaryIds.has(id));
+        if (extraIds.length) {
+          const { data: extraWorkers } = await supabase
+            .from('workers')
+            .select('*, crew:crews(id, name, color)')
+            .in('id', extraIds)
+            .eq('organization_id', userData.org_id)
+            .eq('status', 'active')
+            .order('name');
+          if (extraWorkers?.length) {
+            (workersData || []).push(...extraWorkers);
+          }
+        }
+      }
+
       // Load daily hours for selected date (filtered via worker join)
       const workerIds = (workersData || []).map(w => w.id);
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
