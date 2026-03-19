@@ -165,8 +165,10 @@ export function DailyHours() {
 
       if (workersError) throw workersError;
 
-      // Also include workers temporarily assigned to this site via worker_site_assignments
-      const { data: tempAssignments } = await supabase
+      // Build combined worker list: primary site workers + any temp-assigned workers
+      let allWorkers = [...(workersData || [])];
+
+      const { data: tempAssignments, error: tempErr } = await supabase
         .from('worker_site_assignments')
         .select('worker_id')
         .eq('job_site_id', currentJobSite.id)
@@ -174,25 +176,28 @@ export function DailyHours() {
         .or(`start_date.is.null,start_date.lte.${selectedDate}`)
         .or(`end_date.is.null,end_date.gte.${selectedDate}`);
 
+      if (tempErr) console.error('worker_site_assignments fetch error:', tempErr);
+
       if (tempAssignments?.length) {
-        const primaryIds = new Set((workersData || []).map(w => w.id));
+        const primaryIds = new Set(allWorkers.map(w => w.id));
         const extraIds = tempAssignments.map(a => a.worker_id).filter(id => !primaryIds.has(id));
         if (extraIds.length) {
-          const { data: extraWorkers } = await supabase
+          const { data: extraWorkers, error: extraErr } = await supabase
             .from('workers')
             .select('*, crew:crews(id, name, color)')
             .in('id', extraIds)
             .eq('organization_id', userData.org_id)
             .eq('status', 'active')
             .order('name');
+          if (extraErr) console.error('extra workers fetch error:', extraErr);
           if (extraWorkers?.length) {
-            (workersData || []).push(...extraWorkers);
+            allWorkers = [...allWorkers, ...extraWorkers];
           }
         }
       }
 
       // Load daily hours for selected date (filtered via worker join)
-      const workerIds = (workersData || []).map(w => w.id);
+      const workerIds = allWorkers.map(w => w.id);
       const { data: dailyHoursData, error: dailyHoursError } = await supabase
         .from('daily_hours')
         .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*), transferred_to_job_site:job_sites!transferred_to_job_site_id(*)')
@@ -233,7 +238,7 @@ export function DailyHours() {
       setJobSites(jobSitesData || []);
 
       // Combine workers with their daily hours
-      const workerStatuses: WorkerDayStatus[] = (workersData || []).map((worker) => ({
+      const workerStatuses: WorkerDayStatus[] = allWorkers.map((worker) => ({
         worker,
         dailyHours: (dailyHoursData || []).find((dh) => dh.worker_id === worker.id),
       }));
