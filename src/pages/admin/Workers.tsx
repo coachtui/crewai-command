@@ -78,13 +78,15 @@ export function Workers() {
       // Also include workers with an active temporary assignment at this site
       if (currentJobSite && allWorkers !== null) {
         const today = new Date().toISOString().split('T')[0];
-        const { data: assignments } = await supabase
+        const { data: assignments, error: assignmentsError } = await supabase
           .from('worker_site_assignments')
           .select('worker_id')
           .eq('job_site_id', currentJobSite.id)
           .eq('is_active', true)
           .or(`start_date.is.null,start_date.lte.${today}`)
           .or(`end_date.is.null,end_date.gte.${today}`);
+
+        if (assignmentsError) console.error('worker_site_assignments query error:', assignmentsError);
 
         if (assignments?.length) {
           const primaryIds = new Set(allWorkers.map(w => w.id));
@@ -551,6 +553,7 @@ export function Workers() {
         <WorkerForm
           worker={editingWorker}
           onSave={handleSaveWorker}
+          onAssignmentChange={fetchWorkers}
           onCancel={() => {
             setIsModalOpen(false);
             setEditingWorker(null);

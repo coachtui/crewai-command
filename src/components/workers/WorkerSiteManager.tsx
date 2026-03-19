@@ -17,9 +17,10 @@ import { toast } from 'sonner';
 interface WorkerSiteManagerProps {
   workerId: string;
   primarySiteId?: string; // The worker's main job_site_id (excluded from additional assignments)
+  onAssignmentChange?: () => void; // Called after any add/remove so parents can refresh
 }
 
-export function WorkerSiteManager({ workerId, primarySiteId }: WorkerSiteManagerProps) {
+export function WorkerSiteManager({ workerId, primarySiteId, onAssignmentChange }: WorkerSiteManagerProps) {
   const { user } = useAuth();
   const { availableJobSites } = useJobSite();
   const [assignments, setAssignments] = useState<WorkerSiteAssignment[]>([]);
@@ -76,6 +77,7 @@ export function WorkerSiteManager({ workerId, primarySiteId }: WorkerSiteManager
       });
       setIsAdding(false);
       toast.success('Site assignment added');
+      onAssignmentChange?.();
     } catch {
       toast.error('Failed to add site assignment');
     }
@@ -86,6 +88,7 @@ export function WorkerSiteManager({ workerId, primarySiteId }: WorkerSiteManager
       await removeWorkerSiteAssignment(id);
       setAssignments(prev => prev.filter(a => a.id !== id));
       toast.success('Assignment removed');
+      onAssignmentChange?.();
     } catch {
       toast.error('Failed to remove assignment');
     }

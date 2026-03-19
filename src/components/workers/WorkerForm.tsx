@@ -12,9 +12,10 @@ interface WorkerFormProps {
   worker: Worker | null;
   onSave: (workerData: Partial<Worker>) => void;
   onCancel: () => void;
+  onAssignmentChange?: () => void;
 }
 
-export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
+export function WorkerForm({ worker, onSave, onCancel, onAssignmentChange }: WorkerFormProps) {
   const { availableJobSites } = useJobSite();
 
   // Get the "Unassigned" system job site to use as default
@@ -179,6 +180,7 @@ export function WorkerForm({ worker, onSave, onCancel }: WorkerFormProps) {
           <WorkerSiteManager
             workerId={worker.id}
             primarySiteId={worker.job_site_id}
+            onAssignmentChange={onAssignmentChange}
           />
         </div>
       )}

@@ -294,6 +294,7 @@ export function WorkerManagement() {
               <WorkerSiteManager
                 workerId={managingWorker.id}
                 primarySiteId={newPrimarySiteId || managingWorker.job_site_id}
+                onAssignmentChange={loadAssignments}
               />
             </div>
           </div>
