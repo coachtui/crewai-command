@@ -76,6 +76,9 @@ export function DailyHours() {
   // Daily notes modal
   const [dailyNotesOpen, setDailyNotesOpen] = useState(false);
 
+  // PDF preview modal
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+
   // Daily notes summary (displayed inline below the worker list)
   const [dailyNote, setDailyNote] = useState<DailyNote | null>(null);
   const [dailyNoteError, setDailyNoteError] = useState(false);
@@ -641,7 +644,7 @@ export function DailyHours() {
     toast.success('Weekly hours exported to CSV');
   };
 
-  const exportDailyPDF = () => {
+  const downloadDailyPDF = () => {
     if (workers.length === 0) {
       toast.error('No workers to export');
       return;
@@ -1260,11 +1263,14 @@ export function DailyHours() {
             </Button>
           )}
           <Button
-            onClick={exportDailyPDF}
+            onClick={() => {
+              if (workers.length === 0) { toast.error('No workers to export'); return; }
+              setPdfPreviewOpen(true);
+            }}
             variant="secondary"
-            title="Export daily report as PDF"
+            title="Preview and export daily report as PDF"
           >
-            <Download size={16} className="mr-2" />
+            <FileText size={16} className="mr-2" />
             Export PDF
           </Button>
           <Button
@@ -1805,6 +1811,124 @@ export function DailyHours() {
         date={selectedDate}
         readOnly={!canEdit(currentUser)}
       />
+
+      {/* PDF Preview Modal */}
+      <Modal
+        isOpen={pdfPreviewOpen}
+        onClose={() => setPdfPreviewOpen(false)}
+        title="Daily Report Preview"
+        size="lg"
+      >
+        {(() => {
+          const [yr, mo, dy] = selectedDate.split('-').map(Number);
+          const displayDate = new Date(yr, mo - 1, dy).toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          });
+          const NOTE_SECTIONS: { key: keyof DailyNote; label: string }[] = [
+            { key: 'general_notes',   label: 'General' },
+            { key: 'equipment_notes', label: 'Equipment' },
+            { key: 'tools_notes',     label: 'Tools' },
+            { key: 'safety_notes',    label: 'Safety' },
+            { key: 'weather_notes',   label: 'Weather' },
+          ];
+          const filledSections = NOTE_SECTIONS.filter(s => dailyNote?.[s.key]?.toString().trim());
+          const totalHours = workers.reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0), 0);
+
+          return (
+            <div className="space-y-4">
+              {/* Paper */}
+              <div className="bg-white text-gray-900 rounded border border-gray-200 p-8 font-sans shadow-sm overflow-auto max-h-[60vh]">
+                {/* Header */}
+                <h1 className="text-2xl font-bold text-gray-900">Daily Hours Report</h1>
+                {currentJobSite && <p className="text-sm mt-1 text-gray-700">{currentJobSite.name}</p>}
+                <p className="text-sm text-gray-700">{displayDate}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">Generated {new Date().toLocaleString()}</p>
+                <hr className="border-gray-200 my-4" />
+
+                {/* Manhours */}
+                <h2 className="text-base font-bold text-gray-900 mb-3">Manhours</h2>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-gray-200">
+                      <th className="text-left pb-1.5 pr-2 w-6 font-semibold">#</th>
+                      <th className="text-left pb-1.5 pr-2 font-semibold">Worker</th>
+                      <th className="text-left pb-1.5 pr-2 font-semibold">Role</th>
+                      <th className="text-left pb-1.5 pr-2 font-semibold">Status</th>
+                      <th className="text-left pb-1.5 pr-2 font-semibold">Hours</th>
+                      <th className="text-left pb-1.5 font-semibold">Task / Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workers.map((ws, index) => {
+                      const { worker, dailyHours: dh } = ws;
+                      const hoursVal = dh?.status === 'worked' ? (dh.hours_worked || 0) : 0;
+                      const statusLabel =
+                        dh?.status === 'worked'      ? 'Worked' :
+                        dh?.status === 'off'         ? 'Off' :
+                        dh?.status === 'transferred' ? 'Transferred' :
+                        'Not Logged';
+                      const noteText =
+                        (dh?.task as Task | undefined)?.name ||
+                        (dh?.transferred_to_task as Task | undefined)?.name ||
+                        (dh?.transferred_to_job_site as JobSite | undefined)?.name ||
+                        dh?.notes || '';
+                      return (
+                        <tr key={worker.id} className={index % 2 === 0 ? 'bg-gray-50' : ''}>
+                          <td className="py-1 pr-2">{index + 1}</td>
+                          <td className="py-1 pr-2">{worker.name}</td>
+                          <td className="py-1 pr-2">{worker.role.charAt(0).toUpperCase() + worker.role.slice(1)}</td>
+                          <td className="py-1 pr-2">{statusLabel}</td>
+                          <td className="py-1 pr-2">{hoursVal > 0 ? `${hoursVal.toFixed(1)}h` : '-'}</td>
+                          <td className="py-1">{noteText}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-700 font-bold">
+                      <td />
+                      <td className="pt-2 pr-2">{workers.length} {workers.length === 1 ? 'worker' : 'workers'}</td>
+                      <td colSpan={2} />
+                      <td className="pt-2 pr-2">{totalHours.toFixed(1)}h total</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
+
+                {/* Daily Notes */}
+                {filledSections.length > 0 && (
+                  <>
+                    <hr className="border-gray-200 my-4" />
+                    <h2 className="text-base font-bold text-gray-900 mb-3">Daily Notes</h2>
+                    <div className="space-y-3">
+                      {filledSections.map(({ key, label }) => (
+                        <div key={key}>
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+                          <p className="text-xs text-gray-800 whitespace-pre-wrap">{dailyNote![key] as string}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setPdfPreviewOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => { setPdfPreviewOpen(false); downloadDailyPDF(); }}
+                >
+                  <Download size={16} className="mr-2" />
+                  Export PDF
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
