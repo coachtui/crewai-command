@@ -40,8 +40,8 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
     if (!user?.org_id) return [];
 
     try {
-      if (isManager) {
-        // Managers can see all job sites in their organization
+      if (isManager || isAdmin) {
+        // Managers and admins can see all job sites in their organization
         const { data, error } = await supabase
           .from('job_sites')
           .select('*')
@@ -102,8 +102,8 @@ export function JobSiteProvider({ children }: JobSiteProviderProps) {
   const getUserSiteRole = useCallback(async (siteId: string): Promise<JobSiteRole | null> => {
     if (!user) return null;
 
-    // Managers don't need a specific site role — they have company-wide authority
-    if (isManager) return null;
+    // Managers and admins don't need a specific site role — they have company-wide authority
+    if (isManager || isAdmin) return null;
 
     // Check user's job_site_assignments
     if (user.job_site_assignments) {

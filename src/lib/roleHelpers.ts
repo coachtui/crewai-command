@@ -291,7 +291,7 @@ export const getPermissions = (
     // Admin Level
     canManageUsers: canManageUsers(user),
     canManageOrganization: userIsManager,
-    canViewAllSites: userIsManager,
+    canViewAllSites: userIsManagerOrAdmin,
   };
 };
 
