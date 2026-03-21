@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
-import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight, NotebookPen } from 'lucide-react';
+import { Calendar as CalendarIcon, UserX, ArrowRightLeft, Clock, Save, Download, RefreshCw, FileText, Check, ChevronDown, ChevronRight, NotebookPen, Printer } from 'lucide-react';
 import { DailyNotesModal } from '../../components/daily-notes/DailyNotesModal';
 import { supabase } from '../../lib/supabase';
 import { useJobSite } from '../../contexts';
@@ -78,6 +78,18 @@ export function DailyHours() {
 
   // PDF preview modal
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+
+  // Worker weekly summary modal
+  const [workerSummaryOpen, setWorkerSummaryOpen] = useState(false);
+  const [workerSummaryWorker, setWorkerSummaryWorker] = useState<Worker | null>(null);
+  const [workerSummaryLoading, setWorkerSummaryLoading] = useState(false);
+  const [workerSummaryDates, setWorkerSummaryDates] = useState<string[]>([]);
+  const [workerSummaryRows, setWorkerSummaryRows] = useState<{
+    siteId: string;
+    siteName: string;
+    days: (number | null)[];
+    total: number;
+  }[]>([]);
 
   // Daily notes summary (displayed inline below the worker list)
   const [dailyNote, setDailyNote] = useState<DailyNote | null>(null);
@@ -593,6 +605,88 @@ export function DailyHours() {
     } catch (error) {
       console.error('Error saving all hours:', error);
       toast.error('Failed to save hours');
+    }
+  };
+
+  const openWorkerSummary = async (worker: Worker) => {
+    setWorkerSummaryWorker(worker);
+    setWorkerSummaryOpen(true);
+    setWorkerSummaryLoading(true);
+    setWorkerSummaryRows([]);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', user.id)
+        .single();
+      if (!userData) return;
+
+      // Derive Sun–Sat week from selectedDate
+      const [yr, mo, dy] = selectedDate.split('-').map(Number);
+      const pivot = new Date(yr, mo - 1, dy);
+      const dow = pivot.getDay();
+      const weekStart = new Date(yr, mo - 1, dy - dow);
+      const dates: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i);
+        dates.push(getLocalDateString(d));
+      }
+      setWorkerSummaryDates(dates);
+
+      const { data: records, error } = await supabase
+        .from('daily_hours')
+        .select('log_date, status, hours_worked, worker:workers(id, job_site_id, job_site:job_sites!job_site_id(id, name)), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
+        .eq('organization_id', userData.org_id)
+        .eq('worker_id', worker.id)
+        .gte('log_date', dates[0])
+        .lte('log_date', dates[6]);
+
+      if (error) throw error;
+
+      const siteMap = new Map<string, { siteName: string; days: (number | null)[] }>();
+
+      (records || []).forEach((dh) => {
+        if (dh.status !== 'worked' && dh.status !== 'transferred') return;
+
+        const dayIndex = dates.indexOf(dh.log_date);
+        if (dayIndex === -1) return;
+
+        let siteId: string;
+        let siteName: string;
+
+        if (dh.status === 'transferred') {
+          const site = dh.transferred_to_job_site as { id: string; name: string } | null;
+          siteId = site?.id ?? '__transferred__';
+          siteName = site?.name ?? 'Transferred (Unknown)';
+        } else {
+          const w = dh.worker as { id: string; job_site_id: string | null; job_site: { id: string; name: string } | null } | null;
+          siteId = w?.job_site?.id ?? w?.job_site_id ?? '__unknown__';
+          siteName = w?.job_site?.name ?? 'Unknown Site';
+        }
+
+        if (!siteMap.has(siteId)) {
+          siteMap.set(siteId, { siteName, days: Array(7).fill(null) });
+        }
+        siteMap.get(siteId)!.days[dayIndex] = dh.hours_worked || 0;
+      });
+
+      setWorkerSummaryRows(
+        Array.from(siteMap.entries()).map(([siteId, { siteName, days }]) => ({
+          siteId,
+          siteName,
+          days,
+          total: days.reduce((sum, h) => sum + (h ?? 0), 0),
+        }))
+      );
+    } catch (err) {
+      console.error('Error loading worker summary:', err);
+      toast.error('Failed to load weekly summary');
+    } finally {
+      setWorkerSummaryLoading(false);
     }
   };
 
@@ -1150,7 +1244,16 @@ export function DailyHours() {
         {rowNum !== undefined && (
           <td className="p-4 text-center text-text-secondary">{rowNum}</td>
         )}
-        <td className="p-4 font-medium">{worker.name}</td>
+        <td className="p-4 font-medium">
+          <button
+            type="button"
+            onClick={() => openWorkerSummary(worker)}
+            className="hover:text-primary hover:underline text-left transition-colors"
+            title="View weekly summary"
+          >
+            {worker.name}
+          </button>
+        </td>
         <td className="p-4 text-text-secondary capitalize">{worker.role}</td>
         <td className="p-4">{getStatusBadge(dailyHours)}</td>
         <td className="p-4">
@@ -1924,6 +2027,124 @@ export function DailyHours() {
                   <Download size={16} className="mr-2" />
                   Export PDF
                 </Button>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* Worker Weekly Summary Modal */}
+      {workerSummaryOpen && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body > * { visibility: hidden !important; }
+            .worker-summary-printable, .worker-summary-printable * { visibility: visible !important; }
+            .worker-summary-printable { position: fixed; inset: 0; background: white; padding: 32px; z-index: 99999; }
+            .no-print { display: none !important; }
+          }
+        `}} />
+      )}
+      <Modal
+        isOpen={workerSummaryOpen}
+        onClose={() => setWorkerSummaryOpen(false)}
+        title={`${workerSummaryWorker?.name ?? ''} – Weekly Summary`}
+        size="lg"
+      >
+        {(() => {
+          const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+          const colTotals = [0,1,2,3,4,5,6].map(i =>
+            workerSummaryRows.reduce((sum, row) => sum + (row.days[i] ?? 0), 0)
+          );
+          const grandTotal = workerSummaryRows.reduce((sum, row) => sum + row.total, 0);
+          const weekLabel = workerSummaryDates.length === 7
+            ? (() => {
+                const fmt = (d: string) => {
+                  const [y, m, day] = d.split('-').map(Number);
+                  return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                };
+                return `${fmt(workerSummaryDates[0])} – ${fmt(workerSummaryDates[6])}`;
+              })()
+            : '';
+
+          return (
+            <div className="space-y-4">
+              <div className="worker-summary-printable bg-white text-gray-900 rounded border border-gray-200 p-6 font-sans">
+                {/* Header */}
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">{workerSummaryWorker?.name}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{weekLabel}</p>
+                  {workerSummaryWorker && (
+                    <p className="text-xs text-gray-400 capitalize mt-0.5">{workerSummaryWorker.role}</p>
+                  )}
+                </div>
+                <hr className="border-gray-200 mb-4" />
+
+                {workerSummaryLoading ? (
+                  <p className="text-sm text-gray-500 py-6 text-center">Loading…</p>
+                ) : workerSummaryRows.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-6 text-center">No hours recorded this week.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-gray-300">
+                          <th className="text-left py-2 pr-4 font-semibold text-gray-700 min-w-[140px]">Job Site</th>
+                          {workerSummaryDates.map((date, i) => {
+                            const [y, m, d] = date.split('-').map(Number);
+                            const label = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+                            return (
+                              <th key={date} className="text-center py-2 px-2 font-semibold text-gray-700 min-w-[52px]">
+                                <div>{DAY_NAMES[i]}</div>
+                                <div className="text-[10px] font-normal text-gray-400">{label}</div>
+                              </th>
+                            );
+                          })}
+                          <th className="text-right py-2 pl-4 font-semibold text-gray-700 min-w-[52px]">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {workerSummaryRows.map((row, idx) => (
+                          <tr key={row.siteId} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                            <td className="py-2 pr-4 font-medium text-gray-800">{row.siteName}</td>
+                            {row.days.map((h, i) => (
+                              <td key={i} className="py-2 px-2 text-center text-gray-700">
+                                {h !== null && h > 0 ? `${h % 1 === 0 ? h : h.toFixed(1)}h` : <span className="text-gray-300">–</span>}
+                              </td>
+                            ))}
+                            <td className="py-2 pl-4 text-right font-semibold text-gray-800">
+                              {row.total > 0 ? `${row.total % 1 === 0 ? row.total : row.total.toFixed(1)}h` : '–'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-gray-400 font-bold bg-white">
+                          <td className="py-2 pr-4 text-gray-700">Total</td>
+                          {colTotals.map((t, i) => (
+                            <td key={i} className="py-2 px-2 text-center text-gray-800">
+                              {t > 0 ? `${t % 1 === 0 ? t : t.toFixed(1)}h` : <span className="text-gray-300">–</span>}
+                            </td>
+                          ))}
+                          <td className="py-2 pl-4 text-right text-gray-900">
+                            {grandTotal > 0 ? `${grandTotal % 1 === 0 ? grandTotal : grandTotal.toFixed(1)}h` : '–'}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="no-print flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setWorkerSummaryOpen(false)}>
+                  Close
+                </Button>
+                {!workerSummaryLoading && workerSummaryRows.length > 0 && (
+                  <Button variant="primary" onClick={() => window.print()}>
+                    <Printer size={16} className="mr-2" />
+                    Print
+                  </Button>
+                )}
               </div>
             </div>
           );
