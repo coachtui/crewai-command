@@ -336,6 +336,7 @@ export interface DailyHours {
   log_date: string;
   status: DailyHoursStatus;
   hours_worked: number;
+  ot_hours?: number;
   task_id?: string;
   transferred_to_task_id?: string;
   transferred_to_job_site_id?: string;

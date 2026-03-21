@@ -21,6 +21,7 @@ interface WorkerDayStatus {
 interface EditedHours {
   workerId: string;
   hours: string;
+  otHours?: string;
   taskId?: string;
   notes?: string;
 }
@@ -57,6 +58,7 @@ export function DailyHours() {
   const [transferJobSiteId, setTransferJobSiteId] = useState('');
   const [workTaskId, setWorkTaskId] = useState('');
   const [hoursWorked, setHoursWorked] = useState('8');
+  const [otHoursWorked, setOtHoursWorked] = useState('0');
 
   // Job sites for transfer dropdown
   const [jobSites, setJobSites] = useState<JobSite[]>([]);
@@ -88,7 +90,9 @@ export function DailyHours() {
     siteId: string;
     siteName: string;
     days: (number | null)[];
+    otDays: (number | null)[];
     total: number;
+    totalOt: number;
   }[]>([]);
 
   // Daily notes summary (displayed inline below the worker list)
@@ -98,8 +102,9 @@ export function DailyHours() {
   // Weekly chart data
   const [weeklyData, setWeeklyData] = useState<{
     worker: Worker;
-    hours: { date: string; hours: number; notes?: string; status?: string }[];
+    hours: { date: string; hours: number; otHours: number; notes?: string; status?: string }[];
     totalHours: number;
+    totalOtHours: number;
   }[]>([]);
   const [showWeeklyChart, setShowWeeklyChart] = useState(false);
   const [weeklyViewMode, setWeeklyViewMode] = useState<'flat' | 'crew' | 'role'>('flat');
@@ -310,7 +315,7 @@ export function DailyHours() {
       // Create a map to store hours by worker and date
       const workerHoursMap = new Map<string, {
         worker: Worker;
-        hoursByDate: Map<string, { hours: number; notes?: string; status?: string }>
+        hoursByDate: Map<string, { hours: number; otHours: number; notes?: string; status?: string }>
       }>();
 
       workers.forEach(({ worker }) => {
@@ -326,6 +331,7 @@ export function DailyHours() {
           if (workerData) {
             workerData.hoursByDate.set(dh.log_date, {
               hours: dh.status === 'worked' ? (dh.hours_worked || 0) : 0,
+              otHours: dh.status === 'worked' ? (dh.ot_hours || 0) : 0,
               notes: dh.notes,
               status: dh.status
             });
@@ -335,8 +341,9 @@ export function DailyHours() {
 
       // Convert to array format with all 7 days
       const weeklyDataArray = Array.from(workerHoursMap.values()).map((data) => {
-        const hours: { date: string; hours: number; notes?: string; status?: string }[] = [];
+        const hours: { date: string; hours: number; otHours: number; notes?: string; status?: string }[] = [];
         let totalHours = 0;
+        let totalOtHours = 0;
 
         // Generate all 7 days of the week
         for (let i = 0; i < 7; i++) {
@@ -344,19 +351,23 @@ export function DailyHours() {
           const dateStr = getLocalDateString(currentDate);
           const dayData = data.hoursByDate.get(dateStr);
           const hoursForDay = dayData?.hours || 0;
+          const otForDay = dayData?.otHours || 0;
           hours.push({
             date: dateStr,
             hours: hoursForDay,
+            otHours: otForDay,
             notes: dayData?.notes,
             status: dayData?.status
           });
           totalHours += hoursForDay;
+          totalOtHours += otForDay;
         }
 
         return {
           worker: data.worker,
           hours,
           totalHours,
+          totalOtHours,
         };
       });
 
@@ -404,6 +415,7 @@ export function DailyHours() {
     const existing = workers.find((w) => w.worker.id === worker.id)?.dailyHours;
     setWorkTaskId(existing?.task_id || '');
     setHoursWorked(existing?.hours_worked?.toString() || '8');
+    setOtHoursWorked(existing?.ot_hours?.toString() || '0');
     setNotes(existing?.notes || '');
     setHoursModalOpen(true);
   };
@@ -433,6 +445,7 @@ export function DailyHours() {
           status: 'off',
           notes,
           hours_worked: 0,
+          ot_hours: 0,
           task_id: null,
           transferred_to_task_id: null,
           transferred_to_job_site_id: null,
@@ -482,6 +495,7 @@ export function DailyHours() {
           transferred_to_task_id: transferTaskId || null,
           transferred_to_job_site_id: transferJobSiteId || null,
           hours_worked: 8,
+          ot_hours: 0,
           task_id: null,
           logged_by: userId,
         }, {
@@ -515,6 +529,7 @@ export function DailyHours() {
       if (!userData) return;
 
       const hours = parseFloat(hoursWorked) || 8;
+      const otHours = parseFloat(otHoursWorked) || 0;
 
       // Use upsert to handle both insert and update
       const { error } = await supabase
@@ -527,6 +542,7 @@ export function DailyHours() {
           notes,
           task_id: workTaskId || null,
           hours_worked: hours,
+          ot_hours: otHours,
           transferred_to_task_id: null,
           transferred_to_job_site_id: null,
           logged_by: userId,
@@ -559,6 +575,13 @@ export function DailyHours() {
     setEditedHours(newEditedHours);
   };
 
+  const handleInlineOtHoursChange = (workerId: string, otHours: string, currentHours: string) => {
+    const newEditedHours = new Map(editedHours);
+    const existing = newEditedHours.get(workerId) || { workerId, hours: currentHours };
+    newEditedHours.set(workerId, { ...existing, otHours });
+    setEditedHours(newEditedHours);
+  };
+
   const saveAllHours = async () => {
     if (editedHours.size === 0) {
       toast.info('No hours to save');
@@ -584,6 +607,7 @@ export function DailyHours() {
         log_date: selectedDate,
         status: 'worked' as const,
         hours_worked: parseFloat(edit.hours) || 0,
+        ot_hours: parseFloat(edit.otHours || '0') || 0,
         task_id: edit.taskId || null,
         notes: edit.notes || null,
         transferred_to_task_id: null,
@@ -639,7 +663,7 @@ export function DailyHours() {
 
       const { data: records, error } = await supabase
         .from('daily_hours')
-        .select('log_date, status, hours_worked, worker:workers(id, job_site_id, job_site:job_sites!job_site_id(id, name)), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
+        .select('log_date, status, hours_worked, ot_hours, worker:workers(id, job_site_id, job_site:job_sites!job_site_id(id, name)), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
         .eq('organization_id', userData.org_id)
         .eq('worker_id', worker.id)
         .gte('log_date', dates[0])
@@ -647,7 +671,7 @@ export function DailyHours() {
 
       if (error) throw error;
 
-      const siteMap = new Map<string, { siteName: string; days: (number | null)[] }>();
+      const siteMap = new Map<string, { siteName: string; days: (number | null)[]; otDays: (number | null)[] }>();
 
       (records || []).forEach((dh) => {
         if (dh.status !== 'worked' && dh.status !== 'transferred') return;
@@ -669,17 +693,21 @@ export function DailyHours() {
         }
 
         if (!siteMap.has(siteId)) {
-          siteMap.set(siteId, { siteName, days: Array(7).fill(null) });
+          siteMap.set(siteId, { siteName, days: Array(7).fill(null), otDays: Array(7).fill(null) });
         }
-        siteMap.get(siteId)!.days[dayIndex] = dh.hours_worked || 0;
+        const entry = siteMap.get(siteId)!;
+        entry.days[dayIndex] = dh.hours_worked || 0;
+        entry.otDays[dayIndex] = dh.ot_hours || 0;
       });
 
       setWorkerSummaryRows(
-        Array.from(siteMap.entries()).map(([siteId, { siteName, days }]) => ({
+        Array.from(siteMap.entries()).map(([siteId, { siteName, days, otDays }]) => ({
           siteId,
           siteName,
           days,
+          otDays,
           total: days.reduce<number>((sum, h) => sum + (h ?? 0), 0),
+          totalOt: otDays.reduce<number>((sum, h) => sum + (h ?? 0), 0),
         }))
       );
     } catch (err) {
@@ -703,20 +731,22 @@ export function DailyHours() {
     const startOfWeek = new Date(year, month - 1, day - dayOfWeek);
 
     // Create CSV content
-    const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total'];
-    const rows = weeklyData.map(({ worker, hours, totalHours }) => [
+    const headers = ['Worker', 'Role', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Total', 'OT Total'];
+    const rows = weeklyData.map(({ worker, hours, totalHours, totalOtHours }) => [
       worker.name,
       worker.role,
       ...hours.map(h => h.hours > 0 ? h.hours.toFixed(1) : '0'),
-      totalHours.toFixed(1)
+      totalHours.toFixed(1),
+      totalOtHours > 0 ? totalOtHours.toFixed(1) : '0',
     ]);
 
     // Add totals row
-    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex => 
+    const dayTotals = [0, 1, 2, 3, 4, 5, 6].map(dayIndex =>
       weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0).toFixed(1)
     );
     const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
-    rows.push(['TOTAL', '', ...dayTotals, grandTotal]);
+    const grandOtTotal = weeklyData.reduce((sum, w) => sum + w.totalOtHours, 0).toFixed(1);
+    rows.push(['TOTAL', '', ...dayTotals, grandTotal, grandOtTotal]);
 
     const siteRow = currentJobSite ? [`"${currentJobSite.name}"`, ...Array(headers.length - 1).fill('""')].join(',') + '\n' : '';
     const csvContent = siteRow + [
@@ -794,10 +824,11 @@ export function DailyHours() {
     const col = {
       num:    margin,
       name:   margin + 9,
-      role:   margin + 62,
-      status: margin + 86,
-      hours:  margin + 112,
-      notes:  margin + 130,
+      role:   margin + 60,
+      status: margin + 84,
+      hours:  margin + 108,
+      ot:     margin + 122,
+      notes:  margin + 138,
     };
 
     // Header row
@@ -809,6 +840,7 @@ export function DailyHours() {
     doc.text('Role',        col.role,   y);
     doc.text('Status',      col.status, y);
     doc.text('Hours',       col.hours,  y);
+    doc.text('OT',          col.ot,     y);
     doc.text('Task / Notes',col.notes,  y);
     y += 2;
     doc.setDrawColor(180, 180, 180);
@@ -817,6 +849,7 @@ export function DailyHours() {
     doc.setTextColor(20, 20, 20);
 
     let totalHoursWorked = 0;
+    let totalOtWorked = 0;
     const notesColWidth = pageWidth - margin - col.notes;
 
     workers.forEach((ws, index) => {
@@ -827,7 +860,9 @@ export function DailyHours() {
 
       const { worker, dailyHours: dh } = ws;
       const hoursVal = dh?.status === 'worked' ? (dh.hours_worked || 0) : 0;
+      const otVal = dh?.status === 'worked' ? (dh.ot_hours || 0) : 0;
       totalHoursWorked += hoursVal;
+      totalOtWorked += otVal;
 
       const statusLabel =
         dh?.status === 'worked'      ? 'Worked' :
@@ -850,10 +885,11 @@ export function DailyHours() {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text(String(index + 1),                       col.num,    y);
-      doc.text(worker.name.substring(0, 30),            col.name,   y);
+      doc.text(worker.name.substring(0, 28),            col.name,   y);
       doc.text(worker.role.charAt(0).toUpperCase() + worker.role.slice(1), col.role, y);
       doc.text(statusLabel,                             col.status, y);
       doc.text(hoursVal > 0 ? `${hoursVal.toFixed(1)}h` : '-', col.hours, y);
+      doc.text(otVal > 0 ? `${otVal.toFixed(1)}h` : '-',       col.ot,    y);
       if (noteText) {
         doc.text(doc.splitTextToSize(noteText, notesColWidth)[0], col.notes, y);
       }
@@ -869,7 +905,8 @@ export function DailyHours() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
     doc.text(`${workers.length} ${workers.length === 1 ? 'worker' : 'workers'}`, col.name, y);
-    doc.text(`${totalHoursWorked.toFixed(1)}h total`, col.hours, y);
+    doc.text(`${totalHoursWorked.toFixed(1)}h`, col.hours, y);
+    if (totalOtWorked > 0) doc.text(`${totalOtWorked.toFixed(1)}h OT`, col.ot, y);
     y += 10;
 
     // ── DAILY NOTES ─────────────────────────────────────────────────────────
@@ -1000,7 +1037,7 @@ export function DailyHours() {
     // Table headers with dates
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const headers = ['Worker', 'Role'];
-    
+
     // Add day headers with dates in MM/DD/YY format
     for (let i = 0; i < 7; i++) {
       const currentDate = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + i);
@@ -1008,14 +1045,15 @@ export function DailyHours() {
       headers.push(`${dayNames[i]}\n${dateStr}`);
     }
     headers.push('Total');
+    headers.push('OT');
     let yPosition = currentJobSite ? 38 : 32;
-    
+
     // Draw header row
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    const colWidths = [35, 20, 12, 12, 12, 12, 12, 12, 12, 15];
+    const colWidths = [33, 18, 12, 12, 12, 12, 12, 12, 12, 14, 13];
     let xPosition = 14;
-    
+
     headers.forEach((header, i) => {
       const lines = header.split('\n');
       doc.text(lines[0], xPosition, yPosition);
@@ -1026,36 +1064,37 @@ export function DailyHours() {
       }
       xPosition += colWidths[i];
     });
-    
+
     yPosition += 9;
     doc.setFont('helvetica', 'normal');
-    
+
     // Draw data rows
-    weeklyData.forEach(({ worker, hours, totalHours }) => {
+    weeklyData.forEach(({ worker, hours, totalHours, totalOtHours }) => {
       xPosition = 14;
-      
+
       // Check if we need a new page
       if (yPosition > 270) {
         doc.addPage();
         yPosition = 20;
       }
-      
+
       const row = [
         worker.name,
         worker.role,
         ...hours.map(h => h.hours > 0 ? h.hours.toFixed(1) : '-'),
-        totalHours.toFixed(1)
+        totalHours.toFixed(1),
+        totalOtHours > 0 ? totalOtHours.toFixed(1) : '-',
       ];
-      
+
       row.forEach((cell, i) => {
         const text = String(cell);
         doc.text(text, xPosition, yPosition);
         xPosition += colWidths[i];
       });
-      
+
       yPosition += 6;
     });
-    
+
     // Draw totals row
     yPosition += 2;
     doc.setFont('helvetica', 'bold');
@@ -1065,8 +1104,9 @@ export function DailyHours() {
       weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0).toFixed(1)
     );
     const grandTotal = weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1);
+    const grandOtTotal = weeklyData.reduce((sum, w) => sum + w.totalOtHours, 0);
 
-    const totalRow = ['TOTAL', '', ...dayTotals, grandTotal];
+    const totalRow = ['TOTAL', '', ...dayTotals, grandTotal, grandOtTotal > 0 ? grandOtTotal.toFixed(1) : '-'];
     totalRow.forEach((cell, i) => {
       doc.text(String(cell), xPosition, yPosition);
       xPosition += colWidths[i];
@@ -1218,26 +1258,31 @@ export function DailyHours() {
     .filter(g => g.rows.length > 0);
 
   // Shared weekly row renderer
-  const renderWeeklyWorkerRow = ({ worker, hours, totalHours }: typeof weeklyData[0], indent = false) => (
+  const renderWeeklyWorkerRow = ({ worker, hours, totalHours, totalOtHours }: typeof weeklyData[0], indent = false) => (
     <tr key={worker.id} className="border-b border-border hover:bg-bg-hover">
       <td className={`p-2 font-medium sticky left-0 bg-bg-secondary ${indent ? 'pl-6' : ''}`}>{worker.name}</td>
       {hours.map((day, i) => (
         <td key={i} className="p-2 text-center align-top">
           <div className="flex flex-col items-center gap-0.5">
             <div className="font-medium">{day.hours > 0 ? day.hours.toFixed(1) : '-'}</div>
+            {day.otHours > 0 && <div className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">{day.otHours.toFixed(1)} OT</div>}
             {day.notes && <div className="text-[10px] text-text-secondary max-w-[80px] truncate" title={day.notes}>{day.notes}</div>}
             {day.status === 'off' && <div className="text-[10px] px-1 rounded bg-red-500/20 text-red-600 dark:text-red-400">Off</div>}
             {day.status === 'transferred' && <div className="text-[10px] px-1 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400">Trans.</div>}
           </div>
         </td>
       ))}
-      <td className="p-2 text-right font-semibold">{totalHours.toFixed(1)}h</td>
+      <td className="p-2 text-right font-semibold">
+        <div>{totalHours.toFixed(1)}h</div>
+        {totalOtHours > 0 && <div className="text-[11px] text-amber-600 dark:text-amber-400">{totalOtHours.toFixed(1)} OT</div>}
+      </td>
     </tr>
   );
 
   const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum?: number) => {
     const edited = editedHours.get(worker.id);
     const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
+    const currentOtHours = edited?.otHours ?? dailyHours?.ot_hours?.toString() ?? '0';
     const isEdited = edited !== undefined;
     return (
       <tr key={worker.id} className={`border-b border-border hover:bg-bg-hover ${isEdited ? 'bg-yellow-500/5' : ''}`}>
@@ -1270,6 +1315,24 @@ export function DailyHours() {
             />
           ) : dailyHours?.status === 'worked' || dailyHours?.status === 'transferred' ? (
             `${dailyHours.hours_worked || 0}h`
+          ) : (
+            '-'
+          )}
+        </td>
+        <td className="p-4">
+          {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+            <Input
+              type="number"
+              step="0.5"
+              min="0"
+              max="24"
+              value={currentOtHours}
+              onChange={(e) => handleInlineOtHoursChange(worker.id, e.target.value, currentHours)}
+              className="w-20"
+              placeholder="0"
+            />
+          ) : dailyHours?.status === 'worked' && (dailyHours.ot_hours || 0) > 0 ? (
+            <span className="text-amber-600 dark:text-amber-400 font-medium">{dailyHours.ot_hours}h</span>
           ) : (
             '-'
           )}
@@ -1324,6 +1387,7 @@ export function DailyHours() {
       <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Role</th>
       <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Status</th>
       <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Hours</th>
+      <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">OT</th>
       <th className="text-left p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Task/Notes</th>
       <th className="text-right p-3 font-medium text-[12px] text-text-secondary uppercase tracking-wide">Actions</th>
     </tr>
@@ -1499,6 +1563,7 @@ export function DailyHours() {
                   </th>
                   <th className="text-left p-4 font-semibold">Status</th>
                   <th className="text-left p-4 font-semibold">Hours</th>
+                  <th className="text-left p-4 font-semibold">OT</th>
                   <th className="text-left p-4 font-semibold">Task/Notes</th>
                   <th className="text-right p-4 font-semibold">Actions</th>
                 </tr>
@@ -1521,7 +1586,7 @@ export function DailyHours() {
                       return (
                         <Fragment key={role}>
                           <tr className="bg-bg-secondary">
-                            <td colSpan={7} className="p-3 font-semibold capitalize">
+                            <td colSpan={8} className="p-3 font-semibold capitalize">
                               {role}
                               <span className="ml-2 text-xs font-normal text-text-secondary">
                                 ({group.length} {group.length === 1 ? 'person' : 'people'})
@@ -1542,10 +1607,17 @@ export function DailyHours() {
                     <td colSpan={4} className="p-4 text-[13px] text-text-secondary">
                       {workers.length} {workers.length === 1 ? 'person' : 'people'} on site
                     </td>
-                    <td colSpan={3} className="p-4 font-semibold text-right text-text-primary">
-                      Total: {workers
-                        .reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0), 0)
-                        .toFixed(1)}h
+                    <td className="p-4 font-semibold text-text-primary">
+                      {workers.reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0), 0).toFixed(1)}h
+                    </td>
+                    <td className="p-4 font-semibold text-amber-600 dark:text-amber-400">
+                      {(() => {
+                        const tot = workers.reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.ot_hours || 0 : 0), 0);
+                        return tot > 0 ? `${tot.toFixed(1)}h OT` : '-';
+                      })()}
+                    </td>
+                    <td colSpan={2} className="p-4 font-semibold text-right text-text-primary">
+                      Total: {(workers.reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.hours_worked || 0 : 0), 0) + workers.reduce((sum, ws) => sum + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.ot_hours || 0 : 0), 0)).toFixed(1)}h incl. OT
                     </td>
                   </tr>
                 </tfoot>
@@ -1719,16 +1791,30 @@ export function DailyHours() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Hours Worked</label>
-            <Input
-              type="number"
-              step="0.5"
-              min="0"
-              max="24"
-              value={hoursWorked}
-              onChange={(e) => setHoursWorked(e.target.value)}
-            />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">Hours Worked</label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="24"
+                value={hoursWorked}
+                onChange={(e) => setHoursWorked(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">OT Hours</label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="24"
+                value={otHoursWorked}
+                onChange={(e) => setOtHoursWorked(e.target.value)}
+                placeholder="0"
+              />
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
@@ -1890,14 +1976,21 @@ export function DailyHours() {
                     <td className="p-2 sticky left-0 bg-bg-secondary text-text-secondary text-[12px]">Total</td>
                     {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
                       const dayTotal = weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.hours || 0), 0);
+                      const dayOt = weeklyData.reduce((sum, w) => sum + (w.hours[dayIndex]?.otHours || 0), 0);
                       return (
-                        <td key={dayIndex} className="p-2 text-center">
-                          {dayTotal > 0 ? dayTotal.toFixed(1) : '-'}
+                        <td key={dayIndex} className="p-2 text-center align-top">
+                          <div>{dayTotal > 0 ? dayTotal.toFixed(1) : '-'}</div>
+                          {dayOt > 0 && <div className="text-[10px] text-amber-600 dark:text-amber-400">{dayOt.toFixed(1)} OT</div>}
                         </td>
                       );
                     })}
-                    <td className="p-2 text-right">
-                      {weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1)}h
+                    <td className="p-2 text-right align-top">
+                      <div>{weeklyData.reduce((sum, w) => sum + w.totalHours, 0).toFixed(1)}h</div>
+                      {weeklyData.reduce((sum, w) => sum + w.totalOtHours, 0) > 0 && (
+                        <div className="text-[11px] text-amber-600 dark:text-amber-400">
+                          {weeklyData.reduce((sum, w) => sum + w.totalOtHours, 0).toFixed(1)} OT
+                        </div>
+                      )}
                     </td>
                   </tr>
                 </tfoot>
@@ -1958,6 +2051,7 @@ export function DailyHours() {
                       <th className="text-left pb-1.5 pr-2 font-semibold">Role</th>
                       <th className="text-left pb-1.5 pr-2 font-semibold">Status</th>
                       <th className="text-left pb-1.5 pr-2 font-semibold">Hours</th>
+                      <th className="text-left pb-1.5 pr-2 font-semibold">OT</th>
                       <th className="text-left pb-1.5 font-semibold">Task / Notes</th>
                     </tr>
                   </thead>
@@ -1965,6 +2059,7 @@ export function DailyHours() {
                     {workers.map((ws, index) => {
                       const { worker, dailyHours: dh } = ws;
                       const hoursVal = dh?.status === 'worked' ? (dh.hours_worked || 0) : 0;
+                      const otVal = dh?.status === 'worked' ? (dh.ot_hours || 0) : 0;
                       const statusLabel =
                         dh?.status === 'worked'      ? 'Worked' :
                         dh?.status === 'off'         ? 'Off' :
@@ -1982,6 +2077,7 @@ export function DailyHours() {
                           <td className="py-1 pr-2">{worker.role.charAt(0).toUpperCase() + worker.role.slice(1)}</td>
                           <td className="py-1 pr-2">{statusLabel}</td>
                           <td className="py-1 pr-2">{hoursVal > 0 ? `${hoursVal.toFixed(1)}h` : '-'}</td>
+                          <td className="py-1 pr-2">{otVal > 0 ? `${otVal.toFixed(1)}h` : '-'}</td>
                           <td className="py-1">{noteText}</td>
                         </tr>
                       );
@@ -1992,7 +2088,10 @@ export function DailyHours() {
                       <td />
                       <td className="pt-2 pr-2">{workers.length} {workers.length === 1 ? 'worker' : 'workers'}</td>
                       <td colSpan={2} />
-                      <td className="pt-2 pr-2">{totalHours.toFixed(1)}h total</td>
+                      <td className="pt-2 pr-2">{totalHours.toFixed(1)}h</td>
+                      <td className="pt-2 pr-2">
+                        {(() => { const ot = workers.reduce((s, ws) => s + (ws.dailyHours?.status === 'worked' ? ws.dailyHours.ot_hours || 0 : 0), 0); return ot > 0 ? `${ot.toFixed(1)}h` : '-'; })()}
+                      </td>
                       <td />
                     </tr>
                   </tfoot>
@@ -2055,7 +2154,11 @@ export function DailyHours() {
           const colTotals = [0,1,2,3,4,5,6].map(i =>
             workerSummaryRows.reduce((sum, row) => sum + (row.days[i] ?? 0), 0)
           );
+          const colOtTotals = [0,1,2,3,4,5,6].map(i =>
+            workerSummaryRows.reduce((sum, row) => sum + (row.otDays[i] ?? 0), 0)
+          );
           const grandTotal = workerSummaryRows.reduce((sum, row) => sum + row.total, 0);
+          const grandOtTotal = workerSummaryRows.reduce((sum, row) => sum + row.totalOt, 0);
           const weekLabel = workerSummaryDates.length === 7
             ? (() => {
                 const fmt = (d: string) => {
@@ -2107,12 +2210,16 @@ export function DailyHours() {
                           <tr key={row.siteId} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
                             <td className="py-2 pr-4 font-medium text-gray-800">{row.siteName}</td>
                             {row.days.map((h, i) => (
-                              <td key={i} className="py-2 px-2 text-center text-gray-700">
-                                {h !== null && h > 0 ? `${h % 1 === 0 ? h : h.toFixed(1)}h` : <span className="text-gray-300">–</span>}
+                              <td key={i} className="py-2 px-2 text-center text-gray-700 align-top">
+                                <div>{h !== null && h > 0 ? `${h % 1 === 0 ? h : h.toFixed(1)}h` : <span className="text-gray-300">–</span>}</div>
+                                {(row.otDays[i] ?? 0) > 0 && (
+                                  <div className="text-[10px] text-amber-600 font-medium">{(row.otDays[i] as number).toFixed(1)} OT</div>
+                                )}
                               </td>
                             ))}
-                            <td className="py-2 pl-4 text-right font-semibold text-gray-800">
-                              {row.total > 0 ? `${row.total % 1 === 0 ? row.total : row.total.toFixed(1)}h` : '–'}
+                            <td className="py-2 pl-4 text-right font-semibold text-gray-800 align-top">
+                              <div>{row.total > 0 ? `${row.total % 1 === 0 ? row.total : row.total.toFixed(1)}h` : '–'}</div>
+                              {row.totalOt > 0 && <div className="text-[10px] text-amber-600">{row.totalOt.toFixed(1)} OT</div>}
                             </td>
                           </tr>
                         ))}
@@ -2121,12 +2228,14 @@ export function DailyHours() {
                         <tr className="border-t-2 border-gray-400 font-bold bg-white">
                           <td className="py-2 pr-4 text-gray-700">Total</td>
                           {colTotals.map((t, i) => (
-                            <td key={i} className="py-2 px-2 text-center text-gray-800">
-                              {t > 0 ? `${t % 1 === 0 ? t : t.toFixed(1)}h` : <span className="text-gray-300">–</span>}
+                            <td key={i} className="py-2 px-2 text-center text-gray-800 align-top">
+                              <div>{t > 0 ? `${t % 1 === 0 ? t : t.toFixed(1)}h` : <span className="text-gray-300">–</span>}</div>
+                              {colOtTotals[i] > 0 && <div className="text-[10px] text-amber-600">{colOtTotals[i].toFixed(1)} OT</div>}
                             </td>
                           ))}
-                          <td className="py-2 pl-4 text-right text-gray-900">
-                            {grandTotal > 0 ? `${grandTotal % 1 === 0 ? grandTotal : grandTotal.toFixed(1)}h` : '–'}
+                          <td className="py-2 pl-4 text-right text-gray-900 align-top">
+                            <div>{grandTotal > 0 ? `${grandTotal % 1 === 0 ? grandTotal : grandTotal.toFixed(1)}h` : '–'}</div>
+                            {grandOtTotal > 0 && <div className="text-[11px] text-amber-600">{grandOtTotal.toFixed(1)} OT</div>}
                           </td>
                         </tr>
                       </tfoot>
