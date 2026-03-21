@@ -659,11 +659,11 @@ export function DailyHours() {
         let siteName: string;
 
         if (dh.status === 'transferred') {
-          const site = dh.transferred_to_job_site as { id: string; name: string } | null;
+          const site = (dh.transferred_to_job_site as unknown) as { id: string; name: string } | null;
           siteId = site?.id ?? '__transferred__';
           siteName = site?.name ?? 'Transferred (Unknown)';
         } else {
-          const w = dh.worker as { id: string; job_site_id: string | null; job_site: { id: string; name: string } | null } | null;
+          const w = (dh.worker as unknown) as { id: string; job_site_id: string | null; job_site: { id: string; name: string } | null } | null;
           siteId = w?.job_site?.id ?? w?.job_site_id ?? '__unknown__';
           siteName = w?.job_site?.name ?? 'Unknown Site';
         }
@@ -679,7 +679,7 @@ export function DailyHours() {
           siteId,
           siteName,
           days,
-          total: days.reduce((sum, h) => sum + (h ?? 0), 0),
+          total: days.reduce<number>((sum, h) => sum + (h ?? 0), 0),
         }))
       );
     } catch (err) {
