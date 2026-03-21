@@ -25,7 +25,7 @@ type ViewMode = 'calendar' | 'gantt';
 
 export function Calendar() {
   const { user } = useAuth();
-  const { currentJobSite } = useJobSite();
+  const { currentJobSite, canManageSite } = useJobSite();
   const location = useLocation();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -38,6 +38,8 @@ export function Calendar() {
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createDate, setCreateDate] = useState<string>('');
 
   useEffect(() => {
     if (currentJobSite && user?.org_id) {
@@ -122,6 +124,33 @@ export function Calendar() {
       setEditingTask(null);
     } catch (error) {
       toast.error('Failed to save task');
+      console.error(error);
+    }
+  };
+
+  const handleCreateTask = async (taskData: Partial<Task>) => {
+    if (!user?.id || !user?.org_id || !currentJobSite) {
+      toast.error('Unable to create task');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{
+          ...taskData,
+          organization_id: user.org_id,
+          job_site_id: currentJobSite.id,
+          created_by: user.id,
+        }]);
+
+      if (error) throw error;
+      toast.success('Task created successfully');
+      fetchData();
+      setShowCreateModal(false);
+      setCreateDate('');
+    } catch (error) {
+      toast.error('Failed to create task');
       console.error(error);
     }
   };
@@ -294,11 +323,25 @@ export function Calendar() {
                               {format(day, 'MMM d')}
                             </div>
                           </div>
-                          {isToday && (
-                            <Badge variant="info" className="text-xs">
-                              Today
-                            </Badge>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {canManageSite && (
+                              <button
+                                onClick={() => {
+                                  setCreateDate(format(day, 'yyyy-MM-dd'));
+                                  setShowCreateModal(true);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded text-text-secondary hover:bg-primary hover:text-white transition-colors text-sm leading-none"
+                                title={`Add task on ${format(day, 'MMM d')}`}
+                              >
+                                +
+                              </button>
+                            )}
+                            {isToday && (
+                              <Badge variant="info" className="text-xs">
+                                Today
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         {/* Tasks for this day */}
@@ -403,6 +446,28 @@ export function Calendar() {
           />
         </Modal>
       )}
+
+      {/* Task Create Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setCreateDate('');
+        }}
+        title="New Task"
+      >
+        <TaskForm
+          task={null}
+          draft={null}
+          initialDate={createDate}
+          onSave={handleCreateTask}
+          onSaveDraft={() => {}}
+          onCancel={() => {
+            setShowCreateModal(false);
+            setCreateDate('');
+          }}
+        />
+      </Modal>
     </div>
   );
 }

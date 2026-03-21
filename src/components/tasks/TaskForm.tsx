@@ -11,12 +11,13 @@ import { Upload, X, FileIcon, Image as ImageIcon } from 'lucide-react';
 interface TaskFormProps {
   task: Task | null;
   draft: TaskDraft | null;
+  initialDate?: string;
   onSave: (taskData: Partial<Task>) => void;
   onSaveDraft: (draftData: Partial<TaskDraft>) => void;
   onCancel: () => void;
 }
 
-export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFormProps) {
+export function TaskForm({ task, draft, initialDate, onSave, onSaveDraft, onCancel }: TaskFormProps) {
   const [formData, setFormData] = useState({
     name: '',
     activity_id: '',
@@ -82,6 +83,8 @@ export function TaskForm({ task, draft, onSave, onSaveDraft, onCancel }: TaskFor
         include_holidays: draft.include_holidays || false,
       });
       setAttachments(draft.attachments || []);
+    } else if (initialDate) {
+      setFormData(prev => ({ ...prev, start_date: initialDate, end_date: initialDate }));
     }
   }, [task, draft]);
 
