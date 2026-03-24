@@ -442,6 +442,7 @@ export function DailyHours() {
           worker_id: selectedWorker.id,
           organization_id: userData.org_id,
           log_date: selectedDate,
+          job_site_id: currentJobSite?.id ?? null,
           status: 'off',
           notes,
           hours_worked: 0,
@@ -490,6 +491,7 @@ export function DailyHours() {
           worker_id: selectedWorker.id,
           organization_id: userData.org_id,
           log_date: selectedDate,
+          job_site_id: currentJobSite?.id ?? null,
           status: 'transferred',
           notes,
           transferred_to_task_id: transferTaskId || null,
@@ -538,6 +540,7 @@ export function DailyHours() {
           worker_id: selectedWorker.id,
           organization_id: userData.org_id,
           log_date: selectedDate,
+          job_site_id: currentJobSite?.id ?? null,
           status: 'worked',
           notes,
           task_id: workTaskId || null,
@@ -605,6 +608,7 @@ export function DailyHours() {
         worker_id: edit.workerId,
         organization_id: userData.org_id,
         log_date: selectedDate,
+        job_site_id: currentJobSite?.id ?? null,
         status: 'worked' as const,
         hours_worked: parseFloat(edit.hours) || 0,
         ot_hours: parseFloat(edit.otHours || '0') || 0,
@@ -672,10 +676,12 @@ export function DailyHours() {
       if (error) throw error;
 
       // Collect all unique job site IDs to look up names
+      // Fall back to worker's primary job_site_id for legacy records that predate job_site_id being written
       const siteIds = [...new Set(
         (records || [])
-          .filter(dh => dh.status === 'worked' && dh.job_site_id)
-          .map(dh => dh.job_site_id as string)
+          .filter(dh => dh.status === 'worked')
+          .map(dh => (dh.job_site_id as string | null) ?? worker.job_site_id ?? null)
+          .filter((id): id is string => id !== null)
       )];
 
       const siteNameMap = new Map<string, string>();
@@ -703,7 +709,7 @@ export function DailyHours() {
           siteId = site?.id ?? '__transferred__';
           siteName = site?.name ?? 'Transferred (Unknown)';
         } else {
-          siteId = (dh.job_site_id as string | null) ?? '__unknown__';
+          siteId = (dh.job_site_id as string | null) ?? worker.job_site_id ?? '__unknown__';
           siteName = siteNameMap.get(siteId) ?? 'Unknown Site';
         }
 
