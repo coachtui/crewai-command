@@ -663,7 +663,7 @@ export function DailyHours() {
 
       const { data: records, error } = await supabase
         .from('daily_hours')
-        .select('log_date, status, hours_worked, ot_hours, worker:workers(id, job_site_id, job_site:job_sites!job_site_id(id, name)), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
+        .select('log_date, status, hours_worked, ot_hours, job_site_id, job_site:job_sites!job_site_id(id, name), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
         .eq('organization_id', userData.org_id)
         .eq('worker_id', worker.id)
         .gte('log_date', dates[0])
@@ -687,9 +687,9 @@ export function DailyHours() {
           siteId = site?.id ?? '__transferred__';
           siteName = site?.name ?? 'Transferred (Unknown)';
         } else {
-          const w = (dh.worker as unknown) as { id: string; job_site_id: string | null; job_site: { id: string; name: string } | null } | null;
-          siteId = w?.job_site?.id ?? w?.job_site_id ?? '__unknown__';
-          siteName = w?.job_site?.name ?? 'Unknown Site';
+          const site = (dh.job_site as unknown) as { id: string; name: string } | null;
+          siteId = site?.id ?? (dh.job_site_id as string | null) ?? '__unknown__';
+          siteName = site?.name ?? 'Unknown Site';
         }
 
         if (!siteMap.has(siteId)) {
