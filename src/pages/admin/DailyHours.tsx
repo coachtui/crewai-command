@@ -663,13 +663,29 @@ export function DailyHours() {
 
       const { data: records, error } = await supabase
         .from('daily_hours')
-        .select('log_date, status, hours_worked, ot_hours, job_site_id, job_site:job_sites!job_site_id(id, name), transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
+        .select('log_date, status, hours_worked, ot_hours, job_site_id, transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
         .eq('organization_id', userData.org_id)
         .eq('worker_id', worker.id)
         .gte('log_date', dates[0])
         .lte('log_date', dates[6]);
 
       if (error) throw error;
+
+      // Collect all unique job site IDs to look up names
+      const siteIds = [...new Set(
+        (records || [])
+          .filter(dh => dh.status === 'worked' && dh.job_site_id)
+          .map(dh => dh.job_site_id as string)
+      )];
+
+      const siteNameMap = new Map<string, string>();
+      if (siteIds.length > 0) {
+        const { data: sitesData } = await supabase
+          .from('job_sites')
+          .select('id, name')
+          .in('id', siteIds);
+        (sitesData || []).forEach(s => siteNameMap.set(s.id, s.name));
+      }
 
       const siteMap = new Map<string, { siteName: string; days: (number | null)[]; otDays: (number | null)[] }>();
 
@@ -687,9 +703,8 @@ export function DailyHours() {
           siteId = site?.id ?? '__transferred__';
           siteName = site?.name ?? 'Transferred (Unknown)';
         } else {
-          const site = (dh.job_site as unknown) as { id: string; name: string } | null;
-          siteId = site?.id ?? (dh.job_site_id as string | null) ?? '__unknown__';
-          siteName = site?.name ?? 'Unknown Site';
+          siteId = (dh.job_site_id as string | null) ?? '__unknown__';
+          siteName = siteNameMap.get(siteId) ?? 'Unknown Site';
         }
 
         if (!siteMap.has(siteId)) {
