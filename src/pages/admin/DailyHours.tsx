@@ -2173,11 +2173,24 @@ export function DailyHours() {
             <div className="space-y-4">
               <div className="worker-summary-printable bg-white text-gray-900 rounded border border-gray-200 p-6 font-sans">
                 {/* Header */}
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">{workerSummaryWorker?.name}</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">{weekLabel}</p>
-                  {workerSummaryWorker && (
-                    <p className="text-xs text-gray-400 capitalize mt-0.5">{workerSummaryWorker.role}</p>
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">{workerSummaryWorker?.name}</h2>
+                    <p className="text-sm text-gray-500 mt-0.5">{weekLabel}</p>
+                    {workerSummaryWorker && (
+                      <p className="text-xs text-gray-400 capitalize mt-0.5">{workerSummaryWorker.role}</p>
+                    )}
+                  </div>
+                  {!workerSummaryLoading && grandTotal > 0 && (
+                    <div className="text-right shrink-0">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {grandTotal % 1 === 0 ? grandTotal : grandTotal.toFixed(1)}h
+                      </div>
+                      {grandOtTotal > 0 && (
+                        <div className="text-sm font-medium text-amber-600">+{grandOtTotal.toFixed(1)}h OT</div>
+                      )}
+                      <div className="text-xs text-gray-400 mt-0.5">week total</div>
+                    </div>
                   )}
                 </div>
                 <hr className="border-gray-200 mb-4" />
