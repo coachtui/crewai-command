@@ -193,6 +193,7 @@ export function TaskDetailsModal({
             </div>
 
             {/* Laborers */}
+            {(laborers.length > 0 || task.required_laborers > 0) && (
             <div className="p-4 bg-bg-primary rounded-lg border border-border">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium">Laborers</span>
@@ -227,6 +228,7 @@ export function TaskDetailsModal({
                 <p className="text-sm text-text-secondary italic">No laborers assigned</p>
               )}
             </div>
+            )}
 
             {/* Carpenters (if any) */}
             {(carpenters.length > 0 || (task.required_carpenters && task.required_carpenters > 0)) && (
