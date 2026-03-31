@@ -74,6 +74,8 @@ export function DailyHours() {
   const [groupByCrew, setGroupByCrew] = useState(false);
   const [crews, setCrews] = useState<Crew[]>([]);
   const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
+  // workerId → crewId at current site
+  const [siteCrewMap, setSiteCrewMap] = useState<Map<string, string>>(new Map());
 
   // Daily notes modal
   const [dailyNotesOpen, setDailyNotesOpen] = useState(false);
@@ -247,6 +249,20 @@ export function DailyHours() {
       if (crewsError) throw crewsError;
       setCrews(crewsData || []);
       setCollapsedCrews(new Set([...(crewsData || []).map(c => c.id), '__no_crew__']));
+
+      // Fetch per-site crew assignments for all workers at this site
+      const allWorkerIds = allWorkers.map(w => w.id);
+      const { data: crewAssignments } = allWorkerIds.length
+        ? await supabase
+            .from('worker_crew_assignments')
+            .select('worker_id, crew_id')
+            .eq('job_site_id', currentJobSite.id)
+            .in('worker_id', allWorkerIds)
+        : { data: [] };
+
+      const crewMap = new Map<string, string>();
+      (crewAssignments || []).forEach(a => crewMap.set(a.worker_id, a.crew_id));
+      setSiteCrewMap(crewMap);
 
       // Load active job sites for transfer dropdown
       const { data: jobSitesData } = await supabase
@@ -1231,9 +1247,10 @@ export function DailyHours() {
   const workersGroupedByCrew = new Map<string, WorkerDayStatus[]>();
   const noCrewWorkers: WorkerDayStatus[] = [];
   workers.forEach((ws) => {
-    if (ws.worker.crew_id) {
-      if (!workersGroupedByCrew.has(ws.worker.crew_id)) workersGroupedByCrew.set(ws.worker.crew_id, []);
-      workersGroupedByCrew.get(ws.worker.crew_id)!.push(ws);
+    const siteCrewId = siteCrewMap.get(ws.worker.id);
+    if (siteCrewId) {
+      if (!workersGroupedByCrew.has(siteCrewId)) workersGroupedByCrew.set(siteCrewId, []);
+      workersGroupedByCrew.get(siteCrewId)!.push(ws);
     } else {
       noCrewWorkers.push(ws);
     }
@@ -1253,7 +1270,7 @@ export function DailyHours() {
   const weeklyCrewGroups = (() => {
     const crewMap = new Map<string, typeof weeklyData>();
     weeklyData.forEach(row => {
-      const key = row.worker.crew_id || '__no_crew__';
+      const key = siteCrewMap.get(row.worker.id) || '__no_crew__';
       const list = crewMap.get(key) || [];
       list.push(row);
       crewMap.set(key, list);

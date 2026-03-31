@@ -113,6 +113,18 @@ export interface WorkerSiteAssignment {
 }
 
 // ============================================================================
+// WORKER CREW ASSIGNMENTS (per-site crew membership)
+// ============================================================================
+
+export interface WorkerCrewAssignment {
+  id: string;
+  worker_id: string;
+  job_site_id: string;
+  crew_id: string;
+  created_at: string;
+}
+
+// ============================================================================
 // CREWS
 // ============================================================================
 

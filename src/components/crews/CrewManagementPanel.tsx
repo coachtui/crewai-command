@@ -23,6 +23,8 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
   const { currentJobSite } = useJobSite();
   const [crews, setCrews] = useState<Crew[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
+  // workerId → crewId at this site
+  const [workerCrewMap, setWorkerCrewMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
   const [newCrewName, setNewCrewName] = useState('');
   const [newCrewColor, setNewCrewColor] = useState(CREW_COLORS[0]);
@@ -42,7 +44,7 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
     if (!currentJobSite || !user?.org_id) return;
     setLoading(true);
     try {
-      const [crewsRes, workersRes] = await Promise.all([
+      const [crewsRes, primaryWorkersRes, tempRes] = await Promise.all([
         supabase
           .from('crews')
           .select('*')
@@ -54,11 +56,44 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
           .eq('job_site_id', currentJobSite.id)
           .eq('status', 'active')
           .order('name'),
+        supabase
+          .from('worker_site_assignments')
+          .select('worker_id, worker:workers(*)')
+          .eq('job_site_id', currentJobSite.id)
+          .eq('is_active', true),
       ]);
+
       if (crewsRes.error) throw crewsRes.error;
-      if (workersRes.error) throw workersRes.error;
+      if (primaryWorkersRes.error) throw primaryWorkersRes.error;
+
+      const primaryWorkers = primaryWorkersRes.data || [];
+      let allWorkers = [...primaryWorkers];
+
+      // Include temp-assigned workers
+      if (tempRes.data?.length) {
+        const primaryIds = new Set(primaryWorkers.map(w => w.id));
+        const extraWorkers = tempRes.data
+          .map(a => a.worker as unknown as Worker | null)
+          .filter((w): w is Worker => w !== null && !primaryIds.has(w.id));
+        allWorkers = [...allWorkers, ...extraWorkers];
+      }
+
+      // Fetch per-site crew assignments
+      const workerIds = allWorkers.map(w => w.id);
+      const { data: crewAssignments } = workerIds.length
+        ? await supabase
+            .from('worker_crew_assignments')
+            .select('worker_id, crew_id')
+            .eq('job_site_id', currentJobSite.id)
+            .in('worker_id', workerIds)
+        : { data: [] };
+
+      const map = new Map<string, string>();
+      (crewAssignments || []).forEach(a => map.set(a.worker_id, a.crew_id));
+
       setCrews(crewsRes.data || []);
-      setWorkers(workersRes.data || []);
+      setWorkers(allWorkers);
+      setWorkerCrewMap(map);
     } catch (err) {
       toast.error('Failed to load crews');
       console.error(err);
@@ -120,15 +155,19 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
     }
   };
 
-  // Bulk-assign all selected workers to a crew in one shot
+  // Bulk-assign selected workers to a crew via worker_crew_assignments
   const handleConfirmAddWorkers = async (crewId: string) => {
-    if (selectedWorkerIds.size === 0) return;
+    if (selectedWorkerIds.size === 0 || !currentJobSite) return;
     const ids = Array.from(selectedWorkerIds);
     try {
+      const rows = ids.map(worker_id => ({
+        worker_id,
+        job_site_id: currentJobSite.id,
+        crew_id: crewId,
+      }));
       const { error } = await supabase
-        .from('workers')
-        .update({ crew_id: crewId })
-        .in('id', ids);
+        .from('worker_crew_assignments')
+        .upsert(rows, { onConflict: 'worker_id,job_site_id' });
       if (error) throw error;
       toast.success(`${ids.length} worker${ids.length !== 1 ? 's' : ''} added to crew`);
       closePicker();
@@ -141,11 +180,13 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
   };
 
   const handleRemoveWorkerFromCrew = async (workerId: string) => {
+    if (!currentJobSite) return;
     try {
       const { error } = await supabase
-        .from('workers')
-        .update({ crew_id: null })
-        .eq('id', workerId);
+        .from('worker_crew_assignments')
+        .delete()
+        .eq('worker_id', workerId)
+        .eq('job_site_id', currentJobSite.id);
       if (error) throw error;
       fetchData();
       onUpdate();
@@ -174,10 +215,12 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
     });
   };
 
-  const getCrewWorkers = (crewId: string) => workers.filter(w => w.crew_id === crewId);
-  // "available" = not already in THIS crew (can move from another)
-  const getAvailableWorkers = (crewId: string) => workers.filter(w => w.crew_id !== crewId);
-  const unassignedCount = workers.filter(w => !w.crew_id).length;
+  const getCrewWorkers = (crewId: string) =>
+    workers.filter(w => workerCrewMap.get(w.id) === crewId);
+  // "available" = not already in THIS crew
+  const getAvailableWorkers = (crewId: string) =>
+    workers.filter(w => workerCrewMap.get(w.id) !== crewId);
+  const unassignedCount = workers.filter(w => !workerCrewMap.has(w.id)).length;
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Manage Crews" size="lg">
@@ -375,6 +418,7 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
                             <div className="max-h-52 overflow-y-auto">
                               {available.map(worker => {
                                 const checked = selectedWorkerIds.has(worker.id);
+                                const currentCrewId = workerCrewMap.get(worker.id);
                                 return (
                                   <button
                                     key={worker.id}
@@ -390,7 +434,7 @@ export function CrewManagementPanel({ isOpen, onClose, onUpdate }: CrewManagemen
                                     </div>
                                     <span className="text-[13px] flex-1">{worker.name}</span>
                                     <span className="text-[11px] text-text-secondary capitalize">{worker.role}</span>
-                                    {worker.crew_id && (
+                                    {currentCrewId && currentCrewId !== crew.id && (
                                       <span className="text-[10px] text-warning">moves crew</span>
                                     )}
                                   </button>

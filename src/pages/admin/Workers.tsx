@@ -19,6 +19,8 @@ export function Workers() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [unassignedWorkers, setUnassignedWorkers] = useState<Worker[]>([]);
   const [crews, setCrews] = useState<Crew[]>([]);
+  // workerId → crewId at current site
+  const [workerCrewMap, setWorkerCrewMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -34,11 +36,9 @@ export function Workers() {
   const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
 
   useEffect(() => {
-    if (user?.org_id) {
-      fetchWorkers();
-      fetchUnassignedWorkers();
-      fetchCrews();
-    }
+    fetchWorkers();
+    fetchUnassignedWorkers();
+    fetchCrews();
   }, [currentJobSite?.id, user?.org_id, unassignedSite?.id]);
 
   // Real-time subscriptions
@@ -51,63 +51,85 @@ export function Workers() {
     fetchWorkers();
   }, []));
 
+  useRealtimeSubscription('worker_crew_assignments', useCallback(() => {
+    fetchWorkers();
+  }, []));
+
   const fetchWorkers = async () => {
-    if (!user?.org_id) {
+    if (!currentJobSite) {
       setWorkers([]);
       setLoading(false);
       return;
     }
 
     try {
-      let query = supabase
+      // Mirror DailyHours: get fresh auth user + org_id from DB
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { setLoading(false); return; }
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('org_id')
+        .eq('id', authUser.id)
+        .single();
+
+      if (!userData) { setLoading(false); return; }
+
+      const { data: workersData, error: workersError } = await supabase
         .from('workers')
         .select('*, crew:crews(id, name, color)')
-        .eq('organization_id', user.org_id);
+        .eq('organization_id', userData.org_id)
+        .eq('job_site_id', currentJobSite.id)
+        .order('name');
 
-      if (currentJobSite) {
-        query = query.eq('job_site_id', currentJobSite.id);
-      } else {
-        query = query.is('job_site_id', null).limit(0);
-      }
+      if (workersError) throw workersError;
 
-      const { data, error } = await query.order('name');
-      if (error) throw error;
+      let allWorkers = [...(workersData || [])];
 
-      let allWorkers = data || [];
+      // Same pattern as DailyHours: fetch temp-assigned workers
+      const today = new Date().toISOString().split('T')[0];
+      const { data: tempAssignments, error: tempErr } = await supabase
+        .from('worker_site_assignments')
+        .select('worker_id')
+        .eq('job_site_id', currentJobSite.id)
+        .eq('is_active', true)
+        .or(`start_date.is.null,start_date.lte.${today}`)
+        .or(`end_date.is.null,end_date.gte.${today}`);
 
-      // Also include workers with an active temporary assignment at this site
-      if (currentJobSite && allWorkers !== null) {
-        const today = new Date().toISOString().split('T')[0];
-        const { data: assignments, error: assignmentsError } = await supabase
-          .from('worker_site_assignments')
-          .select('worker_id')
-          .eq('job_site_id', currentJobSite.id)
-          .eq('is_active', true)
-          .or(`start_date.is.null,start_date.lte.${today}`)
-          .or(`end_date.is.null,end_date.gte.${today}`);
+      if (tempErr) console.error('worker_site_assignments fetch error:', tempErr);
 
-        if (assignmentsError) console.error('worker_site_assignments query error:', assignmentsError);
-
-        if (assignments?.length) {
-          const primaryIds = new Set(allWorkers.map(w => w.id));
-          const extraIds = assignments
-            .map(a => a.worker_id)
-            .filter(id => !primaryIds.has(id));
-
-          if (extraIds.length) {
-            const { data: extraWorkers } = await supabase
-              .from('workers')
-              .select('*, crew:crews(id, name, color)')
-              .in('id', extraIds)
-              .eq('organization_id', user.org_id)
-              .order('name');
-
-            allWorkers = [...allWorkers, ...(extraWorkers || [])];
+      if (tempAssignments?.length) {
+        const primaryIds = new Set(allWorkers.map(w => w.id));
+        const extraIds = tempAssignments.map(a => a.worker_id).filter(id => !primaryIds.has(id));
+        if (extraIds.length) {
+          const { data: extraWorkers, error: extraErr } = await supabase
+            .from('workers')
+            .select('*, crew:crews(id, name, color)')
+            .in('id', extraIds)
+            .eq('organization_id', userData.org_id)
+            .order('name');
+          if (extraErr) console.error('extra workers fetch error:', extraErr);
+          if (extraWorkers?.length) {
+            allWorkers = [...allWorkers, ...extraWorkers];
           }
         }
       }
 
+      // Fetch per-site crew assignments
+      const workerIds = allWorkers.map(w => w.id);
+      const { data: crewAssignments } = workerIds.length
+        ? await supabase
+            .from('worker_crew_assignments')
+            .select('worker_id, crew_id')
+            .eq('job_site_id', currentJobSite.id)
+            .in('worker_id', workerIds)
+        : { data: [] };
+
+      const crewMap = new Map<string, string>();
+      (crewAssignments || []).forEach(a => crewMap.set(a.worker_id, a.crew_id));
+
       setWorkers(allWorkers);
+      setWorkerCrewMap(crewMap);
     } catch (error) {
       toast.error('Failed to load workers');
       console.error(error);
@@ -243,10 +265,11 @@ export function Workers() {
   const noCrewWorkers: Worker[] = [];
 
   filteredWorkers.forEach(worker => {
-    if (worker.crew_id) {
-      const list = workersByCrew.get(worker.crew_id) || [];
+    const siteCrewId = workerCrewMap.get(worker.id);
+    if (siteCrewId) {
+      const list = workersByCrew.get(siteCrewId) || [];
       list.push(worker);
-      workersByCrew.set(worker.crew_id, list);
+      workersByCrew.set(siteCrewId, list);
     } else {
       noCrewWorkers.push(worker);
     }
