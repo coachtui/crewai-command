@@ -144,7 +144,7 @@ export function Tasks() {
 
   // Which week sections are expanded (keyed by weekStart 'yyyy-MM-dd')
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(() => {
-    const key = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const key = format(startOfWeek(new Date(), { weekStartsOn: 0 }), 'yyyy-MM-dd');
     return new Set([key]);
   });
 
@@ -160,10 +160,10 @@ export function Tasks() {
   useEffect(() => {
     const today = new Date();
     if (activeFilter === 'next_week') {
-      const key = format(startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      const key = format(startOfWeek(addWeeks(today, 1), { weekStartsOn: 0 }), 'yyyy-MM-dd');
       setExpandedWeeks(new Set([key]));
     } else {
-      const key = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+      const key = format(startOfWeek(today, { weekStartsOn: 0 }), 'yyyy-MM-dd');
       setExpandedWeeks(new Set([key]));
     }
   }, [activeFilter]);
@@ -413,14 +413,14 @@ export function Tasks() {
       }
 
       if (activeFilter === 'this_week') {
-        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+        const weekStart = startOfWeek(today, { weekStartsOn: 0 });
+        const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
         return taskOverlapsRange(task, weekStart, weekEnd);
       }
 
       if (activeFilter === 'next_week') {
-        const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
-        const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
+        const nextWeekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 0 });
+        const nextWeekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 0 });
         return taskOverlapsRange(task, nextWeekStart, nextWeekEnd);
       }
 
@@ -434,8 +434,8 @@ export function Tasks() {
     const today = new Date();
 
     if (activeFilter === 'this_week') {
-      const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+      const weekStart = startOfWeek(today, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
       return [{
         weekStart,
         weekEnd,
@@ -446,8 +446,8 @@ export function Tasks() {
     }
 
     if (activeFilter === 'next_week') {
-      const weekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 1 });
+      const weekStart = startOfWeek(addWeeks(today, 1), { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(addWeeks(today, 1), { weekStartsOn: 0 });
       return [{
         weekStart,
         weekEnd,
@@ -463,8 +463,8 @@ export function Tasks() {
 
     // 'all' — 4 weeks, each filtered by date overlap
     return Array.from({ length: 4 }, (_, i) => {
-      const weekStart = startOfWeek(addWeeks(today, i), { weekStartsOn: 1 });
-      const weekEnd = endOfWeek(addWeeks(today, i), { weekStartsOn: 1 });
+      const weekStart = startOfWeek(addWeeks(today, i), { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(addWeeks(today, i), { weekStartsOn: 0 });
       return {
         weekStart,
         weekEnd,

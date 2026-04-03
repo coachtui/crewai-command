@@ -216,15 +216,15 @@ export function calculateTimelineRange(tasks: GanttTask[]): {
   days: Date[];
 } {
   if (tasks.length === 0) {
-    // Start from Monday of current week
+    // Start from Sunday of current week
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const monday = addDays(today, -(dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    
+    const sunday = addDays(today, -dayOfWeek);
+
     return {
-      startDate: monday,
-      endDate: addDays(monday, 27), // 4 weeks
-      days: eachDayOfInterval({ start: monday, end: addDays(monday, 27) }),
+      startDate: sunday,
+      endDate: addDays(sunday, 27), // 4 weeks
+      days: eachDayOfInterval({ start: sunday, end: addDays(sunday, 27) }),
     };
   }
 
@@ -234,10 +234,10 @@ export function calculateTimelineRange(tasks: GanttTask[]): {
   const minStart = new Date(Math.min(...allStartDates.map(d => d.getTime())));
   const maxEnd = new Date(Math.max(...allEndDates.map(d => d.getTime())));
   
-  // Add padding, aligning to Monday
+  // Add padding, aligning to Sunday
   const startDayOfWeek = minStart.getDay();
-  const startMonday = addDays(minStart, -(startDayOfWeek === 0 ? 6 : startDayOfWeek - 1));
-  const startDate = addDays(startMonday, -7); // One week before
+  const startSunday = addDays(minStart, -startDayOfWeek);
+  const startDate = addDays(startSunday, -7); // One week before
   
   const endDate = addDays(maxEnd, 7); // One week after
   
@@ -259,8 +259,8 @@ export function calculateTaskBarPosition(
 }
 
 export function formatDateHeader(date: Date, index: number): string {
-  // Show full date for Mondays or first day
-  if (index === 0 || date.getDay() === 1) {
+  // Show full date for Sundays (week start) or first day
+  if (index === 0 || date.getDay() === 0) {
     return format(date, 'MMM d');
   }
   return format(date, 'd');
