@@ -146,6 +146,7 @@ export function DailyHours() {
 
     try {
       setLoading(true);
+      setEditedHours(new Map()); // clear pending edits when site or date changes
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
@@ -195,8 +196,7 @@ export function DailyHours() {
         .select('worker_id')
         .eq('job_site_id', currentJobSite.id)
         .eq('is_active', true)
-        .or(`start_date.is.null,start_date.lte.${selectedDate}`)
-        .or(`end_date.is.null,end_date.gte.${selectedDate}`);
+        .or(`and(start_date.is.null,end_date.is.null),and(start_date.lte.${selectedDate},end_date.is.null),and(start_date.is.null,end_date.gte.${selectedDate}),and(start_date.lte.${selectedDate},end_date.gte.${selectedDate})`);
 
       if (tempErr) console.error('worker_site_assignments fetch error:', tempErr);
 
@@ -224,6 +224,7 @@ export function DailyHours() {
         .from('daily_hours')
         .select('*, worker:workers(*), task:tasks!task_id(*), transferred_to_task:tasks!transferred_to_task_id(*), transferred_to_job_site:job_sites!transferred_to_job_site_id(*)')
         .eq('organization_id', userData.org_id)
+        .eq('job_site_id', currentJobSite.id)
         .eq('log_date', selectedDate)
         .in('worker_id', workerIds.length > 0 ? workerIds : ['00000000-0000-0000-0000-000000000000']);
 
@@ -248,7 +249,8 @@ export function DailyHours() {
         .order('name');
       if (crewsError) throw crewsError;
       setCrews(crewsData || []);
-      setCollapsedCrews(new Set([...(crewsData || []).map(c => c.id), '__no_crew__']));
+      // Collapse named crews by default, but keep "No Crew" expanded so temp-assigned workers are visible
+      setCollapsedCrews(new Set((crewsData || []).map(c => c.id)));
 
       // Fetch per-site crew assignments for all workers at this site
       const allWorkerIds = allWorkers.map(w => w.id);
@@ -322,6 +324,7 @@ export function DailyHours() {
         .from('daily_hours')
         .select('*, worker:workers(*)')
         .eq('organization_id', userData.org_id)
+        .eq('job_site_id', currentJobSite.id)
         .in('worker_id', workerIds.length > 0 ? workerIds : ['00000000-0000-0000-0000-000000000000'])
         .gte('log_date', getLocalDateString(startOfWeek))
         .lte('log_date', getLocalDateString(endOfWeek));
@@ -468,7 +471,7 @@ export function DailyHours() {
           transferred_to_job_site_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,organization_id'
+          onConflict: 'worker_id,log_date,organization_id,job_site_id'
         });
 
       if (error) throw error;
@@ -517,7 +520,7 @@ export function DailyHours() {
           task_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,organization_id'
+          onConflict: 'worker_id,log_date,organization_id,job_site_id'
         });
 
       if (error) throw error;
@@ -566,7 +569,7 @@ export function DailyHours() {
           transferred_to_job_site_id: null,
           logged_by: userId,
         }, {
-          onConflict: 'worker_id,log_date,organization_id'
+          onConflict: 'worker_id,log_date,organization_id,job_site_id'
         });
 
       if (error) throw error;
@@ -638,7 +641,7 @@ export function DailyHours() {
       const { error } = await supabase
         .from('daily_hours')
         .upsert(records, {
-          onConflict: 'worker_id,log_date,organization_id'
+          onConflict: 'worker_id,log_date,organization_id,job_site_id'
         });
 
       if (error) throw error;
@@ -1319,7 +1322,9 @@ export function DailyHours() {
 
   const renderWorkerRow = ({ worker, dailyHours }: WorkerDayStatus, rowNum?: number) => {
     const edited = editedHours.get(worker.id);
-    const currentHours = edited?.hours || dailyHours?.hours_worked?.toString() || '8';
+    // Show empty when no record exists so it doesn't look like hours crossed from another site.
+    // '8' only pre-fills when a saved 'worked' record exists but hours_worked is somehow null.
+    const currentHours = edited?.hours ?? (dailyHours != null ? (dailyHours.hours_worked?.toString() ?? '8') : '');
     const currentOtHours = edited?.otHours ?? dailyHours?.ot_hours?.toString() ?? '0';
     const isEdited = edited !== undefined;
     return (

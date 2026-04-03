@@ -93,8 +93,7 @@ export function Workers() {
         .select('worker_id')
         .eq('job_site_id', currentJobSite.id)
         .eq('is_active', true)
-        .or(`start_date.is.null,start_date.lte.${today}`)
-        .or(`end_date.is.null,end_date.gte.${today}`);
+        .or(`and(start_date.is.null,end_date.is.null),and(start_date.lte.${today},end_date.is.null),and(start_date.is.null,end_date.gte.${today}),and(start_date.lte.${today},end_date.gte.${today})`);
 
       if (tempErr) console.error('worker_site_assignments fetch error:', tempErr);
 
