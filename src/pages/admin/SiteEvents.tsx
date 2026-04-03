@@ -19,6 +19,7 @@ import { useAuth, useJobSite } from '../../contexts';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
+import { TaskForm } from '../../components/tasks/TaskForm';
 import type { SiteEvent, Task } from '../../types';
 import { toast } from 'sonner';
 
@@ -226,6 +227,8 @@ export function SiteEvents() {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState<ModalMode>({ type: 'closed' });
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -282,6 +285,30 @@ export function SiteEvents() {
       setTasks(data || []);
     } catch (err) {
       console.error('Failed to load tasks for schedule', err);
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setSelectedTask(null);
+    setEditingTask(task);
+    setShowEditModal(true);
+  };
+
+  const handleSaveTask = async (taskData: Partial<Task>) => {
+    if (!user?.id || !editingTask) { toast.error('Unable to save task'); return; }
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ ...taskData, modified_by: user.id, modified_at: new Date().toISOString() })
+        .eq('id', editingTask.id);
+      if (error) throw error;
+      toast.success('Task updated successfully');
+      fetchTasks();
+      setShowEditModal(false);
+      setEditingTask(null);
+    } catch (err) {
+      toast.error('Failed to save task');
+      console.error(err);
     }
   };
 
@@ -679,8 +706,24 @@ export function SiteEvents() {
           onClose={() => setSelectedTask(null)}
           task={selectedTask}
           assignments={[]}
+          onEdit={() => handleEditTask(selectedTask)}
         />
       )}
+
+      {/* Task Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => { setShowEditModal(false); setEditingTask(null); }}
+        title="Edit Task"
+      >
+        <TaskForm
+          task={editingTask}
+          draft={null}
+          onSave={handleSaveTask}
+          onSaveDraft={() => {}}
+          onCancel={() => { setShowEditModal(false); setEditingTask(null); }}
+        />
+      </Modal>
     </div>
   );
 }

@@ -21,9 +21,10 @@ import { eachDayOfInterval } from 'date-fns';
 interface GanttChartViewProps {
   tasks: Task[];
   assignments: Assignment[];
+  onEditTask?: (task: Task) => void;
 }
 
-export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
+export function GanttChartView({ tasks, assignments, onEditTask }: GanttChartViewProps) {
   const [dayWidth, setDayWidth] = useState(40); // pixels per day
   const [includeSaturday, setIncludeSaturday] = useState(() => {
     // Load from localStorage
@@ -527,6 +528,7 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
           }}
           task={selectedTask}
           assignments={assignments}
+          onEdit={onEditTask ? () => { setShowTaskDetails(false); setSelectedTask(null); onEditTask(selectedTask); } : undefined}
         />
       )}
 

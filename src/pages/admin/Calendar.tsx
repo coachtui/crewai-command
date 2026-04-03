@@ -282,7 +282,7 @@ export function Calendar() {
           <p className="text-text-secondary">Loading calendar...</p>
         </div>
       ) : viewMode === 'gantt' ? (
-        <GanttChartView tasks={tasks} assignments={assignments} />
+        <GanttChartView tasks={tasks} assignments={assignments} onEditTask={handleEditTask} />
       ) : (
         <div className="overflow-x-auto">
           <div className="flex gap-4 min-w-max">
