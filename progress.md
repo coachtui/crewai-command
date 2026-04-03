@@ -1,10 +1,11 @@
 # Progress Tracker — CrewAI Command
 
 ## In Progress
-- Lead Builder workflow bootstrap (session 2026-03-21)
+- None
 
 ## Completed
 | Task | Completed | Notes |
+| Per-site crew assignment + temp workers in Workers tab | 2026-03-31 | git: 7db2326; migration 019 |
 |------|-----------|-------|
 | PDF preview before export on daily hours report | 2026-03-21 (pre-session) | git: 12d97d3 |
 | Fix temp-assigned workers not appearing in daily hours | 2026-03-21 (pre-session) | git: 7740f63 |

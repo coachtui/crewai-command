@@ -1,39 +1,28 @@
 # Current Phase Plan
 
 ## Phase
-**Bootstrap Lead Builder Workflow + Awaiting Next Feature Scope**
+**Per-Site Crew Assignment + Multi-Site Worker Visibility**
 
 ## Status
-🟡 Bootstrapping — No active feature task assigned yet.
+✅ Complete — deployed to production (commit 7db2326)
 
 ## Phase Objective
-Establish the Lead Builder session infrastructure and await the next concrete feature or fix request from the user.
+Allow workers assigned to multiple job sites to appear in the Workers tab for each site they're on, and be assignable to site-specific crews.
 
 ## Deliverables
-- [x] CLAUDE.md created with repo conventions and build standards
-- [x] memory.md created with durable project knowledge
-- [x] plans/current-phase.md created (this file)
-- [x] progress.md created
-- [x] handoff.md created
-- [x] sessions/2026-03-21-0000.md created
-- [ ] Next feature task — pending user input
+- [x] `worker_crew_assignments` table (migration 019) — per-site crew membership
+- [x] Workers tab includes temp-assigned workers (via `worker_site_assignments`)
+- [x] Crew Management panel shows all site workers (primary + temp)
+- [x] Crew assignment reads/writes `worker_crew_assignments` not `workers.crew_id`
+- [x] DailyHours crew grouping uses `worker_crew_assignments`
+- [x] Build clean, pushed, deployed
 
-## Acceptance Criteria
-- All Lead Builder infrastructure files exist and are accurate
-- `npm run build` passes clean
-- Ready to receive and execute next task
-
-## Constraints
-- Do not invent scope; wait for user to specify next feature/fix
-- Keep changes surgical; no broad rewrites
-
-## Dependencies
-- None
+## Key Decisions
+- `worker_crew_assignments(worker_id, job_site_id, crew_id)` replaces `workers.crew_id` for site-scoped crew display (`workers.crew_id` remains in DB but is no longer the source of truth for the UI)
+- Workers tab `fetchWorkers` now mirrors DailyHours pattern exactly: fresh `auth.getUser()` + `users` table query for org_id, same `.or()` chained date filters for temp assignments
 
 ## Open Blockers
-- None — awaiting next task from user
+- None
 
 ## Next Concrete Actions
-1. User provides next feature/fix request
-2. Update this file with the new phase objective
-3. Execute task per plan
+- Await next feature/fix request from user

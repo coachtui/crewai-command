@@ -121,8 +121,9 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
       // Small delay to ensure styles are applied
       await new Promise(resolve => setTimeout(resolve, 100));
 
+      const scale = 2;
       const canvas = await html2canvas(ganttRef.current, {
-        scale: 2,
+        scale,
         backgroundColor: '#ffffff',
         logging: false,
         useCORS: true,
@@ -131,29 +132,68 @@ export function GanttChartView({ tasks, assignments }: GanttChartViewProps) {
         height: ganttRef.current.scrollHeight,
       });
 
+      // Measure header height before restoring styles
+      const headerEl = ganttRef.current.querySelector('.gantt-header') as HTMLElement | null;
+      const headerHeightScaled = (headerEl?.offsetHeight ?? 50) * scale;
+
       // Restore original styles
       ganttRef.current.classList.remove('pdf-export-mode');
       scrollContainerRef.current.style.overflow = originalOverflow;
       scrollContainerRef.current.style.maxHeight = originalMaxHeight;
 
-      // ALWAYS landscape orientation
-      const pdf = new jsPDF('landscape', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
+      // Landscape tabloid (17" x 11")
+      const pdf = new jsPDF('landscape', 'mm', 'tabloid');
       const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Handle multi-page if content is too tall
-      let heightLeft = pdfHeight;
-      let position = 0;
+      // Conversion: canvas pixels → mm
+      const canvasToMm = pdfWidth / canvas.width;
+      const pageHeightInCanvas = pdfHeight / canvasToMm;
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pdf.internal.pageSize.getHeight();
+      // Row height in canvas pixels (minHeight: 80px * scale)
+      const rowHeightScaled = 80 * scale;
 
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pdf.internal.pageSize.getHeight();
+      let pageStartY = 0;
+      let isFirstPage = true;
+
+      while (pageStartY < canvas.height) {
+        let pageEndY = pageStartY + pageHeightInCanvas;
+
+        if (pageEndY < canvas.height) {
+          // Snap page break to nearest row boundary so no row is cut mid-height
+          const contentAboveBreak = pageEndY - headerHeightScaled;
+          if (contentAboveBreak > 0) {
+            const rowsAbove = Math.floor(contentAboveBreak / rowHeightScaled);
+            const snappedY = headerHeightScaled + rowsAbove * rowHeightScaled;
+            if (snappedY > pageStartY) {
+              pageEndY = snappedY;
+            }
+          }
+          // Fallback: if snapping produces no progress, use natural break
+          if (pageEndY <= pageStartY) {
+            pageEndY = pageStartY + pageHeightInCanvas;
+          }
+        } else {
+          pageEndY = canvas.height;
+        }
+
+        // Crop canvas slice for this page
+        const sliceHeight = Math.ceil(pageEndY - pageStartY);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        const ctx = pageCanvas.getContext('2d')!;
+        ctx.drawImage(canvas, 0, -pageStartY);
+
+        if (!isFirstPage) {
+          pdf.addPage();
+        }
+
+        const sliceHeightMm = sliceHeight * canvasToMm;
+        pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfWidth, sliceHeightMm);
+
+        pageStartY = pageEndY;
+        isFirstPage = false;
       }
 
       pdf.save(`gantt-chart-${format(new Date(), 'yyyy-MM-dd')}.pdf`);

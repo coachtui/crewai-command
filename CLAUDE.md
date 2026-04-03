@@ -40,8 +40,11 @@ npm run preview    # Preview production build
 ## Supabase Conventions
 - `user_profiles` table linked to `auth.users(id)`
 - `job_site_assignments` tracks which users are assigned to which sites and in what role
-- RLS functions: `get_user_org_id()`, `is_user_admin()`
+- `worker_site_assignments` tracks which workers are temporarily assigned to additional sites
+- `worker_crew_assignments(worker_id, job_site_id, crew_id)` is the source of truth for per-site crew membership (not `workers.crew_id`)
+- RLS functions: `get_user_org_id()`, `is_user_admin()`, `is_user_manager()`
 - Profiles auto-created via DB trigger when auth users are created
+- **Worker org_id pattern**: always fetch org_id via `supabase.auth.getUser()` + fresh `users` table query. Do NOT use `user.org_id` from auth context for worker sub-queries — see `DailyHours.tsx` as the reference implementation.
 
 ## Testing / Verification Checklist
 Before marking any task complete:
@@ -61,5 +64,8 @@ Before marking any task complete:
 ## Known Pitfalls
 - Unused imports break the build (TS6133). Always check after edits.
 - `jsPDF` — use `doc.getNumberOfPages()` (instance method), not `doc.internal.getNumberOfPages()`.
-- Temp-assigned workers (additional site assignments) must be included alongside primary site workers in daily hours and task assignment modals.
-- `job_site_assignments` is the source of truth for site-scoped access — always query it when building roster/assignment features.
+- Temp-assigned workers (via `worker_site_assignments`) must be included alongside primary site workers in every roster view: Workers tab, Daily Hours, Crew Management, task assignment modals.
+- `worker_site_assignments` is the source of truth for temp worker inclusion — query it with the same chained `.or()` date filters used in `DailyHours.tsx`.
+- `worker_crew_assignments` is the source of truth for crew display per site — do not read `workers.crew_id` for site-scoped crew grouping.
+- `job_site_assignments` is the source of truth for user (staff) site access — always query it when building roster/assignment features.
+- Manager ≠ admin in RLS: `is_user_manager()` and `is_user_admin()` are separate functions; policies check both independently.
