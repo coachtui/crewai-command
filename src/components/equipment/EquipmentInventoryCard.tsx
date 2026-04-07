@@ -29,7 +29,7 @@ export function EquipmentInventoryCard({
   const locationLabel = item.current_location?.name ?? 'Yard / Unassigned';
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-bg-secondary border-b border-border last:border-b-0">
+    <div className="flex items-center gap-3 px-4 py-3 bg-bg-secondary">
       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
         <Package size={16} className="text-primary" />
       </div>
@@ -41,6 +41,13 @@ export function EquipmentInventoryCard({
             <span className="text-[12px] text-text-tertiary">{item.category}</span>
           )}
         </div>
+        {(item.make || item.model || item.serial_number) && (
+          <div className="text-[12px] text-text-secondary mt-0.5 flex gap-2 flex-wrap">
+            {item.make && <span>{item.make}</span>}
+            {item.model && <span>{item.model}</span>}
+            {item.serial_number && <span className="text-text-tertiary">#{item.serial_number}</span>}
+          </div>
+        )}
         <div className="flex items-center gap-3 mt-0.5 flex-wrap">
           <span className={`text-[12px] font-medium ${availabilityColor}`}>
             {item.quantity_available}/{item.quantity_total} available

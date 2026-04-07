@@ -446,6 +446,9 @@ export interface EquipmentInventory {
   id: string;
   organization_id: string;
   name: string;
+  make?: string;
+  model?: string;
+  serial_number?: string;
   category?: string;
   quantity_total: number;
   quantity_available: number;
@@ -455,6 +458,28 @@ export interface EquipmentInventory {
   updated_at: string;
   // Joined data
   current_location?: JobSite;
+}
+
+// ============================================================================
+// EQUIPMENT MOVEMENT LOG
+// ============================================================================
+
+export interface EquipmentMovementLog {
+  id: string;
+  organization_id: string;
+  equipment_inventory_id?: string;
+  equipment_id?: string;
+  equipment_name: string;
+  from_job_site_id?: string;
+  to_job_site_id?: string;
+  moved_by?: string;
+  request_id?: string;
+  notes?: string;
+  moved_at: string;
+  // Joined data
+  from_job_site?: JobSite;
+  to_job_site?: JobSite;
+  moved_by_profile?: User;
 }
 
 // ============================================================================

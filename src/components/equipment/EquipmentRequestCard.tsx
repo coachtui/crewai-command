@@ -1,9 +1,10 @@
 // ============================================================================
 // Equipment Request Card
-// Displays a single equipment request with status badge and action buttons
+// Displays a single equipment request with status badge and action buttons.
+// When dispatched/received, shows make/model/serial from inventory link.
 // ============================================================================
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, MoveRight } from 'lucide-react';
 import { useState } from 'react';
 import type { EquipmentRequest } from '../../types';
 
@@ -64,6 +65,15 @@ function formatDate(dateStr: string) {
   });
 }
 
+function formatDateTime(isoStr: string) {
+  return new Date(isoStr).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function EquipmentRequestCard({
   request,
   onApprove,
@@ -76,6 +86,9 @@ export function EquipmentRequestCard({
     month: 'short',
     day: 'numeric',
   });
+
+  const inv = request.equipment_inventory;
+  const isDispatched = request.status === 'dispatched' || request.status === 'received';
 
   return (
     <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
@@ -95,21 +108,40 @@ export function EquipmentRequestCard({
               × {request.quantity_requested}
             </span>
           </div>
-          {/* Site info */}
-          {request.destination_job_site && (
-            <div className="text-[12px] text-text-tertiary mt-0.5">
-              → {request.destination_job_site.name}
+          {/* Make / model / serial — shown once dispatched */}
+          {isDispatched && inv && (inv.make || inv.model || inv.serial_number) && (
+            <div className="text-[12px] text-text-secondary mt-0.5 flex gap-2 flex-wrap">
+              {inv.make && <span>{inv.make}</span>}
+              {inv.model && <span>{inv.model}</span>}
+              {inv.serial_number && (
+                <span className="text-text-tertiary">#{inv.serial_number}</span>
+              )}
             </div>
           )}
-          {/* Date + submitted */}
-          <div className="flex items-center gap-3 mt-1 flex-wrap">
-            <span className="text-[12px] text-text-secondary font-medium">
-              Needed: {formatDate(request.date_needed)}
-            </span>
-            <span className="text-[11px] text-text-tertiary">
-              Submitted {submittedDate}
-            </span>
-          </div>
+          {/* Movement arrow */}
+          {isDispatched && request.requesting_job_site && request.destination_job_site && (
+            <div className="flex items-center gap-1 text-[12px] text-text-secondary mt-0.5">
+              <span>{request.requesting_job_site.name}</span>
+              <MoveRight size={12} className="text-text-tertiary" />
+              <span className="font-medium text-text-primary">{request.destination_job_site.name}</span>
+            </div>
+          )}
+          {/* Date + submitted (non-dispatched) */}
+          {!isDispatched && (
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
+              <span className="text-[12px] text-text-secondary font-medium">
+                Needed: {formatDate(request.date_needed)}
+              </span>
+              <span className="text-[11px] text-text-tertiary">
+                Submitted {submittedDate}
+              </span>
+            </div>
+          )}
+          {isDispatched && (
+            <div className="text-[11px] text-text-tertiary mt-0.5">
+              Needed {formatDate(request.date_needed)}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -125,14 +157,37 @@ export function EquipmentRequestCard({
       {/* Expanded detail + action buttons */}
       {expanded && (
         <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
+
+          {/* Movement history timeline — shown when dispatched/received */}
+          {isDispatched && (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
+                Movement
+              </p>
+              <div className="flex items-center gap-2 text-[13px]">
+                <span className="text-text-secondary">
+                  {request.requesting_job_site?.name ?? '—'}
+                </span>
+                <MoveRight size={14} className="text-text-tertiary flex-shrink-0" />
+                <span className="font-medium text-text-primary">
+                  {request.destination_job_site?.name ?? '—'}
+                </span>
+              </div>
+              {request.dispatched_at && (
+                <p className="text-[12px] text-text-secondary">
+                  Dispatched {formatDateTime(request.dispatched_at)}
+                </p>
+              )}
+              {request.received_at && (
+                <p className="text-[12px] text-success font-medium">
+                  Received {formatDateTime(request.received_at)}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Detail fields */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
-            {request.requesting_job_site && (
-              <>
-                <span className="text-text-secondary">From site</span>
-                <span className="text-text-primary">{request.requesting_job_site.name}</span>
-              </>
-            )}
             {request.requested_by_profile && (
               <>
                 <span className="text-text-secondary">Requested by</span>
@@ -145,27 +200,27 @@ export function EquipmentRequestCard({
                 <span className="text-text-primary">{request.dispatch_notes}</span>
               </>
             )}
-            {request.dispatched_at && (
+            {/* Make / model / serial in detail grid */}
+            {inv?.make && (
               <>
-                <span className="text-text-secondary">Dispatched</span>
-                <span className="text-text-primary">
-                  {new Date(request.dispatched_at).toLocaleString('en-US', {
-                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                  })}
-                </span>
+                <span className="text-text-secondary">Make</span>
+                <span className="text-text-primary">{inv.make}</span>
               </>
             )}
-            {request.received_at && (
+            {inv?.model && (
               <>
-                <span className="text-text-secondary">Received</span>
-                <span className="text-text-primary">
-                  {new Date(request.received_at).toLocaleString('en-US', {
-                    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-                  })}
-                </span>
+                <span className="text-text-secondary">Model</span>
+                <span className="text-text-primary">{inv.model}</span>
+              </>
+            )}
+            {inv?.serial_number && (
+              <>
+                <span className="text-text-secondary">Equipment #</span>
+                <span className="text-text-primary">{inv.serial_number}</span>
               </>
             )}
           </div>
+
           {request.notes && (
             <p className="text-[13px] text-text-secondary italic">{request.notes}</p>
           )}

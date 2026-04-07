@@ -24,6 +24,9 @@ export function EquipmentInventoryForm({
   onCancel,
 }: EquipmentInventoryFormProps) {
   const [name, setName] = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
   const [category, setCategory] = useState('');
   const [quantityTotal, setQuantityTotal] = useState(1);
   const [quantityAvailable, setQuantityAvailable] = useState(1);
@@ -34,6 +37,9 @@ export function EquipmentInventoryForm({
   useEffect(() => {
     if (item) {
       setName(item.name);
+      setMake(item.make ?? '');
+      setModel(item.model ?? '');
+      setSerialNumber(item.serial_number ?? '');
       setCategory(item.category ?? '');
       setQuantityTotal(item.quantity_total);
       setQuantityAvailable(item.quantity_available);
@@ -41,6 +47,9 @@ export function EquipmentInventoryForm({
       setNotes(item.notes ?? '');
     } else {
       setName('');
+      setMake('');
+      setModel('');
+      setSerialNumber('');
       setCategory('');
       setQuantityTotal(1);
       setQuantityAvailable(1);
@@ -55,6 +64,9 @@ export function EquipmentInventoryForm({
     try {
       await onSave({
         name: name.trim(),
+        make: make.trim() || undefined,
+        model: model.trim() || undefined,
+        serial_number: serialNumber.trim() || undefined,
         category: category.trim() || undefined,
         quantity_total: quantityTotal,
         quantity_available: quantityAvailable,
@@ -78,12 +90,35 @@ export function EquipmentInventoryForm({
         required
       />
 
-      <Input
-        label="Category"
-        value={category}
-        onChange={e => setCategory(e.target.value)}
-        placeholder="e.g. Heavy Equipment, Hand Tools, Power Tools"
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          label="Make"
+          value={make}
+          onChange={e => setMake(e.target.value)}
+          placeholder="e.g. Caterpillar, Volvo"
+        />
+        <Input
+          label="Model"
+          value={model}
+          onChange={e => setModel(e.target.value)}
+          placeholder="e.g. 320, EC220"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          label="Equipment #"
+          value={serialNumber}
+          onChange={e => setSerialNumber(e.target.value)}
+          placeholder="Serial / unit #"
+        />
+        <Input
+          label="Category"
+          value={category}
+          onChange={e => setCategory(e.target.value)}
+          placeholder="e.g. Heavy Equipment"
+        />
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -142,7 +177,7 @@ export function EquipmentInventoryForm({
         label="Notes"
         value={notes}
         onChange={e => setNotes(e.target.value)}
-        placeholder="Condition notes, serial numbers, maintenance info..."
+        placeholder="Condition notes, maintenance info..."
         rows={3}
       />
 

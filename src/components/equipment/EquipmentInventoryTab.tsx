@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { EquipmentInventoryCard } from './EquipmentInventoryCard';
+import { InventoryItemHistory } from './MovementHistory';
 import { EquipmentInventoryForm } from './EquipmentInventoryForm';
 import {
   fetchEquipmentInventory,
@@ -144,15 +145,19 @@ export function EquipmentInventoryTab() {
           )}
         </div>
       ) : (
-        <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
+        <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden divide-y divide-border">
           {filteredItems.map(item => (
-            <EquipmentInventoryCard
-              key={item.id}
-              item={item}
-              canManage={isAdmin}
-              onEdit={openEdit}
-              onDelete={handleDelete}
-            />
+            <div key={item.id}>
+              <EquipmentInventoryCard
+                item={item}
+                canManage={isAdmin}
+                onEdit={openEdit}
+                onDelete={handleDelete}
+              />
+              <div className="px-4 pb-2">
+                <InventoryItemHistory inventoryItemId={item.id} />
+              </div>
+            </div>
           ))}
         </div>
       )}
