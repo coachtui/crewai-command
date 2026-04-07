@@ -1,32 +1,63 @@
 // ============================================================================
 // Dispatch Modal
-// Entered by Admin/Manager when dispatching an approved equipment request.
-// Captures optional dispatch_notes before confirming dispatch.
+// Admin/Manager confirms dispatch. Captures dispatch notes plus make, model,
+// and equipment # so the equipment record is created/updated with full details.
+// Fields are pre-filled from the linked inventory item when available.
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { Input } from '../ui/Input';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
 import type { EquipmentRequest } from '../../types';
 
+export interface DispatchConfirmData {
+  dispatchNotes: string;
+  make: string;
+  model: string;
+  serialNumber: string;
+}
+
 interface DispatchModalProps {
   request: EquipmentRequest | null;
-  onConfirm: (request: EquipmentRequest, dispatchNotes: string) => Promise<void>;
+  onConfirm: (request: EquipmentRequest, data: DispatchConfirmData) => Promise<void>;
   onClose: () => void;
 }
 
 export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProps) {
   const [notes, setNotes] = useState('');
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Pre-fill from inventory when modal opens
+  useEffect(() => {
+    if (request) {
+      const inv = request.equipment_inventory;
+      setNotes('');
+      setMake(inv?.make ?? '');
+      setModel(inv?.model ?? '');
+      setSerialNumber(inv?.serial_number ?? '');
+    }
+  }, [request?.id]);
 
   if (!request) return null;
 
   const handleConfirm = async () => {
     setSaving(true);
     try {
-      await onConfirm(request, notes.trim());
+      await onConfirm(request, {
+        dispatchNotes: notes.trim(),
+        make: make.trim(),
+        model: model.trim(),
+        serialNumber: serialNumber.trim(),
+      });
       setNotes('');
+      setMake('');
+      setModel('');
+      setSerialNumber('');
     } finally {
       setSaving(false);
     }
@@ -34,6 +65,9 @@ export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProp
 
   const handleClose = () => {
     setNotes('');
+    setMake('');
+    setModel('');
+    setSerialNumber('');
     onClose();
   };
 
@@ -42,17 +76,54 @@ export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProp
       isOpen={!!request}
       onClose={handleClose}
       title="Dispatch Equipment"
-      size="sm"
+      size="md"
     >
       <div className="space-y-4">
-        <div className="text-[14px] text-text-secondary space-y-1">
+        {/* Summary */}
+        <div className="text-[14px] text-text-secondary space-y-0.5">
           <p>
-            <span className="font-medium text-text-primary">{request.equipment_name}</span>
+            <span className="font-semibold text-text-primary text-[15px]">
+              {request.equipment_name}
+            </span>
             {' '}× {request.quantity_requested}
           </p>
           {request.destination_job_site && (
-            <p>Sending to: <span className="text-text-primary">{request.destination_job_site.name}</span></p>
+            <p>
+              Sending to:{' '}
+              <span className="text-text-primary font-medium">
+                {request.destination_job_site.name}
+              </span>
+            </p>
           )}
+        </div>
+
+        {/* Equipment identity fields */}
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-wide text-text-tertiary mb-2">
+            Equipment Details
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Make"
+              value={make}
+              onChange={e => setMake(e.target.value)}
+              placeholder="e.g. Caterpillar"
+            />
+            <Input
+              label="Model"
+              value={model}
+              onChange={e => setModel(e.target.value)}
+              placeholder="e.g. 320"
+            />
+          </div>
+          <div className="mt-3">
+            <Input
+              label="Equipment #"
+              value={serialNumber}
+              onChange={e => setSerialNumber(e.target.value)}
+              placeholder="Serial number or unit ID"
+            />
+          </div>
         </div>
 
         <Textarea
@@ -60,7 +131,7 @@ export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProp
           value={notes}
           onChange={e => setNotes(e.target.value)}
           placeholder="Driver name, truck #, ETA, special instructions..."
-          rows={3}
+          rows={2}
         />
 
         <div className="flex flex-col gap-3 pt-1">

@@ -167,6 +167,9 @@ interface DispatchPayload {
   transition: 'dispatch';
   dispatched_by: string;
   dispatch_notes?: string;
+  make?: string;
+  model?: string;
+  serial_number?: string;
 }
 interface ReceivePayload {
   transition: 'receive';
@@ -230,12 +233,21 @@ export async function transitionEquipmentRequest(
       if (invFetchErr) {
         console.warn('[equipmentRequests] inventory fetch failed:', invFetchErr);
       } else {
+        // Dispatch-supplied values take precedence over stored inventory values
+        const resolvedMake = transition.make || inv.make || null;
+        const resolvedModel = transition.model || inv.model || null;
+        const resolvedSerial = transition.serial_number || inv.serial_number || null;
+
         const newQty = Math.max(0, (inv.quantity_available ?? 0) - request.quantity_requested);
         await supabase
           .from('equipment_inventory')
           .update({
             current_job_site_id: request.destination_job_site_id,
             quantity_available: newQty,
+            // Persist any corrections made during dispatch
+            ...(resolvedMake !== null && { make: resolvedMake }),
+            ...(resolvedModel !== null && { model: resolvedModel }),
+            ...(resolvedSerial !== null && { serial_number: resolvedSerial }),
           })
           .eq('id', request.equipment_inventory_id);
         // TODO: quantity_available logic may need refinement for partial dispatches
@@ -252,26 +264,27 @@ export async function transitionEquipmentRequest(
         let equipmentId: string | null = null;
 
         if (existing) {
-          // Move existing equipment record to destination
+          // Move existing equipment record to destination, update identity fields
           await supabase
             .from('equipment')
             .update({
               job_site_id: request.destination_job_site_id,
               status: 'in_use',
-              model: inv.model ?? existing.job_site_id,  // preserve existing if inventory has none
+              ...(resolvedModel !== null && { model: resolvedModel }),
+              ...(resolvedSerial !== null && { serial_number: resolvedSerial }),
             })
             .eq('id', existing.id);
           equipmentId = existing.id;
         } else {
-          // Create new equipment record at destination
+          // Create new equipment record at destination with full identity
           const { data: created } = await supabase
             .from('equipment')
             .insert({
               organization_id: request.organization_id,
               name: request.equipment_name,
               type: categoryToEquipmentType(inv.category),
-              model: inv.model ?? null,
-              serial_number: inv.serial_number ?? null,
+              model: resolvedModel,
+              serial_number: resolvedSerial,
               status: 'in_use',
               job_site_id: request.destination_job_site_id,
             })
@@ -307,10 +320,18 @@ export async function transitionEquipmentRequest(
 
       let equipmentId: string | null = null;
 
+      const freeModel = transition.model || null;
+      const freeSerial = transition.serial_number || null;
+
       if (existing) {
         await supabase
           .from('equipment')
-          .update({ job_site_id: request.destination_job_site_id, status: 'in_use' })
+          .update({
+            job_site_id: request.destination_job_site_id,
+            status: 'in_use',
+            ...(freeModel !== null && { model: freeModel }),
+            ...(freeSerial !== null && { serial_number: freeSerial }),
+          })
           .eq('id', existing.id);
         equipmentId = existing.id;
       } else {
@@ -320,6 +341,8 @@ export async function transitionEquipmentRequest(
             organization_id: request.organization_id,
             name: request.equipment_name,
             type: 'other',
+            model: freeModel,
+            serial_number: freeSerial,
             status: 'in_use',
             job_site_id: request.destination_job_site_id,
           })

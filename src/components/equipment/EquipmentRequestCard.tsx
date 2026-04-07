@@ -89,6 +89,7 @@ export function EquipmentRequestCard({
 
   const inv = request.equipment_inventory;
   const isDispatched = request.status === 'dispatched' || request.status === 'received';
+  const hasIdentity = inv && (inv.make || inv.model || inv.serial_number);
 
   return (
     <div className="bg-bg-secondary border border-border rounded-lg overflow-hidden">
@@ -108,8 +109,8 @@ export function EquipmentRequestCard({
               × {request.quantity_requested}
             </span>
           </div>
-          {/* Make / model / serial — shown once dispatched */}
-          {isDispatched && inv && (inv.make || inv.model || inv.serial_number) && (
+          {/* Make / model / serial — shown whenever available */}
+          {hasIdentity && (
             <div className="text-[12px] text-text-secondary mt-0.5 flex gap-2 flex-wrap">
               {inv.make && <span>{inv.make}</span>}
               {inv.model && <span>{inv.model}</span>}

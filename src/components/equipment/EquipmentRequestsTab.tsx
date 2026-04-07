@@ -15,7 +15,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { EquipmentRequestCard } from './EquipmentRequestCard';
 import { EquipmentRequestForm } from './EquipmentRequestForm';
-import { DispatchModal } from './DispatchModal';
+import { DispatchModal, type DispatchConfirmData } from './DispatchModal';
 import {
   fetchEquipmentRequests,
   createEquipmentRequest,
@@ -134,13 +134,16 @@ export function EquipmentRequestsTab() {
     }
   };
 
-  const handleDispatch = async (request: EquipmentRequest, dispatchNotes: string) => {
+  const handleDispatch = async (request: EquipmentRequest, data: DispatchConfirmData) => {
     if (!user) return;
     try {
       await transitionEquipmentRequest(request, {
         transition: 'dispatch',
         dispatched_by: user.id,
-        dispatch_notes: dispatchNotes,
+        dispatch_notes: data.dispatchNotes || undefined,
+        make: data.make || undefined,
+        model: data.model || undefined,
+        serial_number: data.serialNumber || undefined,
       });
       toast.success('Equipment dispatched');
       setDispatchingRequest(null);
