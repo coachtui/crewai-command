@@ -118,10 +118,11 @@ export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProp
           </div>
           <div className="mt-3">
             <Input
-              label="Equipment #"
+              label="Equipment # *"
               value={serialNumber}
               onChange={e => setSerialNumber(e.target.value)}
               placeholder="Serial number or unit ID"
+              required
             />
           </div>
         </div>
@@ -137,7 +138,7 @@ export function DispatchModal({ request, onConfirm, onClose }: DispatchModalProp
         <div className="flex flex-col gap-3 pt-1">
           <Button
             onClick={handleConfirm}
-            disabled={saving}
+            disabled={saving || !serialNumber.trim()}
             className="w-full min-h-[48px] text-base bg-orange-500 hover:bg-orange-600"
           >
             {saving ? 'Dispatching...' : 'Confirm Dispatch'}
