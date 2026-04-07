@@ -439,6 +439,57 @@ export interface EquipmentSiteAssignment {
 }
 
 // ============================================================================
+// EQUIPMENT INVENTORY
+// ============================================================================
+
+export interface EquipmentInventory {
+  id: string;
+  organization_id: string;
+  name: string;
+  category?: string;
+  quantity_total: number;
+  quantity_available: number;
+  current_job_site_id?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  current_location?: JobSite;
+}
+
+// ============================================================================
+// EQUIPMENT REQUESTS
+// ============================================================================
+
+export type EquipmentRequestStatus = 'pending' | 'approved' | 'dispatched' | 'received';
+
+export interface EquipmentRequest {
+  id: string;
+  organization_id: string;
+  equipment_inventory_id?: string;
+  equipment_name: string;
+  quantity_requested: number;
+  requesting_job_site_id: string;
+  destination_job_site_id: string;
+  date_needed: string;
+  notes?: string;
+  status: EquipmentRequestStatus;
+  requested_by: string;
+  approved_by?: string;
+  dispatched_by?: string;
+  dispatch_notes?: string;
+  dispatched_at?: string;
+  received_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  requesting_job_site?: JobSite;
+  destination_job_site?: JobSite;
+  requested_by_profile?: User;
+  equipment_inventory?: EquipmentInventory;
+}
+
+// ============================================================================
 // UTILITY TYPES
 // ============================================================================
 
