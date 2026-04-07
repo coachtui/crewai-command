@@ -41,7 +41,7 @@ const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: numbe
 
 export function Equipment() {
   const { user } = useAuth();
-  const { currentJobSite, availableJobSites } = useJobSite();
+  const { currentJobSite, availableJobSites, isAdmin } = useJobSite();
   const canManage = useCanManageSite();
   const [activeTab, setActiveTab] = useState<TabId>('equipment');
 
@@ -84,14 +84,17 @@ export function Equipment() {
     try {
       let query = supabase
         .from('equipment')
-        .select('*')
+        .select('*, job_site:job_sites(id, name)')
         .eq('organization_id', user.org_id);
 
       if (currentJobSite) {
+        // Any role: scope to selected site
         query = query.eq('job_site_id', currentJobSite.id);
-      } else {
+      } else if (!isAdmin) {
+        // Non-admin with no site selected: show nothing
         query = query.is('job_site_id', null).limit(0);
       }
+      // Admin with no site selected: no filter — fetch all org equipment
 
       const { data, error } = await query.order('name');
       if (error) throw error;
@@ -213,6 +216,21 @@ export function Equipment() {
     }))
     .filter(g => g.items.length > 0);
 
+  // Admin all-sites view: group by job site instead of type
+  const adminAllSites = isAdmin && !currentJobSite;
+  const groupedBySite = adminAllSites
+    ? (() => {
+        const siteMap = new Map<string, { siteName: string; items: EquipmentType[] }>();
+        filtered.forEach(eq => {
+          const siteId = (eq.job_site as { id: string; name: string } | undefined)?.id ?? '__none__';
+          const siteName = (eq.job_site as { id: string; name: string } | undefined)?.name ?? 'Unassigned / Yard';
+          if (!siteMap.has(siteId)) siteMap.set(siteId, { siteName, items: [] });
+          siteMap.get(siteId)!.items.push(eq);
+        });
+        return Array.from(siteMap.values()).sort((a, b) => a.siteName.localeCompare(b.siteName));
+      })()
+    : [];
+
   const movableSites = availableJobSites.filter(s => s.id !== movingEquipment?.job_site_id);
 
   return (
@@ -248,7 +266,11 @@ export function Equipment() {
         <>
           <div className="mb-6 flex items-start justify-between gap-4">
             <p className="text-[14px] text-text-secondary">
-              {currentJobSite ? `Equipment at ${currentJobSite.name}` : 'Select a job site to view equipment'}
+              {currentJobSite
+                ? `Equipment at ${currentJobSite.name}`
+                : isAdmin
+                ? 'All equipment across all job sites'
+                : 'Select a job site to view equipment'}
             </p>
             {canManage && (
               <Button onClick={() => { setEditingEquipment(null); setIsModalOpen(true); }}>
@@ -294,13 +316,15 @@ export function Equipment() {
 
           {loading ? (
             <div className="flex items-center justify-center py-16 text-text-secondary">Loading...</div>
-          ) : !currentJobSite ? (
+          ) : !currentJobSite && !isAdmin ? (
             <div className="flex items-center justify-center py-16 text-text-secondary">
               Select a job site to view equipment.
             </div>
           ) : filtered.length === 0 && equipment.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-secondary">
-              <p className="text-[15px]">No equipment at this site yet.</p>
+              <p className="text-[15px]">
+                {adminAllSites ? 'No equipment in the company yet.' : 'No equipment at this site yet.'}
+              </p>
               {canManage && (
                 <Button onClick={() => { setEditingEquipment(null); setIsModalOpen(true); }}>
                   <Plus size={16} className="mr-2" />
@@ -312,7 +336,39 @@ export function Equipment() {
             <div className="flex items-center justify-center py-16 text-text-secondary">
               No equipment matches your filters.
             </div>
+          ) : adminAllSites ? (
+            /* Admin all-sites view: grouped by job site */
+            <div className="space-y-4">
+              {groupedBySite.map(({ siteName, items }) => (
+                <div key={siteName}>
+                  <h3 className="text-[12px] font-semibold uppercase tracking-wide text-text-secondary mb-2 px-1">
+                    {siteName} ({items.length})
+                  </h3>
+                  <ListContainer>
+                    {items.map(eq => (
+                      <div key={eq.id} className="relative group">
+                        <EquipmentCard
+                          equipment={eq}
+                          onEdit={openEdit}
+                          onDelete={handleDelete}
+                        />
+                        {canManage && (
+                          <button
+                            onClick={() => openMove(eq)}
+                            className="absolute right-24 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-bg-hover rounded"
+                            title="Move to another site"
+                          >
+                            <ArrowRightLeft size={15} className="text-text-secondary" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </ListContainer>
+                </div>
+              ))}
+            </div>
           ) : (
+            /* Single-site view: grouped by type (existing behaviour) */
             <div className="space-y-4">
               {groupedByType.map(({ type, label, items }) => (
                 <div key={type}>

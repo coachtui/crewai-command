@@ -11,6 +11,7 @@ interface EquipmentCardProps {
   equipment: Equipment;
   onEdit: (equipment: Equipment) => void;
   onDelete: (equipmentId: string) => void;
+  showSite?: boolean;
 }
 
 const getTypeConfig = (type: Equipment['type']) => {
@@ -56,7 +57,7 @@ const getStatusColor = (status: Equipment['status']): 'green' | 'blue' | 'orange
   }
 };
 
-export function EquipmentCard({ equipment, onEdit, onDelete }: EquipmentCardProps) {
+export function EquipmentCard({ equipment, onEdit, onDelete, showSite }: EquipmentCardProps) {
   const typeConfig = getTypeConfig(equipment.type);
   const TypeIcon = typeConfig.icon;
 
@@ -69,6 +70,10 @@ export function EquipmentCard({ equipment, onEdit, onDelete }: EquipmentCardProp
 
   if (equipment.model) {
     metadata.push({ icon: <></>, text: equipment.model });
+  }
+
+  if (showSite && equipment.job_site?.name) {
+    metadata.push({ icon: <></>, text: equipment.job_site.name });
   }
 
   const rightContent = (
