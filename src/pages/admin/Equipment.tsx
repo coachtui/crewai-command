@@ -18,6 +18,7 @@ import { EquipmentInventoryTab } from '../../components/equipment/EquipmentInven
 import { Modal } from '../../components/ui/Modal';
 import { ListContainer } from '../../components/ui/ListContainer';
 import type { Equipment as EquipmentType } from '../../types';
+import { createEquipmentInventoryItem } from '../../lib/api/equipmentRequests';
 import { toast } from 'sonner';
 
 type TypeFilter = 'all' | 'heavy_equipment' | 'small_equipment' | 'tools' | 'vehicles' | 'other';
@@ -139,6 +140,32 @@ export function Equipment() {
           .from('equipment')
           .insert({ ...formData, organization_id: user.org_id, created_by: user.id });
         if (error) throw error;
+
+        // Auto-add to inventory if no existing entry with the same name
+        const equipName = formData.name ?? '';
+        if (equipName) {
+          const { data: existingInv } = await supabase
+            .from('equipment_inventory')
+            .select('id')
+            .eq('organization_id', user.org_id)
+            .ilike('name', equipName)
+            .maybeSingle();
+
+          if (!existingInv) {
+            const categoryLabel = formData.type ? (TYPE_LABELS[formData.type as TypeFilter] ?? 'Other') : 'Other';
+            await createEquipmentInventoryItem(user.org_id, {
+              name: equipName,
+              model: formData.model ?? undefined,
+              serial_number: formData.serial_number ?? undefined,
+              category: categoryLabel,
+              quantity_total: 1,
+              quantity_available: 1,
+              current_job_site_id: formData.job_site_id ?? undefined,
+              notes: formData.notes ?? undefined,
+            });
+          }
+        }
+
         toast.success('Equipment added');
       }
       setIsModalOpen(false);
