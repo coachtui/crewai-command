@@ -1,47 +1,36 @@
-# Build Report - Lead Builder Bootstrap
+# Build Report — 2026-04-07 (session 2)
 
-**Status**: ✅ COMPLETE
-**Time Spent**: ~15 min (read + document)
+**Status**: ✅ CLEAN
+**Commits**: e0395e0, 4dbc473
 
-## What Was Built
-- CLAUDE.md — repo conventions, build commands, known pitfalls, architecture overview
-- memory.md — durable project knowledge for future sessions
-- plans/current-phase.md — active phase tracker
-- progress.md — task completion log with pre-session history reconstructed from git
-- handoff.md — current state and next steps
-- sessions/2026-03-21-0000.md — session log
+## Changes Built
+- Mobile adaptability fixes: App.tsx, ListItem.tsx, DailyHours.tsx, Tasks.tsx, Equipment.tsx
+- Migration 024: backfill daily_hours.job_site_id on NULL records
 
-## Acceptance Criteria
-- [x] All Lead Builder infrastructure files exist
-- [x] Repo context accurately captured from README, git log, and source inspection
-- [x] Known pitfalls documented (TS6133, jsPDF, temp-workers)
-- [ ] npm run build verified — not run this session (no code changes made)
+## Build Output
+```
+npm run build → ✅ zero TypeScript errors
+vite build → ✅ built in ~3.7s
+```
 
-## Files Created
-- CLAUDE.md
-- memory.md
-- plans/current-phase.md
-- progress.md
-- handoff.md
-- sessions/2026-03-21-0000.md
-- reports/latest-build.md
+CSS warnings (pre-existing, not introduced this session):
+- `Expected identifier but found "8px\\"` × 3 — in `.pdf-export-mode .text-[8px]` selectors in index.css Gantt PDF export styles. Cosmetic only, does not affect functionality.
 
-## Files Modified
-_(none)_
+## Lint
+```
+npm run lint → ❌ 121 problems (84 errors, 37 warnings)
+```
+All pre-existing. None introduced this session. Sources:
+- `api/voice/` — `@typescript-eslint/no-explicit-any` (38 errors)
+- `JobSiteForm.tsx`, `CompanyDetail.tsx` — `react-hooks/set-state-in-effect`
+- Various pages — `react-hooks/exhaustive-deps` warnings
 
-## Validation Performed
-- Tests: N/A
-- Lint/typecheck: Not run (no code changes)
-- Manual verification: File structure and content reviewed
-
-## Risks / Follow-ups
-- Risk: No automated test suite — manual testing is the only verification layer
-- Follow-up: Consider adding basic smoke tests for critical paths
-- Follow-up: Root-level SQL/MD diagnostic files could be archived to a `docs/archive/` folder for cleanliness
-
-## Notes for CTO / Architect
-- Observation: The app has grown to include equipment management, daily notes, PDF exports, and multi-site worker assignments. Architecture is still flat (single Supabase project, client-side only).
-- Suggested next decision: If the app is growing toward multi-org or enterprise use, consider whether backend API routes (edge functions) should own auth-admin operations instead of the client.
-
-## Next Recommended Step
-Await user's next feature or fix request, then update plans/current-phase.md and execute.
+## Files Changed
+| File | Change |
+|------|--------|
+| `src/App.tsx` | `pt-16 md:pt-0` on `<main>` |
+| `src/components/ui/ListItem.tsx` | Responsive padding; remove `min-w-[200px]` |
+| `src/pages/admin/DailyHours.tsx` | `flex flex-wrap` on action bar |
+| `src/pages/admin/Tasks.tsx` | `flex flex-wrap` on header |
+| `src/pages/admin/Equipment.tsx` | Move button always visible on mobile |
+| `migrations/024_backfill_daily_hours_job_site_id.sql` | New migration (run manually in Supabase) |

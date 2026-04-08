@@ -1,10 +1,11 @@
 # Current Phase Plan
 
 ## Phase
-**Equipment Request & Dispatch System** — Complete
+**Mobile Adaptability + Daily Hours Data Recovery** — Complete
 
 ## Status
-✅ Complete — deployed to production (commits 3b75d40 → aab45e9)
+✅ Complete — deployed to production (commits e0395e0, 4dbc473)
+⚠️ Pending: run `migrations/024_backfill_daily_hours_job_site_id.sql` in Supabase SQL editor
 
 ## Phase Objective
 Build a two-table equipment system with request workflow, location tracking, and movement history. Supe/Foreman submit requests; Admin/Manager approve, dispatch, and receive. Dispatch automatically syncs both the inventory catalog and the existing equipment site tracker.

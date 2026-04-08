@@ -7,6 +7,8 @@
 
 | Task | Completed | Git | Notes |
 |------|-----------|-----|-------|
+| Mobile adaptability fixes (5 issues) | 2026-04-07 | e0395e0 | Nav bar offset, ListItem overflow, DailyHours buttons, Tasks header, Equipment hover |
+| Migration 024: backfill daily_hours job_site_id | 2026-04-07 | 4dbc473 | Restores historical hours hidden by NULL job_site_id — **run in Supabase SQL editor** |
 | Equipment # required on dispatch | 2026-04-07 | aab45e9 | DispatchModal blocks confirm until eq # entered |
 | Capture make/model/serial during dispatch | 2026-04-07 | 6f549c3 | Dispatch modal pre-fills from inventory; writes to equipment + inventory |
 | Admin all-sites Equipment tab | 2026-04-07 | b04ac83 | No site selected → all org equipment grouped by site |
@@ -38,6 +40,7 @@ _(none)_
 - jsPDF: use `doc.getNumberOfPages()` not `doc.internal.getNumberOfPages()`
 - Temp-assigned workers must be explicitly queried from `worker_site_assignments` for all aggregate features
 - TS6133 is treated as a build-breaking error; unused imports removed immediately
+- `daily_hours.job_site_id` was nullable from migration 001 — future migrations touching this table must account for NULL records
 - New table FKs referencing users must point to `user_profiles(id)`, not `auth.users(id)`, for PostgREST joins
 - `equipment_inventory` is the request/catalog layer; `equipment` is the site tracker. Dispatch syncs both.
 - equipment_movement_log is insert-only (immutable audit trail)
