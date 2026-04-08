@@ -118,7 +118,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     <JobSiteProvider>
       <div className="flex h-screen bg-bg-primary">
         <Sidebar />
-        <main className="flex-1 overflow-auto w-full md:w-auto">
+        <main className="flex-1 overflow-auto w-full md:w-auto pt-16 md:pt-0">
           {children}
         </main>
         <VoiceFloatingButton />

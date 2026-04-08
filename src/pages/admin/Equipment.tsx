@@ -355,7 +355,7 @@ export function Equipment() {
                         {canManage && (
                           <button
                             onClick={() => openMove(eq)}
-                            className="absolute right-24 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-bg-hover rounded"
+                            className="absolute right-24 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 hover:bg-bg-hover rounded"
                             title="Move to another site"
                           >
                             <ArrowRightLeft size={15} className="text-text-secondary" />
@@ -386,7 +386,7 @@ export function Equipment() {
                         {canManage && (
                           <button
                             onClick={() => openMove(eq)}
-                            className="absolute right-24 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-bg-hover rounded"
+                            className="absolute right-24 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 hover:bg-bg-hover rounded"
                             title="Move to another site"
                           >
                             <ArrowRightLeft size={15} className="text-text-secondary" />

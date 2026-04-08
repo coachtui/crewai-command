@@ -500,13 +500,13 @@ export function Tasks() {
   return (
     <div className="p-6 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-text-primary mb-1">Tasks</h1>
           <p className="text-[14px] text-text-secondary">Manage project tasks and assignments</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {/* View toggle */}
           <div className="flex items-center bg-bg-secondary border border-gray-200 rounded-lg p-0.5">
             <button
@@ -537,7 +537,7 @@ export function Tasks() {
 
           <Button variant="secondary" onClick={() => setIsCSVModalOpen(true)}>
             <Upload size={20} className="mr-2" />
-            Upload CSV
+            <span className="hidden sm:inline">Upload </span>CSV
           </Button>
           <Button
             onClick={() => {

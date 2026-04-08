@@ -1465,7 +1465,7 @@ export function DailyHours() {
             <RefreshCw size={16} />
           </Button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canEdit(currentUser) && editedHours.size > 0 && (
             <Button onClick={saveAllHours} variant="primary">
               <Check size={16} className="mr-2" />

@@ -34,7 +34,7 @@ export function ListItem({
   return (
     <div
       className={cn(
-        'flex items-center gap-6 px-6 py-5 bg-white border-l-4 hover:bg-list-hover transition-colors duration-200 cursor-pointer',
+        'flex items-center gap-3 sm:gap-6 px-4 sm:px-6 py-4 sm:py-5 bg-white border-l-4 hover:bg-list-hover transition-colors duration-200 cursor-pointer',
         statusColorMap[statusColor],
         className
       )}
@@ -62,7 +62,7 @@ export function ListItem({
 
       {/* Right content */}
       {rightContent && (
-        <div className="min-w-[200px] flex-shrink-0">
+        <div className="min-w-0 flex-shrink-0">
           {rightContent}
         </div>
       )}
