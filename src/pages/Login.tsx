@@ -71,7 +71,7 @@ export function Login() {
   const [loading, setLoading]           = useState(false);
   const [setupError, setSetupError]     = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Read and clear the ghost-state error flag set by AuthContext.
   // Shown when a Supabase session exists but no profile row was found.
@@ -94,13 +94,16 @@ export function Login() {
     }
   }, [navigate]);
 
-  // Redirect if already authenticated (use AuthContext, not direct Supabase check)
+  // Redirect as soon as auth state confirms authentication.
+  // Deliberately does NOT wait for isLoading — the login form must render
+  // immediately regardless of auth bootstrap state, so the page is never
+  // inaccessible due to a hung or slow INITIAL_SESSION event.
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isAuthenticated) {
       console.log('[Login] Already authenticated, redirecting...');
       navigate('/workers', { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -130,18 +133,6 @@ export function Login() {
     }
     // Don't setLoading(false) on success — let the redirect happen
   };
-
-  // Show loading while AuthContext is initializing
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-bg-primary">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-text-secondary">Checking authentication…</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-primary px-4 py-12">

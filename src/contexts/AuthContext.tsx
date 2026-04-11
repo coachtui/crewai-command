@@ -186,7 +186,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (_) { /* locks.query() not available in this environment */ }
       }
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // getSession() internally acquires the same SDK initialization lock that
+        // caused INITIAL_SESSION to hang. Race it against a 3-second inner timeout
+        // so the fallback path cannot itself block indefinitely.
+        const sessionRace = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: null }; error: null }>((resolve) =>
+            setTimeout(() => resolve({ data: { session: null }, error: null }), 3000)
+          ),
+        ]);
+        const session = sessionRace.data.session;
         if (session?.user) {
           const profile = await fetchUserProfile(session.user.id, true);
           if (profile) {
