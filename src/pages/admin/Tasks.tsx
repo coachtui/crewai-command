@@ -23,12 +23,10 @@ import { formatDate } from '../../lib/utils';
 type ViewMode = 'list' | 'board';
 type FilterOption = 'this_week' | 'next_week' | 'all' | 'on_hold';
 
-// Board columns — "On Hold" column is present but empty until a DB status field is added
-// TODO: Add 'on_hold' to TaskStatus enum and DB once migrated
 const BOARD_COLUMNS: { key: string; label: string; statuses: string[] }[] = [
   { key: 'planned',   label: 'Not Started', statuses: ['planned'] },
   { key: 'active',    label: 'In Progress',  statuses: ['active'] },
-  { key: 'on_hold',   label: 'On Hold',      statuses: [] },       // TODO: add 'on_hold' status to DB
+  { key: 'on_hold',   label: 'On Hold',      statuses: ['on_hold'] },
   { key: 'completed', label: 'Complete',     statuses: ['completed'] },
 ];
 
@@ -53,9 +51,6 @@ function BoardTaskCard({
     taskAssignments.filter(a => a.worker?.role === 'laborer').map(a => a.worker?.id)
   )].length;
 
-  // Strip "ON HOLD" prefix from display name
-  const displayName = task.name.replace(/^\*{0,2}\s*ON HOLD\s*\*{0,2}\s*[-–]?\s*/i, '').trim();
-
   const getCountClass = (assigned: number, required: number) => {
     if (required === 0) return 'text-text-secondary';
     if (assigned >= required) return 'text-status-complete';
@@ -66,7 +61,7 @@ function BoardTaskCard({
     <div className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-[13px] font-semibold text-text-primary leading-snug flex-1 min-w-0">
-          {displayName}
+          {task.name}
         </p>
         <div className="flex gap-0.5 flex-shrink-0">
           <button
@@ -221,6 +216,7 @@ export function Tasks() {
       setAssignments(data || []);
     } catch (error) {
       console.error('Failed to load assignments:', error);
+      toast.error('Failed to load assignments');
     }
   };
 
@@ -408,8 +404,7 @@ export function Tasks() {
       }
 
       if (activeFilter === 'on_hold') {
-        // TODO: Migrate on_hold to a proper DB status field for tasks
-        return false;
+        return task.status === 'on_hold';
       }
 
       if (activeFilter === 'this_week') {
@@ -455,10 +450,6 @@ export function Tasks() {
         label: `Next Week (${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d')})`,
         tasks: filtered,
       }];
-    }
-
-    if (activeFilter === 'on_hold') {
-      return [];
     }
 
     // 'all' — 4 weeks, each filtered by date overlap
@@ -707,15 +698,27 @@ export function Tasks() {
           {viewMode === 'list' && (
             <>
               {activeFilter === 'on_hold' ? (
-                <div className="text-center py-12 bg-bg-secondary border border-gray-100 rounded-xl">
-                  <p className="text-text-secondary text-[14px]">
-                    No tasks are currently on hold.
-                  </p>
-                  <p className="text-text-secondary text-[12px] mt-1 opacity-70">
-                    {/* TODO: Add on_hold status to tasks DB table to enable this filter */}
-                    On Hold status for tasks coming soon.
-                  </p>
-                </div>
+                (() => {
+                  const onHoldTasks = getFilteredTasks();
+                  return onHoldTasks.length === 0 ? (
+                    <div className="text-center py-12 bg-bg-secondary border border-gray-100 rounded-xl">
+                      <p className="text-text-secondary text-[14px]">No tasks are currently on hold.</p>
+                    </div>
+                  ) : (
+                    <ListContainer>
+                      {onHoldTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          assignments={assignments}
+                          onEdit={handleEditTask}
+                          onDelete={handleDeleteTask}
+                          onAssign={(t: Task) => setAssigningTask(t)}
+                        />
+                      ))}
+                    </ListContainer>
+                  );
+                })()
               ) : (
                 getGroupedWeeks().map((week) => {
                   const isExpanded = expandedWeeks.has(week.weekKey);
@@ -772,13 +775,8 @@ export function Tasks() {
           {/* ── BOARD VIEW ── */}
           {viewMode === 'board' && (
             <>
-              {activeFilter === 'on_hold' ? (
-                <div className="text-center py-12 bg-bg-secondary border border-gray-100 rounded-xl">
-                  <p className="text-text-secondary text-[14px]">On Hold status for tasks coming soon.</p>
-                </div>
-              ) : (
-                <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
-                  {BOARD_COLUMNS.map((col) => {
+              <div className="flex gap-4 overflow-x-auto pb-4 -mx-2 px-2">
+                {BOARD_COLUMNS.map((col) => {
                     const colTasks = getFilteredTasks().filter(t => col.statuses.includes(t.status));
                     return (
                       <div
@@ -817,7 +815,6 @@ export function Tasks() {
                     );
                   })}
                 </div>
-              )}
             </>
           )}
         </div>

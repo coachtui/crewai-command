@@ -92,13 +92,15 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── Founder gate ──────────────────────────────────────────────────────────
-    const founderEmails = (Deno.env.get('FOUNDER_EMAILS') ?? '')
-      .split(',')
-      .map((e: string) => e.trim().toLowerCase())
-      .filter(Boolean)
+    // Check base_role === 'founder' in user_profiles (service role bypasses RLS)
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('user_profiles')
+      .select('base_role')
+      .eq('id', user.id)
+      .single()
 
-    if (!founderEmails.includes((user.email ?? '').toLowerCase())) {
-      console.error('[founder-api] Access denied for:', user.email)
+    if (profileError || !profile || profile.base_role !== 'founder') {
+      console.error('[founder-api] Access denied for user:', user.id)
       return json({ error: 'Founder access required' }, 403)
     }
 

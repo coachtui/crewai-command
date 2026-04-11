@@ -310,6 +310,7 @@ export const getBaseRoleDisplayName = (role: BaseRole): string => {
     engineer: 'Engineer',
     foreman: 'Foreman',
     worker: 'Worker',
+    founder: 'Founder',
   };
   return displayNames[role] || role;
 };

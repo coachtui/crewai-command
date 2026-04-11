@@ -25,21 +25,22 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity duration-150"
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {/* Modal — bottom-sheet on mobile, centered dialog on desktop */}
       <div
         className={cn(
-          'relative bg-bg-secondary border border-border rounded-lg shadow-md-soft max-h-[90vh] overflow-y-auto transition-all duration-150 ease-smooth',
+          'relative bg-bg-secondary border border-border shadow-md-soft max-h-[90vh] overflow-y-auto transition-all duration-150 ease-smooth',
+          'w-full rounded-t-2xl md:rounded-lg',
           {
-            'w-full max-w-md': size === 'sm',
-            'w-full max-w-2xl': size === 'md',
-            'w-full max-w-4xl': size === 'lg',
+            'md:max-w-md': size === 'sm',
+            'md:max-w-2xl': size === 'md',
+            'md:max-w-4xl': size === 'lg',
           }
         )}
       >

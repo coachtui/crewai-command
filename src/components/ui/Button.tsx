@@ -19,7 +19,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             'bg-error text-white hover:bg-error/90 shadow-subtle': variant === 'danger',
           },
           {
-            'px-3 py-1.5 text-[13px]': size === 'sm',
+            'px-3 py-2 text-[13px] min-h-[40px]': size === 'sm',
             'px-4 py-2 text-[14px]': size === 'md',
             'px-6 py-3 text-[15px]': size === 'lg',
           },

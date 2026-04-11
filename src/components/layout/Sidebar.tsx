@@ -23,7 +23,6 @@ import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/Badge';
 import { JobSiteSelector, JobSiteSelectorMobile } from '../navigation/JobSiteSelector';
 import { useAuth } from '../../contexts/AuthContext';
-import { isFounderEmail } from '../../lib/api/founder';
 import { toast } from 'sonner';
 
 export function Sidebar() {
@@ -224,8 +223,8 @@ export function Sidebar() {
             );
           })}
 
-          {/* Founder Console - only visible to founder emails */}
-          {isFounderEmail(user?.email) && (
+          {/* Founder Console - only visible to users with founder role */}
+          {user?.base_role === 'founder' && (
             <Link
               to="/founder"
               onClick={() => isMobile && setIsVisible(false)}

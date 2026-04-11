@@ -82,7 +82,7 @@ function buildQuestionQueue(action: string, data: any): PendingQuestion[] {
     if (!data.worker_name?.trim())
       q.push({ field: 'worker_name', question: "What's the worker's full name?", placeholder: 'e.g. Miguel Santos' });
     if (!data.role?.trim())
-      q.push({ field: 'worker_role', question: "What's their role?", placeholder: 'operator, laborer, carpenter, or mason' });
+      q.push({ field: 'worker_role', question: "What's their role?", placeholder: 'operator, laborer, carpenter, mason, mechanic, or driver' });
   }
 
   if (action === 'create_job_site') {

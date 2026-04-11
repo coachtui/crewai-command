@@ -43,7 +43,7 @@ export interface JobSite {
 // ============================================================================
 
 // Base roles that a user can have at the organization level
-export type BaseRole = 'manager' | 'admin' | 'superintendent' | 'engineer' | 'foreman' | 'worker';
+export type BaseRole = 'manager' | 'admin' | 'superintendent' | 'engineer' | 'foreman' | 'worker' | 'founder';
 
 // Roles that can be assigned at the job site level
 export type JobSiteRole = 'superintendent' | 'engineer' | 'engineer_as_superintendent' | 'foreman' | 'worker';
@@ -172,7 +172,7 @@ export interface Worker {
 // TASKS
 // ============================================================================
 
-export type TaskStatus = 'planned' | 'active' | 'completed' | 'draft';
+export type TaskStatus = 'planned' | 'active' | 'completed' | 'draft' | 'on_hold';
 
 export interface Task {
   id: string;

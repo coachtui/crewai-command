@@ -23,7 +23,7 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
   const [crews, setCrews] = useState<Crew[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showWorkerPicker, setShowWorkerPicker] = useState<'operator' | 'laborer' | null>(null);
+  const [showWorkerPicker, setShowWorkerPicker] = useState<'operator' | 'laborer' | 'mechanic' | 'driver' | null>(null);
   const [showCrewPicker, setShowCrewPicker] = useState(false);
   const [assigningCrewId, setAssigningCrewId] = useState<string | null>(null);
 
@@ -264,10 +264,14 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
 
   const assignedOperators = dedupeByWorker(assignments.filter(a => a.worker?.role === 'operator'));
   const assignedLaborers = dedupeByWorker(assignments.filter(a => a.worker?.role === 'laborer'));
+  const assignedMechanics = dedupeByWorker(assignments.filter(a => a.worker?.role === 'mechanic'));
+  const assignedDrivers = dedupeByWorker(assignments.filter(a => a.worker?.role === 'driver'));
 
   const assignedWorkerIds = new Set(assignments.map(a => a.worker_id));
   const availableOperators = workers.filter(w => w.role === 'operator' && !assignedWorkerIds.has(w.id));
   const availableLaborers = workers.filter(w => w.role === 'laborer' && !assignedWorkerIds.has(w.id));
+  const availableMechanics = workers.filter(w => w.role === 'mechanic' && !assignedWorkerIds.has(w.id));
+  const availableDrivers = workers.filter(w => w.role === 'driver' && !assignedWorkerIds.has(w.id));
 
   // Crews that have at least one unassigned active member
   const availableCrews = crews.filter(crew => {
@@ -565,6 +569,160 @@ export function AssignmentModal({ task, isOpen, onClose, onUpdate }: AssignmentM
               </div>
             )}
           </div>
+
+          {/* Mechanics Section — no required-count indicator */}
+          {(assignedMechanics.length > 0 || availableMechanics.length > 0) && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users size={20} className="text-text-secondary" />
+                  <h3 className="font-semibold">Mechanics</h3>
+                  <span className="text-[12px] text-text-secondary">{assignedMechanics.length} assigned</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowWorkerPicker('mechanic')}
+                >
+                  <Plus size={16} className="mr-1" />
+                  Add
+                </Button>
+              </div>
+              {assignedMechanics.length === 0 ? (
+                <p className="text-sm text-text-secondary italic">No mechanics assigned</p>
+              ) : (
+                <div className="space-y-2">
+                  {assignedMechanics.map((assignment) => (
+                    <div
+                      key={assignment.worker?.id}
+                      className="flex items-center justify-between p-3 bg-bg-primary border border-border rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{assignment.worker?.name}</span>
+                        {assignment.worker?.crew && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border"
+                            style={{
+                              backgroundColor: (assignment.worker.crew.color || '#6366f1') + '20',
+                              borderColor: (assignment.worker.crew.color || '#6366f1') + '40',
+                              color: assignment.worker.crew.color || '#6366f1',
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: assignment.worker.crew.color || '#6366f1' }} />
+                            {assignment.worker.crew.name}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => handleUnassignWorker(assignment.worker?.id || '')} className="p-1 hover:bg-bg-hover rounded transition-colors">
+                        <X size={16} className="text-error" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showWorkerPicker === 'mechanic' && (
+                <div className="mt-3 p-3 bg-bg-primary border border-primary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-sm">Select Mechanic</h4>
+                    <button onClick={() => setShowWorkerPicker(null)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+                  </div>
+                  {availableMechanics.length === 0 ? (
+                    <p className="text-sm text-text-secondary italic">No available mechanics</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {availableMechanics.map((worker) => (
+                        <button key={worker.id} onClick={() => handleAssignWorker(worker.id)} className="w-full text-left px-3 py-2 hover:bg-bg-hover rounded transition-colors flex items-center justify-between">
+                          <span>{worker.name}</span>
+                          {worker.crew && (
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full border" style={{ backgroundColor: (worker.crew.color || '#6366f1') + '20', borderColor: (worker.crew.color || '#6366f1') + '40', color: worker.crew.color || '#6366f1' }}>
+                              {worker.crew.name}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Drivers Section — no required-count indicator */}
+          {(assignedDrivers.length > 0 || availableDrivers.length > 0) && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Users size={20} className="text-text-secondary" />
+                  <h3 className="font-semibold">Drivers</h3>
+                  <span className="text-[12px] text-text-secondary">{assignedDrivers.length} assigned</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowWorkerPicker('driver')}
+                >
+                  <Plus size={16} className="mr-1" />
+                  Add
+                </Button>
+              </div>
+              {assignedDrivers.length === 0 ? (
+                <p className="text-sm text-text-secondary italic">No drivers assigned</p>
+              ) : (
+                <div className="space-y-2">
+                  {assignedDrivers.map((assignment) => (
+                    <div
+                      key={assignment.worker?.id}
+                      className="flex items-center justify-between p-3 bg-bg-primary border border-border rounded-lg"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{assignment.worker?.name}</span>
+                        {assignment.worker?.crew && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border"
+                            style={{
+                              backgroundColor: (assignment.worker.crew.color || '#6366f1') + '20',
+                              borderColor: (assignment.worker.crew.color || '#6366f1') + '40',
+                              color: assignment.worker.crew.color || '#6366f1',
+                            }}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: assignment.worker.crew.color || '#6366f1' }} />
+                            {assignment.worker.crew.name}
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => handleUnassignWorker(assignment.worker?.id || '')} className="p-1 hover:bg-bg-hover rounded transition-colors">
+                        <X size={16} className="text-error" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showWorkerPicker === 'driver' && (
+                <div className="mt-3 p-3 bg-bg-primary border border-primary rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-sm">Select Driver</h4>
+                    <button onClick={() => setShowWorkerPicker(null)} className="text-text-secondary hover:text-text-primary"><X size={16} /></button>
+                  </div>
+                  {availableDrivers.length === 0 ? (
+                    <p className="text-sm text-text-secondary italic">No available drivers</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {availableDrivers.map((worker) => (
+                        <button key={worker.id} onClick={() => handleAssignWorker(worker.id)} className="w-full text-left px-3 py-2 hover:bg-bg-hover rounded transition-colors flex items-center justify-between">
+                          <span>{worker.name}</span>
+                          {worker.crew && (
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-full border" style={{ backgroundColor: (worker.crew.color || '#6366f1') + '20', borderColor: (worker.crew.color || '#6366f1') + '40', color: worker.crew.color || '#6366f1' }}>
+                              {worker.crew.name}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <Button variant="secondary" onClick={onClose} className="w-full">
             Done

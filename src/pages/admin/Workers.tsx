@@ -9,6 +9,7 @@ import { WorkerForm } from '../../components/workers/WorkerForm';
 import { CrewManagementPanel } from '../../components/crews/CrewManagementPanel';
 import { Modal } from '../../components/ui/Modal';
 import { ListContainer } from '../../components/ui/ListContainer';
+import { WORKER_ROLES, ROLE_LABELS } from '../../lib/workerRoles';
 import type { Worker, Crew } from '../../types';
 import { toast } from 'sonner';
 
@@ -277,16 +278,6 @@ export function Workers() {
   // Crews that have workers (after filter) — preserve crew order
   const crewsWithWorkers = crews.filter(c => workersByCrew.has(c.id));
   const hasAnyWorkers = filteredWorkers.length > 0;
-
-  const WORKER_ROLES = ['operator', 'laborer', 'carpenter', 'mason', 'mechanic', 'driver'] as const;
-  const ROLE_LABELS: Record<string, string> = {
-    operator: 'Operators',
-    laborer: 'Laborers',
-    carpenter: 'Carpenters',
-    mason: 'Masons',
-    mechanic: 'Mechanics',
-    driver: 'Drivers',
-  };
 
   const handlePrint = () => {
     const selectedRoles = printRoles.size > 0 ? [...printRoles] : WORKER_ROLES;

@@ -226,12 +226,3 @@ export const founderUsers = {
   },
 }
 
-// ─── Founder email check (UI gate only — NOT a security boundary) ─────────────
-
-export function isFounderEmail(email?: string | null): boolean {
-  const emails = (import.meta.env.VITE_FOUNDER_EMAILS ?? '')
-    .split(',')
-    .map((e: string) => e.trim().toLowerCase())
-    .filter(Boolean)
-  return emails.includes((email ?? '').toLowerCase())
-}

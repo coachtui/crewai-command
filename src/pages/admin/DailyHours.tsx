@@ -1592,7 +1592,98 @@ export function DailyHours() {
           )}
         </div>
       ) : (
-        <Card className="mb-6">
+        <>
+          {/* Mobile card view — hidden on md+ */}
+          <div className="md:hidden space-y-2 mb-6">
+            {workers.length === 0 ? (
+              <p className="text-center text-text-secondary py-8">No workers on this job site.</p>
+            ) : (
+              workers.map(({ worker, dailyHours }, index) => {
+                const edited = editedHours.get(worker.id);
+                const currentHours = edited?.hours ?? (dailyHours != null ? (dailyHours.hours_worked?.toString() ?? '8') : '');
+                const currentOtHours = edited?.otHours ?? dailyHours?.ot_hours?.toString() ?? '0';
+                const isEdited = edited !== undefined;
+                return (
+                  <div
+                    key={worker.id}
+                    className={`border border-border rounded-xl p-4 ${isEdited ? 'bg-yellow-500/5 border-yellow-400/40' : 'bg-bg-secondary'}`}
+                  >
+                    {/* Name + role + actions */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[11px] text-text-tertiary w-5 shrink-0 text-right">{index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => openWorkerSummary(worker)}
+                          className="font-semibold text-text-primary hover:text-primary transition-colors text-[14px] truncate"
+                        >
+                          {worker.name}
+                        </button>
+                        <span className="shrink-0 px-1.5 py-0.5 text-[10px] bg-bg-primary border border-border rounded capitalize text-text-secondary">
+                          {worker.role}
+                        </span>
+                      </div>
+                      {canEdit(currentUser) && (
+                        <div className="flex gap-0.5 shrink-0">
+                          <button onClick={() => handleLogHours(worker)} className="p-2 hover:bg-bg-hover rounded transition-colors" title="Log hours">
+                            <Clock size={15} className="text-text-secondary" />
+                          </button>
+                          <button onClick={() => handleMarkOff(worker)} className="p-2 hover:bg-bg-hover rounded transition-colors" title="Mark off">
+                            <UserX size={15} className="text-text-secondary" />
+                          </button>
+                          <button onClick={() => handleMarkTransferred(worker)} className="p-2 hover:bg-bg-hover rounded transition-colors" title="Transfer">
+                            <ArrowRightLeft size={15} className="text-text-secondary" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Status + hours */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {getStatusBadge(dailyHours)}
+                      {canEdit(currentUser) && (!dailyHours || dailyHours.status === 'worked') ? (
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1 text-[12px] text-text-secondary">
+                            Hrs
+                            <Input
+                              type="number" step="0.5" min="0" max="24"
+                              value={currentHours}
+                              onChange={(e) => handleInlineHoursChange(worker.id, e.target.value)}
+                              className="w-16"
+                              placeholder="8"
+                            />
+                          </label>
+                          <label className="flex items-center gap-1 text-[12px] text-text-secondary">
+                            OT
+                            <Input
+                              type="number" step="0.5" min="0" max="24"
+                              value={currentOtHours}
+                              onChange={(e) => handleInlineOtHoursChange(worker.id, e.target.value, currentHours)}
+                              className="w-16"
+                              placeholder="0"
+                            />
+                          </label>
+                        </div>
+                      ) : dailyHours?.status === 'worked' ? (
+                        <span className="text-[13px] font-medium">
+                          {dailyHours.hours_worked || 0}h
+                          {(dailyHours.ot_hours || 0) > 0 && <span className="text-amber-600"> + {dailyHours.ot_hours}h OT</span>}
+                        </span>
+                      ) : null}
+                    </div>
+                    {/* Transfer destination */}
+                    {dailyHours?.status === 'transferred' && (
+                      <p className="text-[12px] text-text-secondary mt-2 truncate">
+                        → {dailyHours.transferred_to_task?.name || dailyHours.transferred_to_job_site?.name || dailyHours.notes || 'Transferred'}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop table view — hidden below md */}
+          <Card className="hidden md:block mb-6">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -1672,7 +1763,8 @@ export function DailyHours() {
               )}
             </table>
           </div>
-        </Card>
+          </Card>
+        </>
       )}
 
       {/* Daily Notes Summary — rendered inline below worker list */}

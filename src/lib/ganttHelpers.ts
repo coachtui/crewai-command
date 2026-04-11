@@ -13,6 +13,8 @@ export interface GanttTask {
   assignedLaborers: number;
   assignedCarpenters: number;
   assignedMasons: number;
+  assignedMechanics: number;
+  assignedDrivers: number;
   requiredOperators: number;
   requiredLaborers: number;
   requiredCarpenters: number;
@@ -80,11 +82,27 @@ export function transformTasksToGantt(
           .map(a => a.worker?.id)
       );
       const assignedMasons = uniqueMasonIds.size;
-      
+
+      const uniqueMechanicIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'mechanic')
+          .map(a => a.worker?.id)
+      );
+      const assignedMechanics = uniqueMechanicIds.size;
+
+      const uniqueDriverIds = new Set(
+        taskAssignments
+          .filter(a => a.worker?.role === 'driver')
+          .map(a => a.worker?.id)
+      );
+      const assignedDrivers = uniqueDriverIds.size;
+
       const requiredCarpenters = task.required_carpenters || 0;
       const requiredMasons = task.required_masons || 0;
-      
-      const totalAssigned = assignedOperators + assignedLaborers + assignedCarpenters + assignedMasons;
+
+      // Mechanics and drivers count toward totalAssigned headcount but not toward
+      // totalRequired or staffingStatus — they are untracked-requirement workers.
+      const totalAssigned = assignedOperators + assignedLaborers + assignedCarpenters + assignedMasons + assignedMechanics + assignedDrivers;
       const totalRequired = task.required_operators + task.required_laborers + requiredCarpenters + requiredMasons;
       
       return {
@@ -99,6 +117,8 @@ export function transformTasksToGantt(
         assignedLaborers,
         assignedCarpenters,
         assignedMasons,
+        assignedMechanics,
+        assignedDrivers,
         requiredOperators: task.required_operators,
         requiredLaborers: task.required_laborers,
         requiredCarpenters,

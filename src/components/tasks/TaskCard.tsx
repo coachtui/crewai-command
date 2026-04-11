@@ -18,9 +18,7 @@ interface TaskCardProps {
 export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: TaskCardProps) {
   const [showAttachments, setShowAttachments] = useState(false);
 
-  // Strip "ON HOLD" prefix from display name if present in task name string
-  // TODO: Migrate on_hold to a proper `status` DB column for tasks when ready
-  const displayName = task.name.replace(/^\*{0,2}\s*ON HOLD\s*\*{0,2}\s*[-–]?\s*/i, '').trim();
+  const displayName = task.name;
 
   // Get assignments for this task
   const taskAssignments = assignments.filter(a => a.task_id === task.id);
@@ -48,13 +46,14 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
   const assignedLaborers = uniqueLaborers.length;
 
   // Map task status to left-border color
-  const statusColorMap: Record<string, 'blue' | 'green' | 'gray'> = {
+  const statusColorMap: Record<string, 'blue' | 'green' | 'gray' | 'orange'> = {
     active: 'blue',
     completed: 'green',
     draft: 'gray',
     planned: 'gray',
+    on_hold: 'orange',
   };
-  const statusColor = statusColorMap[task.status] || 'gray';
+  const statusColor = statusColorMap[task.status] ?? 'gray';
 
   // Status badge
   const statusBadgeVariantMap: Record<string, 'success' | 'warning' | 'info' | 'default'> = {
@@ -62,12 +61,14 @@ export function TaskCard({ task, assignments, onEdit, onDelete, onAssign }: Task
     completed: 'default',
     planned: 'info',
     draft: 'default',
+    on_hold: 'warning',
   };
   const statusLabelMap: Record<string, string> = {
     active: 'Active',
     completed: 'Completed',
     planned: 'Planned',
     draft: 'Draft',
+    on_hold: 'On Hold',
   };
   const statusBadge = (
     <Badge variant={statusBadgeVariantMap[task.status] ?? 'default'}>

@@ -103,7 +103,7 @@ export function WorkerCard({ worker, crew, onEdit, onDelete }: WorkerCardProps) 
           </span>
         )}
         <Badge variant={worker.status === 'active' ? 'success' : 'default'}>
-          {worker.status === 'active' ? 'Available' : 'Inactive'}
+          {worker.status === 'active' ? 'Active' : 'Inactive'}
         </Badge>
       </div>
       <div className="flex gap-1 opacity-100 transition-opacity">
