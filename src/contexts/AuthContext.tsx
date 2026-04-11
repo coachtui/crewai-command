@@ -172,9 +172,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Web Locks API contention — known in StrictMode, HMR, and PWA environments),
     // resolve isLoading so the app doesn't hang on the spinner indefinitely.
     // Cleared immediately when INITIAL_SESSION fires normally.
-    const safetyTimer = setTimeout(() => {
+    //
+    // Fallback path: rather than immediately treating the user as logged out,
+    // call getSession() once to check whether a valid token still exists in
+    // storage. If it does, recover the session without forcing a re-login.
+    const safetyTimer = setTimeout(async () => {
       console.warn('[Auth] INITIAL_SESSION timeout fallback triggered');
-      setIsLoadingWithLog(false, 'initial session safety timeout');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const profile = await fetchUserProfile(session.user.id, true);
+          if (profile) {
+            setUserAndRef(profile);
+            setIsAuthenticatedAndRef(true);
+            console.log('[Auth] Timeout fallback: session recovered from storage');
+          } else {
+            console.warn('[Auth] Timeout fallback: session found but no profile — unauthenticated');
+          }
+        } else {
+          console.log('[Auth] Timeout fallback: no session in storage — unauthenticated');
+        }
+      } catch (err) {
+        console.error('[Auth] Timeout fallback: getSession error:', err);
+      } finally {
+        setIsLoadingWithLog(false, 'initial session safety timeout');
+      }
     }, 5000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: _Event, session: _Session) => {
