@@ -256,24 +256,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // authenticated the user on this same page load.
         console.log('[Auth] SIGNED_IN received');
         if (!isAuthenticatedRef.current || !currentUserRef.current) {
+          // IMPORTANT: do NOT await profile work here.
+          //
+          // auth-js calls _notifyAllSubscribers() inside the signInWithPassword
+          // lock and awaits each subscriber's return value. If we await
+          // fetchUserProfile() here, signInWithPassword blocks until both DB
+          // queries complete (up to 16s with timedFetch fallback). We kick off
+          // the work in a detached void promise so this callback returns
+          // immediately, unblocking signInWithPassword.
+          //
+          // signOut() is also removed from the no-profile path — calling it
+          // here would try to acquire the same lock signInWithPassword holds,
+          // causing a deadlock.
           setIsLoadingWithLog(true, 'signed in');
-          try {
-            const profile = await fetchUserProfile(session.user.id, true);
-            if (profile) {
-              setUserAndRef(profile);
-              setIsAuthenticatedAndRef(true);
-            } else {
-              console.warn('[Auth] SIGNED_IN: no profile row found — forcing sign-out');
-              await supabase.auth.signOut();
-              localStorage.setItem(STORAGE_KEYS.AUTH_ERROR, 'no_profile');
+          void (async () => {
+            try {
+              const profile = await fetchUserProfile(session.user.id, true);
+              if (profile) {
+                setUserAndRef(profile);
+                setIsAuthenticatedAndRef(true);
+                console.log('[Auth] SIGNED_IN: profile loaded, user authenticated');
+              } else {
+                console.warn('[Auth] SIGNED_IN: no profile row found — setting error flag');
+                localStorage.setItem(STORAGE_KEYS.AUTH_ERROR, 'no_profile');
+              }
+            } finally {
+              setIsLoadingWithLog(false, 'signed in resolved');
             }
-          } finally {
-            setIsLoadingWithLog(false, 'signed in resolved');
-          }
+          })();
         } else {
-          // Already authenticated — silent background refresh, respects cooldown.
-          const profile = await fetchUserProfile(session.user.id, false);
-          if (profile) setUserAndRef(profile);
+          // Already authenticated — silent background refresh, non-blocking.
+          void fetchUserProfile(session.user.id, false).then(
+            (profile) => { if (profile) setUserAndRef(profile); }
+          );
         }
 
       } else if (event === 'SIGNED_OUT') {
