@@ -53,7 +53,7 @@ export function Dashboard() {
                   : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover'
               }`}
             >
-              Workers
+              Workforce
             </button>
             <button
               onClick={() => setActiveTab('users')}
