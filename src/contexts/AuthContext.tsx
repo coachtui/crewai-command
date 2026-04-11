@@ -178,6 +178,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // storage. If it does, recover the session without forcing a re-login.
     const safetyTimer = setTimeout(async () => {
       console.warn('[Auth] INITIAL_SESSION timeout fallback triggered');
+      // Optional: log Web Locks state to diagnose SDK lock contention
+      if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+        try {
+          const lockState = await (navigator.locks as { query: () => Promise<{ held?: { name: string; mode: string }[]; pending?: { name: string; mode: string }[] }> }).query();
+          console.warn('[Auth] Web Locks at timeout — held:', lockState.held?.map(l => l.name), '/ pending:', lockState.pending?.map(l => l.name));
+        } catch (_) { /* locks.query() not available in this environment */ }
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
