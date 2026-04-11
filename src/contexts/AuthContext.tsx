@@ -166,28 +166,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       'PASSWORD_RECOVERY' | 'INITIAL_SESSION' | 'MFA_CHALLENGE_VERIFIED';
     type _Session = { user: { id: string; email?: string }; updated_at?: string } | null;
 
+    console.log('[Auth] Provider mounted');
+
     // Safety net: if INITIAL_SESSION never fires (Supabase SDK AbortError from
     // Web Locks API contention — known in StrictMode, HMR, and PWA environments),
     // resolve isLoading so the app doesn't hang on the spinner indefinitely.
-    // In the normal path this timer is always cleared before it fires.
+    // Cleared immediately when INITIAL_SESSION fires normally.
     const safetyTimer = setTimeout(() => {
-      if (!isAuthenticatedRef.current) {
-        if (isDev) console.warn('[Auth] INITIAL_SESSION did not fire within 5s — resolving loading state');
-        setIsLoadingWithLog(false, 'initial session safety timeout');
-      }
+      console.warn('[Auth] INITIAL_SESSION timeout fallback triggered');
+      setIsLoadingWithLog(false, 'initial session safety timeout');
     }, 5000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: _Event, session: _Session) => {
-      if (isDev) console.log('[Auth] Auth state changed:', event, {
-        currentlyAuthenticated: isAuthenticatedRef.current,
-        hasUser: !!currentUserRef.current,
-      });
-
       if (event === 'INITIAL_SESSION') {
         // Fires once on mount with the validated session (or null if none / expired).
         // Always resolves isLoading in the finally block — ProtectedRoute unblocks here.
         // Clear the safety timer — the normal path is running.
         clearTimeout(safetyTimer);
+        console.log('[Auth] INITIAL_SESSION received', { hasUser: !!session?.user });
         logCheckpoint('INITIAL_SESSION received');
         try {
           if (session?.user) {
@@ -197,17 +193,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
               setIsAuthenticatedAndRef(true);
               logCheckpoint('Session restored — user authenticated');
             } else {
-              // Ghost-state prevention: Supabase session exists but no profile row.
-              // Sign out so the user is not stuck in a redirect loop, then surface
-              // a human-readable error on the login page.
-              console.warn('[Auth] INITIAL_SESSION: no profile row found — forcing sign-out');
-              await supabase.auth.signOut();
+              // Ghost-state: valid Supabase session but no profile row in the DB.
+              // Do NOT call signOut() here — it can interrupt Supabase auth
+              // initialization and contribute to the AbortError. Instead, clear
+              // local auth state and set an error flag for the login page to read.
+              console.warn('[Auth] INITIAL_SESSION: no profile row found — clearing local state');
+              setUserAndRef(null);
+              setIsAuthenticatedAndRef(false);
               localStorage.setItem(STORAGE_KEYS.AUTH_ERROR, 'no_profile');
-              logCheckpoint('Ghost state detected — signed out, error flag set');
+              logCheckpoint('Ghost state: local state cleared, error flag set');
             }
           } else {
             logCheckpoint('INITIAL_SESSION: no session — user not authenticated');
           }
+        } catch (err) {
+          console.error('[Auth] INITIAL_SESSION error:', err);
         } finally {
           setIsLoadingWithLog(false, 'initial session resolved');
         }
@@ -216,6 +216,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Fires on fresh login (form, OAuth, magic link).
         // The ref guard prevents a double-fetch when INITIAL_SESSION already
         // authenticated the user on this same page load.
+        console.log('[Auth] SIGNED_IN received');
         if (!isAuthenticatedRef.current || !currentUserRef.current) {
           setIsLoadingWithLog(true, 'signed in');
           try {
