@@ -60,4 +60,23 @@ if (!isConfigured) {
   throw new Error('Missing Supabase environment variables - check Vercel environment settings');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Wrap fetch with an 8-second hard timeout.
+//
+// Without this, the SDK's _initialize() acquires the internal Web Lock and
+// makes a token-refresh network call for any existing session in localStorage.
+// If that call hangs (stale service worker intercepting, unresponsive network),
+// the lock is held indefinitely. Every subsequent SDK call — including
+// signInWithPassword — waits for the lock and stalls forever.
+//
+// With this wrapper: the hung fetch is aborted after 8s, _initialize() throws,
+// the lock is released, and signInWithPassword can proceed normally.
+const timedFetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  return fetch(url, { ...init, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+};
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: timedFetch },
+});
