@@ -113,16 +113,23 @@ export function Login() {
       console.log('[Login] Submit: starting sign-in');
       console.log('[Login] Submit: calling signInWithPassword...');
 
-      // Stall detector: fires if signInWithPassword hasn't resolved in 10s.
-      // Indicates the SDK is blocked (lock contention, intercepted fetch,
-      // stale service worker, or network failure).
+      // Stall detector: logs at 10s if signInWithPassword hasn't resolved.
       const stallTimer = setTimeout(() => {
-        console.error('[Login] signInWithPassword appears stalled after 10s — likely SDK lock contention, stale service worker, or network failure');
+        console.error('[Login] signInWithPassword stalled after 10s — SDK lock, service worker, or network issue');
       }, 10000);
 
-      const { data: signInData, error: authError } = await supabase.auth
-        .signInWithPassword({ email, password })
-        .finally(() => clearTimeout(stallTimer));
+      // Hard timeout at 15s: rejects with a user-visible error so the button
+      // always unfreezes rather than hanging forever.
+      type SignInResult = Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+      const { data: signInData, error: authError } = await Promise.race<SignInResult>([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<SignInResult>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Sign-in timed out. Please refresh the page and try again.')),
+            15000
+          )
+        ),
+      ]).finally(() => clearTimeout(stallTimer));
 
       // If this log appears, signInWithPassword resolved (not hung at SDK level)
       console.log('[Login] Submit: signInWithPassword resolved', {
