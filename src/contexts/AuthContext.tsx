@@ -25,6 +25,7 @@ function logCheckpoint(name: string) {
 const STORAGE_KEYS = {
   LAST_JOB_SITE: 'crewai_last_job_site_id',
   USER_PREFERENCES: 'crewai_user_preferences',
+  AUTH_ERROR: 'crewai_auth_error',
 };
 
 interface AuthProviderProps {
@@ -153,157 +154,88 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, []);
 
-  // Initialize auth state
+  // Auth state is driven entirely by onAuthStateChange.
+  // INITIAL_SESSION is the primary restore event — it fires exactly once per
+  // subscription (on mount) with either a validated session or null. There is
+  // no competing getSession() call, so there are no race conditions and no
+  // timeout logic that could delete auth tokens from localStorage.
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        logCheckpoint('AuthProvider initializing');
-
-        // Check for existing session with timeout
-        logCheckpoint('Checking for existing session');
-
-        // Create a timeout promise (10 seconds)
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session check timeout - clearing session')), 10000);
-        });
-
-        // Race between getSession and timeout
-        const sessionPromise = supabase.auth.getSession();
-
-        let sessionData;
-        try {
-          sessionData = await Promise.race([sessionPromise, timeoutPromise]);
-        } catch (timeoutError) {
-          // Timeout — only remove the Supabase auth token, not all of localStorage.
-          // (localStorage.clear() would wipe job-site preferences and other app state.)
-          logCheckpoint('Session check timed out - clearing auth token only');
-          console.warn('[Auth] Session check timed out, removing auth token from localStorage');
-          try {
-            const projectRef = new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0];
-            localStorage.removeItem(`sb-${projectRef}-auth-token`);
-          } catch {
-            // Fallback: remove any key that looks like a supabase auth token
-            Object.keys(localStorage)
-              .filter((k) => k.startsWith('sb-') && k.endsWith('-auth-token'))
-              .forEach((k) => localStorage.removeItem(k));
-          }
-          setIsLoadingWithLog(false, 'session timeout');
-          setIsAuthenticatedAndRef(false);
-          return;
-        }
-
-        const { data: { session }, error: sessionError } = sessionData as any;
-
-        if (sessionError) {
-          if (isDev) console.error('[Auth] Session error:', sessionError);
-          logCheckpoint('Session check failed');
-          setIsLoadingWithLog(false, 'session error');
-          return;
-        }
-
-        logCheckpoint(`Session check complete (has session: ${!!session})`);
-
-        if (session?.user) {
-          logCheckpoint('Fetching user profile');
-          const profile = await fetchUserProfile(session.user.id, true);
-          if (profile) {
-            setUserAndRef(profile);
-            setIsAuthenticatedAndRef(true);
-            logCheckpoint('User authenticated successfully');
-          } else {
-            logCheckpoint('Failed to fetch user profile');
-          }
-        } else {
-          logCheckpoint('No session found - user not authenticated');
-        }
-      } catch (error) {
-        if (isDev) console.error('[Auth] Initialization error:', error);
-        logCheckpoint('Auth initialization error: ' + String(error));
-      } finally {
-        setIsLoadingWithLog(false, 'initialization complete');
-        logCheckpoint('AuthProvider initialization complete');
-      }
-    };
-
-    initAuth();
-
-    // Listen for auth state changes.
-    // IMPORTANT: this callback closes over the initial values of isAuthenticated/user
-    // (always false/null) because the effect only runs once. We use refs instead of
-    // the state variables so we always read the current values.
-    // Inline types because @supabase/supabase-js dist/ is empty in this install
-    // (types cannot be resolved by the TS language server via package imports).
+    // Inline types: @supabase/supabase-js dist/ types are not resolvable via
+    // package imports in this install, so we declare them locally.
     type _Event = 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED' |
       'PASSWORD_RECOVERY' | 'INITIAL_SESSION' | 'MFA_CHALLENGE_VERIFIED';
-    type _Session = { user: { id: string; email?: string } } | null;
+    type _Session = { user: { id: string; email?: string }; updated_at?: string } | null;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: _Event, session: _Session) => {
-      console.log('[Auth] Auth state changed:', event, {
+      if (isDev) console.log('[Auth] Auth state changed:', event, {
         currentlyAuthenticated: isAuthenticatedRef.current,
         hasUser: !!currentUserRef.current,
       });
 
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Use ref (not stale closure value) to decide whether we're already authed
+      if (event === 'INITIAL_SESSION') {
+        // Fires once on mount with the validated session (or null if none / expired).
+        // Always resolves isLoading in the finally block — ProtectedRoute unblocks here.
+        logCheckpoint('INITIAL_SESSION received');
+        try {
+          if (session?.user) {
+            const profile = await fetchUserProfile(session.user.id, true);
+            if (profile) {
+              setUserAndRef(profile);
+              setIsAuthenticatedAndRef(true);
+              logCheckpoint('Session restored — user authenticated');
+            } else {
+              // Ghost-state prevention: Supabase session exists but no profile row.
+              // Sign out so the user is not stuck in a redirect loop, then surface
+              // a human-readable error on the login page.
+              console.warn('[Auth] INITIAL_SESSION: no profile row found — forcing sign-out');
+              await supabase.auth.signOut();
+              localStorage.setItem(STORAGE_KEYS.AUTH_ERROR, 'no_profile');
+              logCheckpoint('Ghost state detected — signed out, error flag set');
+            }
+          } else {
+            logCheckpoint('INITIAL_SESSION: no session — user not authenticated');
+          }
+        } finally {
+          setIsLoadingWithLog(false, 'initial session resolved');
+        }
+
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        // Fires on fresh login (form, OAuth, magic link).
+        // The ref guard prevents a double-fetch when INITIAL_SESSION already
+        // authenticated the user on this same page load.
         if (!isAuthenticatedRef.current || !currentUserRef.current) {
-          console.log('[Auth] SIGNED_IN event - showing loading (not currently authenticated)');
-          setIsLoadingWithLog(true, `auth state change: ${event}`);
-
+          setIsLoadingWithLog(true, 'signed in');
           try {
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-            );
-            const profilePromise = fetchUserProfile(session.user.id, true);
-            const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
-
+            const profile = await fetchUserProfile(session.user.id, true);
             if (profile) {
               setUserAndRef(profile);
               setIsAuthenticatedAndRef(true);
             } else {
-              console.warn('[Auth] Profile fetch returned null - user profile may not exist in database');
+              console.warn('[Auth] SIGNED_IN: no profile row found — forcing sign-out');
+              await supabase.auth.signOut();
+              localStorage.setItem(STORAGE_KEYS.AUTH_ERROR, 'no_profile');
             }
-          } catch (error) {
-            console.error('[Auth] Profile fetch failed/timed out:', error);
+          } finally {
+            setIsLoadingWithLog(false, 'signed in resolved');
           }
-
-          setIsLoadingWithLog(false, `auth state change complete: ${event}`);
         } else {
-          console.log('[Auth] SIGNED_IN event - already authenticated, silent background refresh');
-          try {
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-            );
-            const profilePromise = fetchUserProfile(session.user.id, false);
-            const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
-
-            if (profile) {
-              setUserAndRef(profile);
-            }
-          } catch (error) {
-            console.error('[Auth] Background profile refresh failed:', error);
-          }
+          // Already authenticated — silent background refresh, respects cooldown.
+          const profile = await fetchUserProfile(session.user.id, false);
+          if (profile) setUserAndRef(profile);
         }
+
       } else if (event === 'SIGNED_OUT') {
-        console.log('[Auth] SIGNED_OUT event');
         setUserAndRef(null);
         setIsAuthenticatedAndRef(false);
         localStorage.removeItem(STORAGE_KEYS.LAST_JOB_SITE);
-      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-        console.log('[Auth] TOKEN_REFRESHED event - silent refresh, respecting cooldown');
-        try {
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
-          );
-          const profilePromise = fetchUserProfile(session.user.id, false);
-          const profile = await Promise.race([profilePromise, timeoutPromise]) as UserProfile | null;
 
-          if (profile) {
-            setUserAndRef(profile);
-          } else {
-            console.log('[Auth] TOKEN_REFRESHED - profile fetch skipped (cooldown active or returned null)');
-          }
-        } catch (error) {
-          console.error('[Auth] TOKEN_REFRESHED profile fetch failed:', error);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Silent SDK token refresh — no loading state, no auth state change.
+        // Only update the profile object if it has changed since the last fetch
+        // (avoids unnecessary re-renders on every ~55-minute token cycle).
+        const profile = await fetchUserProfile(session.user.id, false); // respects cooldown
+        if (profile && profile.updated_at !== currentUserRef.current?.updated_at) {
+          setUserAndRef(profile);
         }
       }
     });
@@ -311,7 +243,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, setIsAuthenticatedAndRef, setIsLoadingWithLog, setUserAndRef]);
 
   // Sign in function
   const signIn = async (email: string, password: string): Promise<void> => {

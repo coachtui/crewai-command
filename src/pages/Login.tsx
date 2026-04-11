@@ -69,8 +69,19 @@ export function Login() {
   const [password, setPassword]         = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading]           = useState(false);
+  const [setupError, setSetupError]     = useState<string | null>(null);
   const navigate = useNavigate();
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Read and clear the ghost-state error flag set by AuthContext.
+  // Shown when a Supabase session exists but no profile row was found.
+  useEffect(() => {
+    const flag = localStorage.getItem('crewai_auth_error');
+    if (flag === 'no_profile') {
+      setSetupError('Your account is not fully set up. Contact your administrator.');
+      localStorage.removeItem('crewai_auth_error');
+    }
+  }, []);
 
   // Check for invite/recovery tokens in URL
   useEffect(() => {
@@ -151,6 +162,13 @@ export function Login() {
               Manage crews, tasks, hours — multi-site.
             </p>
           </div>
+
+          {/* Account setup error — shown when auth succeeds but profile row is missing */}
+          {setupError && (
+            <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-[13px] text-warning leading-snug">
+              {setupError}
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleLogin} className="space-y-4">
