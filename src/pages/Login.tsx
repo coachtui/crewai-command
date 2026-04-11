@@ -110,28 +110,39 @@ export function Login() {
     setLoading(true);
 
     try {
-      console.log('[Login] Attempting login...');
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      console.log('[Login] Submit: starting sign-in');
+      console.log('[Login] Submit: calling signInWithPassword...');
+
+      const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      // If this log appears, signInWithPassword resolved (not hung at SDK level)
+      console.log('[Login] Submit: signInWithPassword resolved', {
+        hasUser: !!signInData?.user,
+        hasError: !!authError,
+        errorMessage: authError?.message,
+      });
+
       if (authError) {
-        console.error('[Login] Auth error:', authError);
         throw authError;
       }
 
-      // Navigate immediately — AuthContext picks up the session via onAuthStateChange.
-      // The role-based DB query was dead code (both branches navigated to /workers).
-      console.log('[Login] Auth successful, navigating to /workers');
-      navigate('/workers', { replace: true });
+      // Do NOT call navigate() here. Routing is driven by the isAuthenticated
+      // effect above, which fires once AuthContext's SIGNED_IN handler completes
+      // and sets isAuthenticated=true. Navigating here races against SIGNED_IN —
+      // ProtectedRoute would see isAuthenticated=false and redirect back to /login.
+      console.log('[Login] Submit: credentials accepted — waiting for SIGNED_IN to complete');
       toast.success('Login successful!');
     } catch (error) {
-      console.error('[Login] Login failed:', error);
+      console.error('[Login] Submit: login failed:', error);
       toast.error((error as Error).message || 'Login failed');
+    } finally {
+      // Always reset the button. On success the isAuthenticated effect navigates
+      // away; on failure or if the component stays mounted, the user can retry.
       setLoading(false);
     }
-    // Don't setLoading(false) on success — let the redirect happen
   };
 
   return (
