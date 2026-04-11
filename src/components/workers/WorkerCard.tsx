@@ -1,4 +1,4 @@
-import { Edit2, Trash2, Phone, Wrench, HardHat, Hammer } from 'lucide-react';
+import { Edit2, Trash2, Phone, Wrench, HardHat, Hammer, Settings, Truck } from 'lucide-react';
 import { ListItem } from '../ui/ListItem';
 import { Badge } from '../ui/Badge';
 import type { Worker, Crew } from '../../types';
@@ -33,6 +33,20 @@ const getRoleConfig = (role: Worker['role']) => {
         iconColor: 'text-purple-400',
         badgeVariant: 'default' as const,
         icon: HardHat,
+      };
+    case 'mechanic':
+      return {
+        bgColor: 'bg-orange-500/20',
+        iconColor: 'text-orange-400',
+        badgeVariant: 'default' as const,
+        icon: Settings,
+      };
+    case 'driver':
+      return {
+        bgColor: 'bg-teal-500/20',
+        iconColor: 'text-teal-400',
+        badgeVariant: 'default' as const,
+        icon: Truck,
       };
     case 'laborer':
     default:

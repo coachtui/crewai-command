@@ -30,7 +30,7 @@ export function Workers() {
   const [collapsedCrews, setCollapsedCrews] = useState<Set<string>>(new Set());
   const [isCrewPanelOpen, setIsCrewPanelOpen] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printRoles, setPrintRoles] = useState<Set<string>>(new Set(['operator', 'laborer', 'carpenter', 'mason']));
+  const [printRoles, setPrintRoles] = useState<Set<string>>(new Set(['operator', 'laborer', 'carpenter', 'mason', 'mechanic', 'driver']));
 
   // Get the "Unassigned" system job site
   const unassignedSite = availableJobSites.find(site => site.is_system_site && site.name === 'Unassigned');
@@ -364,6 +364,8 @@ export function Workers() {
           <option value="laborer">Laborers</option>
           <option value="carpenter">Carpenters</option>
           <option value="mason">Masons</option>
+          <option value="mechanic">Mechanics</option>
+          <option value="driver">Drivers</option>
         </select>
 
         {currentJobSite && (

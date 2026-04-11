@@ -1293,9 +1293,14 @@ export function DailyHours() {
 
   const ROLE_COLORS: Record<string, string> = {
     operator: '#3b82f6', laborer: '#eab308', carpenter: '#22c55e', mason: '#8b5cf6',
+    mechanic: '#f97316', driver: '#14b8a6',
   };
-  const weeklyRoleGroups = (['operator', 'laborer', 'carpenter', 'mason'] as const)
-    .map(role => ({ groupId: role, groupName: ({ operator: 'Operators', laborer: 'Laborers', carpenter: 'Carpenters', mason: 'Masons' } as const)[role], groupColor: ROLE_COLORS[role], rows: weeklyData.filter(r => r.worker.role === role) }))
+  const ROLE_NAMES: Record<string, string> = {
+    operator: 'Operators', laborer: 'Laborers', carpenter: 'Carpenters', mason: 'Masons',
+    mechanic: 'Mechanics', driver: 'Drivers',
+  };
+  const weeklyRoleGroups = (['operator', 'laborer', 'carpenter', 'mason', 'mechanic', 'driver'] as const)
+    .map(role => ({ groupId: role, groupName: ROLE_NAMES[role], groupColor: ROLE_COLORS[role], rows: weeklyData.filter(r => r.worker.role === role) }))
     .filter(g => g.rows.length > 0);
 
   // Shared weekly row renderer

@@ -153,6 +153,8 @@ export function WorkerManagement() {
             <option value="laborer">Laborer</option>
             <option value="carpenter">Carpenter</option>
             <option value="mason">Mason</option>
+            <option value="mechanic">Mechanic</option>
+            <option value="driver">Driver</option>
           </select>
           <select
             value={statusFilter}
