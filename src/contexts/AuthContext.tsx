@@ -166,6 +166,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       'PASSWORD_RECOVERY' | 'INITIAL_SESSION' | 'MFA_CHALLENGE_VERIFIED';
     type _Session = { user: { id: string; email?: string }; updated_at?: string } | null;
 
+    // Safety net: if INITIAL_SESSION never fires (Supabase SDK AbortError from
+    // Web Locks API contention — known in StrictMode, HMR, and PWA environments),
+    // resolve isLoading so the app doesn't hang on the spinner indefinitely.
+    // In the normal path this timer is always cleared before it fires.
+    const safetyTimer = setTimeout(() => {
+      if (!isAuthenticatedRef.current) {
+        if (isDev) console.warn('[Auth] INITIAL_SESSION did not fire within 5s — resolving loading state');
+        setIsLoadingWithLog(false, 'initial session safety timeout');
+      }
+    }, 5000);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: _Event, session: _Session) => {
       if (isDev) console.log('[Auth] Auth state changed:', event, {
         currentlyAuthenticated: isAuthenticatedRef.current,
@@ -175,6 +186,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (event === 'INITIAL_SESSION') {
         // Fires once on mount with the validated session (or null if none / expired).
         // Always resolves isLoading in the finally block — ProtectedRoute unblocks here.
+        // Clear the safety timer — the normal path is running.
+        clearTimeout(safetyTimer);
         logCheckpoint('INITIAL_SESSION received');
         try {
           if (session?.user) {
@@ -241,6 +254,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     return () => {
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [fetchUserProfile, setIsAuthenticatedAndRef, setIsLoadingWithLog, setUserAndRef]);
