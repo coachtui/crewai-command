@@ -113,10 +113,16 @@ export function Login() {
       console.log('[Login] Submit: starting sign-in');
       console.log('[Login] Submit: calling signInWithPassword...');
 
-      const { data: signInData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Stall detector: fires if signInWithPassword hasn't resolved in 10s.
+      // Indicates the SDK is blocked (lock contention, intercepted fetch,
+      // stale service worker, or network failure).
+      const stallTimer = setTimeout(() => {
+        console.error('[Login] signInWithPassword appears stalled after 10s — likely SDK lock contention, stale service worker, or network failure');
+      }, 10000);
+
+      const { data: signInData, error: authError } = await supabase.auth
+        .signInWithPassword({ email, password })
+        .finally(() => clearTimeout(stallTimer));
 
       // If this log appears, signInWithPassword resolved (not hung at SDK level)
       console.log('[Login] Submit: signInWithPassword resolved', {
@@ -136,11 +142,10 @@ export function Login() {
       console.log('[Login] Submit: credentials accepted — waiting for SIGNED_IN to complete');
       toast.success('Login successful!');
     } catch (error) {
-      console.error('[Login] Submit: login failed:', error);
+      console.error('[Login] Submit: login failed:', (error as Error).message, error);
       toast.error((error as Error).message || 'Login failed');
     } finally {
-      // Always reset the button. On success the isAuthenticated effect navigates
-      // away; on failure or if the component stays mounted, the user can retry.
+      console.log('[Login] Submit: finally — resetting loading state');
       setLoading(false);
     }
   };

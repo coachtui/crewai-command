@@ -24,6 +24,37 @@ function logCheckpoint(name: string) {
 
 logCheckpoint('main.tsx loaded');
 
+// ── Service Worker Cleanup ────────────────────────────────────────────────────
+// A sw.js was previously deployed and registered via the Web Push / PWA
+// infrastructure. The file no longer exists in the project but browsers that
+// loaded it still have it active as the SW controller. An active SW intercepts
+// ALL fetch requests — including Supabase auth API calls — and can cause
+// signInWithPassword to hang indefinitely if the SW has no cached response
+// and no pass-through logic for that URL.
+//
+// This block unregisters every registered SW and, if one was actively
+// controlling the page, reloads once so the fresh page load runs without a
+// SW controller. The sessionStorage guard prevents an infinite reload loop.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    if (registrations.length === 0) return;
+
+    console.warn(`[SW] Unregistering ${registrations.length} stale service worker(s)`);
+    Promise.all(registrations.map((r) => r.unregister())).then(() => {
+      if (navigator.serviceWorker.controller && !sessionStorage.getItem('sw_cleared')) {
+        // SW was controlling this page — reload once for a clean start.
+        sessionStorage.setItem('sw_cleared', '1');
+        console.warn('[SW] Reloading to clear SW control of this page');
+        window.location.reload();
+      } else {
+        console.log('[SW] Stale service worker(s) unregistered — no reload needed');
+      }
+    });
+  }).catch((err) => {
+    console.warn('[SW] getRegistrations failed:', err);
+  });
+}
+
 try {
   logCheckpoint('Importing App component');
   const rootElement = document.getElementById('root');
