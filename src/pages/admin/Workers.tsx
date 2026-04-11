@@ -278,12 +278,14 @@ export function Workers() {
   const crewsWithWorkers = crews.filter(c => workersByCrew.has(c.id));
   const hasAnyWorkers = filteredWorkers.length > 0;
 
-  const WORKER_ROLES = ['operator', 'laborer', 'carpenter', 'mason'] as const;
+  const WORKER_ROLES = ['operator', 'laborer', 'carpenter', 'mason', 'mechanic', 'driver'] as const;
   const ROLE_LABELS: Record<string, string> = {
     operator: 'Operators',
     laborer: 'Laborers',
     carpenter: 'Carpenters',
     mason: 'Masons',
+    mechanic: 'Mechanics',
+    driver: 'Drivers',
   };
 
   const handlePrint = () => {

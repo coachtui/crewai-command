@@ -122,7 +122,7 @@ export function Sidebar() {
 
   const navItems: NavItem[] = [
     { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/workers', icon: Users, label: 'Workers' },
+    { path: '/workers', icon: Users, label: 'Workforce' },
     { path: '/equipment', icon: Truck, label: 'Equipment & Tools' },
     { path: '/tasks', icon: Briefcase, label: 'Tasks' },
     { path: '/site-events', icon: CalendarClock, label: 'Site Schedule' },

@@ -145,7 +145,7 @@ export interface Crew {
 // WORKERS
 // ============================================================================
 
-export type WorkerRole = 'operator' | 'laborer' | 'carpenter' | 'mason';
+export type WorkerRole = 'operator' | 'laborer' | 'carpenter' | 'mason' | 'mechanic' | 'driver';
 export type WorkerStatus = 'active' | 'inactive';
 
 export interface Worker {
