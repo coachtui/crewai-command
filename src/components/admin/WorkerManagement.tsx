@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin } from 'lucide-react';
+import { Search, MapPin, Plus, Pencil } from 'lucide-react';
 import { useAuth, useJobSite } from '../../contexts';
 import { useRealtimeSubscription } from '../../lib/hooks/useRealtime';
+import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { WorkerSiteManager } from '../workers/WorkerSiteManager';
+import { WorkerForm } from '../workers/WorkerForm';
 import { fetchAllWorkers, fetchOrgWorkerSiteAssignments, moveWorker } from '../../lib/api/workers';
 import { fetchJobSites } from '../../lib/api/jobSites';
 import type { Worker, JobSite, WorkerSiteAssignment } from '../../types';
@@ -24,6 +26,10 @@ export function WorkerManagement() {
   const [siteFilter, setSiteFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
+
+  // Edit / Add worker modal
+  const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+  const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
 
   // Manage Sites modal
   const [managingWorker, setManagingWorker] = useState<Worker | null>(null);
@@ -92,6 +98,34 @@ export function WorkerManagement() {
     }
   };
 
+  const handleSaveWorker = async (workerData: Partial<Worker>) => {
+    if (!user?.org_id) {
+      toast.error('Unable to determine organization');
+      return;
+    }
+    try {
+      if (editingWorker) {
+        const { error } = await supabase
+          .from('workers')
+          .update(workerData)
+          .eq('id', editingWorker.id);
+        if (error) throw error;
+        toast.success('Worker updated successfully');
+      } else {
+        const { error } = await supabase
+          .from('workers')
+          .insert([{ ...workerData, organization_id: user.org_id }]);
+        if (error) throw error;
+        toast.success('Worker created successfully');
+      }
+      await loadWorkers();
+      setIsWorkerModalOpen(false);
+      setEditingWorker(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save worker');
+    }
+  };
+
   const openManageSites = (worker: Worker) => {
     setManagingWorker(worker);
     setNewPrimarySiteId(worker.job_site_id || '');
@@ -119,6 +153,21 @@ export function WorkerManagement() {
 
   return (
     <div>
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-4">
+        <span />
+        <Button
+          onClick={() => {
+            setEditingWorker(null);
+            setIsWorkerModalOpen(true);
+          }}
+          className="flex items-center gap-1.5"
+        >
+          <Plus size={16} />
+          Add Worker
+        </Button>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex-1 relative">
@@ -229,15 +278,29 @@ export function WorkerManagement() {
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => openManageSites(worker)}
-                        className="flex items-center gap-1"
-                      >
-                        <MapPin size={14} />
-                        Manage Sites
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setEditingWorker(worker);
+                            setIsWorkerModalOpen(true);
+                          }}
+                          className="flex items-center gap-1"
+                        >
+                          <Pencil size={14} />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => openManageSites(worker)}
+                          className="flex items-center gap-1"
+                        >
+                          <MapPin size={14} />
+                          Sites
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -246,6 +309,26 @@ export function WorkerManagement() {
           </table>
         </div>
       )}
+
+      {/* Edit / Add Worker Modal */}
+      <Modal
+        isOpen={isWorkerModalOpen}
+        onClose={() => {
+          setIsWorkerModalOpen(false);
+          setEditingWorker(null);
+        }}
+        title={editingWorker ? 'Edit Worker' : 'Add New Worker'}
+      >
+        <WorkerForm
+          worker={editingWorker}
+          onSave={handleSaveWorker}
+          onAssignmentChange={loadWorkers}
+          onCancel={() => {
+            setIsWorkerModalOpen(false);
+            setEditingWorker(null);
+          }}
+        />
+      </Modal>
 
       {/* Manage Sites Modal */}
       <Modal
