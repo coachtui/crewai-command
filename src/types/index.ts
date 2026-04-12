@@ -147,6 +147,7 @@ export interface Crew {
 
 export type WorkerRole = 'operator' | 'laborer' | 'carpenter' | 'mason' | 'mechanic' | 'driver';
 export type WorkerStatus = 'active' | 'inactive';
+export type WorkerAvailabilityStatus = 'available' | 'assigned' | 'out' | 'unavailable';
 
 export interface Worker {
   id: string;
@@ -160,6 +161,7 @@ export interface Worker {
   skills: string[];
   phone?: string;
   status: WorkerStatus;
+  availability_status?: WorkerAvailabilityStatus;
   notes?: string;
   created_at: string;
   // Joined data
@@ -368,17 +370,22 @@ export interface DailyHours {
 // SITE EVENTS
 // ============================================================================
 
+export type SiteEventType = 'pour' | 'paving' | 'delivery' | 'inspection' | 'other';
+
 export interface SiteEvent {
   id: string;
   job_site_id: string;
   organization_id: string;
   title: string;
   event_date: string; // DATE, e.g. "2026-03-15"
+  event_type?: SiteEventType;
   start_time?: string; // TIME, e.g. "06:00"
   location?: string;
   created_by?: string;
   created_at: string;
   updated_at?: string;
+  // Joined data
+  job_site?: { id: string; name: string };
 }
 
 // ============================================================================

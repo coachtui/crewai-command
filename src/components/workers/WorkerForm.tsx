@@ -4,7 +4,7 @@ import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
 import { Button } from '../ui/Button';
 import { X } from 'lucide-react';
-import type { Worker } from '../../types';
+import type { Worker, WorkerAvailabilityStatus } from '../../types';
 import { useJobSite } from '../../contexts/JobSiteContext';
 import { WorkerSiteManager } from './WorkerSiteManager';
 
@@ -28,6 +28,7 @@ export function WorkerForm({ worker, onSave, onCancel, onAssignmentChange }: Wor
     skills: [] as string[],
     notes: '',
     status: 'active' as 'active' | 'inactive',
+    availability_status: 'available' as WorkerAvailabilityStatus,
     job_site_id: unassignedSite?.id || '' as string | undefined,
   });
   const [skillInput, setSkillInput] = useState('');
@@ -43,6 +44,7 @@ export function WorkerForm({ worker, onSave, onCancel, onAssignmentChange }: Wor
         skills: worker.skills || [],
         notes: worker.notes || '',
         status: worker.status,
+        availability_status: worker.availability_status || 'available',
         job_site_id: worker.job_site_id || '',
       });
     } else if (unassignedSite && !formData.job_site_id) {
@@ -164,6 +166,18 @@ export function WorkerForm({ worker, onSave, onCancel, onAssignmentChange }: Wor
         options={[
           { value: 'active', label: 'Active' },
           { value: 'inactive', label: 'Inactive' },
+        ]}
+      />
+
+      <Select
+        label="Availability"
+        value={formData.availability_status}
+        onChange={(e) => setFormData({ ...formData, availability_status: e.target.value as WorkerAvailabilityStatus })}
+        options={[
+          { value: 'available', label: 'Available' },
+          { value: 'assigned', label: 'Assigned' },
+          { value: 'out', label: 'Out' },
+          { value: 'unavailable', label: 'Unavailable' },
         ]}
       />
 

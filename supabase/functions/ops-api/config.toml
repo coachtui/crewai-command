@@ -1,0 +1,4 @@
+# ops-api handles its own auth (internal key + Bearer JWT paths).
+# Disable Supabase gateway JWT verification so server-to-server calls
+# using x-internal-api-key are not blocked before reaching the function.
+verify_jwt = false

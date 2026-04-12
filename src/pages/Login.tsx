@@ -1,6 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -71,7 +70,7 @@ export function Login() {
   const [loading, setLoading]           = useState(false);
   const [setupError, setSetupError]     = useState<string | null>(null);
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, signIn } = useAuth();
 
   // Read and clear the ghost-state error flag set by AuthContext.
   // Shown when a Supabase session exists but no profile row was found.
@@ -111,19 +110,16 @@ export function Login() {
 
     try {
       console.log('[Login] Submit: starting sign-in');
-      console.log('[Login] Submit: calling signInWithPassword...');
 
-      // Stall detector: logs at 10s if signInWithPassword hasn't resolved.
+      // Stall detector: logs at 10s if sign-in hasn't resolved.
       const stallTimer = setTimeout(() => {
-        console.error('[Login] signInWithPassword stalled after 10s — SDK lock, service worker, or network issue');
+        console.error('[Login] sign-in stalled after 10s — network, SDK lock, or DB issue');
       }, 10000);
 
-      // Hard timeout at 15s: rejects with a user-visible error so the button
-      // always unfreezes rather than hanging forever.
-      type SignInResult = Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
-      const { data: signInData, error: authError } = await Promise.race<SignInResult>([
-        supabase.auth.signInWithPassword({ email, password }),
-        new Promise<SignInResult>((_, reject) =>
+      // Hard timeout at 15s: rejects so the button always unfreezes.
+      await Promise.race<void>([
+        signIn(email, password),
+        new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error('Sign-in timed out. Please refresh the page and try again.')),
             15000
@@ -131,22 +127,9 @@ export function Login() {
         ),
       ]).finally(() => clearTimeout(stallTimer));
 
-      // If this log appears, signInWithPassword resolved (not hung at SDK level)
-      console.log('[Login] Submit: signInWithPassword resolved', {
-        hasUser: !!signInData?.user,
-        hasError: !!authError,
-        errorMessage: authError?.message,
-      });
-
-      if (authError) {
-        throw authError;
-      }
-
-      // Do NOT call navigate() here. Routing is driven by the isAuthenticated
-      // effect above, which fires once AuthContext's SIGNED_IN handler completes
-      // and sets isAuthenticated=true. Navigating here races against SIGNED_IN —
-      // ProtectedRoute would see isAuthenticated=false and redirect back to /login.
-      console.log('[Login] Submit: credentials accepted — waiting for SIGNED_IN to complete');
+      // signIn() explicitly fetches the profile and sets isAuthenticated=true
+      // before resolving — the isAuthenticated effect above handles navigation.
+      console.log('[Login] Submit: sign-in complete, isAuthenticated set');
       toast.success('Login successful!');
     } catch (error) {
       console.error('[Login] Submit: login failed:', (error as Error).message, error);

@@ -20,7 +20,7 @@ import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { TaskDetailsModal } from '../../components/tasks/TaskDetailsModal';
 import { TaskForm } from '../../components/tasks/TaskForm';
-import type { SiteEvent, Task } from '../../types';
+import type { SiteEvent, SiteEventType, Task } from '../../types';
 import { toast } from 'sonner';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -38,6 +38,7 @@ interface EventFormData {
   event_date: string;
   start_time: string;
   location: string;
+  event_type: SiteEventType;
 }
 
 interface EventFormProps {
@@ -53,6 +54,7 @@ function EventForm({ initial, onSave, onCancel, saving }: EventFormProps) {
     event_date: initial?.event_date || format(new Date(), 'yyyy-MM-dd'),
     start_time: initial?.start_time || '',
     location: initial?.location || '',
+    event_type: initial?.event_type || 'other',
   });
 
   const set = (key: keyof EventFormData) => (
@@ -116,6 +118,23 @@ function EventForm({ initial, onSave, onCancel, saving }: EventFormProps) {
           placeholder="e.g. Grid C4 — Foundation"
           className="w-full h-10 px-3 bg-bg-secondary border border-gray-200 rounded-xl text-[14px] text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
         />
+      </div>
+
+      <div>
+        <label className="block text-[13px] font-medium text-text-secondary mb-1">
+          Event Type
+        </label>
+        <select
+          value={form.event_type}
+          onChange={(e) => setForm(prev => ({ ...prev, event_type: e.target.value as SiteEventType }))}
+          className="w-full h-10 px-3 bg-bg-secondary border border-gray-200 rounded-xl text-[14px] text-text-primary focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
+        >
+          <option value="pour">Pour</option>
+          <option value="paving">Paving</option>
+          <option value="delivery">Delivery</option>
+          <option value="inspection">Inspection</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
       <div className="flex gap-2 pt-1">
@@ -321,6 +340,7 @@ export function SiteEvents() {
         organization_id: user.org_id,
         title: form.title.trim(),
         event_date: form.event_date,
+        event_type: form.event_type,
         start_time: form.start_time || null,
         location: form.location.trim() || null,
         created_by: user.id,
@@ -346,6 +366,7 @@ export function SiteEvents() {
         .update({
           title: form.title.trim(),
           event_date: form.event_date,
+          event_type: form.event_type,
           start_time: form.start_time || null,
           location: form.location.trim() || null,
           updated_at: new Date().toISOString(),
@@ -680,6 +701,7 @@ export function SiteEvents() {
             initial={{
               title: modal.event.title,
               event_date: modal.event.event_date,
+              event_type: modal.event.event_type || 'other',
               start_time: modal.event.start_time || '',
               location: modal.event.location || '',
             }}
