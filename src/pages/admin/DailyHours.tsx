@@ -93,6 +93,7 @@ export function DailyHours() {
     siteName: string;
     days: (number | null)[];
     otDays: (number | null)[];
+    notesByDay: (string | null)[];
     total: number;
     totalOt: number;
   }[]>([]);
@@ -686,7 +687,7 @@ export function DailyHours() {
 
       const { data: records, error } = await supabase
         .from('daily_hours')
-        .select('log_date, status, hours_worked, ot_hours, job_site_id, transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
+        .select('log_date, status, hours_worked, ot_hours, notes, job_site_id, transferred_to_job_site:job_sites!transferred_to_job_site_id(id, name)')
         .eq('organization_id', userData.org_id)
         .eq('worker_id', worker.id)
         .gte('log_date', dates[0])
@@ -712,7 +713,7 @@ export function DailyHours() {
         (sitesData || []).forEach(s => siteNameMap.set(s.id, s.name));
       }
 
-      const siteMap = new Map<string, { siteName: string; days: (number | null)[]; otDays: (number | null)[] }>();
+      const siteMap = new Map<string, { siteName: string; days: (number | null)[]; otDays: (number | null)[]; notesByDay: (string | null)[] }>();
 
       (records || []).forEach((dh) => {
         if (dh.status !== 'worked' && dh.status !== 'transferred') return;
@@ -733,19 +734,21 @@ export function DailyHours() {
         }
 
         if (!siteMap.has(siteId)) {
-          siteMap.set(siteId, { siteName, days: Array(7).fill(null), otDays: Array(7).fill(null) });
+          siteMap.set(siteId, { siteName, days: Array(7).fill(null), otDays: Array(7).fill(null), notesByDay: Array(7).fill(null) });
         }
         const entry = siteMap.get(siteId)!;
         entry.days[dayIndex] = dh.hours_worked || 0;
         entry.otDays[dayIndex] = dh.ot_hours || 0;
+        entry.notesByDay[dayIndex] = (dh as any).notes || null;
       });
 
       setWorkerSummaryRows(
-        Array.from(siteMap.entries()).map(([siteId, { siteName, days, otDays }]) => ({
+        Array.from(siteMap.entries()).map(([siteId, { siteName, days, otDays, notesByDay }]) => ({
           siteId,
           siteName,
           days,
           otDays,
+          notesByDay,
           total: days.reduce<number>((sum, h) => sum + (h ?? 0), 0),
           totalOt: otDays.reduce<number>((sum, h) => sum + (h ?? 0), 0),
         }))
@@ -2367,6 +2370,9 @@ export function DailyHours() {
                                 <div>{h !== null && h > 0 ? `${h % 1 === 0 ? h : h.toFixed(1)}h` : <span className="text-gray-300">–</span>}</div>
                                 {(row.otDays[i] ?? 0) > 0 && (
                                   <div className="text-[10px] text-amber-600 font-medium">{(row.otDays[i] as number).toFixed(1)} OT</div>
+                                )}
+                                {row.notesByDay[i] && (
+                                  <div className="text-[10px] text-gray-400 mt-0.5 max-w-[70px] truncate" title={row.notesByDay[i]!}>{row.notesByDay[i]}</div>
                                 )}
                               </td>
                             ))}
