@@ -46,6 +46,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const lastProfileFetchRef = useRef<number>(0);
   const PROFILE_FETCH_COOLDOWN = 30000; // 30 seconds cooldown between fetches
 
+  // Track SDK initialization so signIn() can wait for the internal Web Lock
+  // to be released before calling signInWithPassword (prevents stacking the
+  // 8-s timedFetch timeout with actual sign-in latency).
+  const isInitializedRef = useRef(false);
+  const initWaitersRef = useRef<Array<() => void>>([]);
+
   // Keep refs in sync so the onAuthStateChange callback (which closes over
   // the initial values) can always read current auth state without being in deps.
   const setIsAuthenticatedAndRef = useCallback((val: boolean) => {
@@ -62,6 +68,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const setIsLoadingWithLog = useCallback((value: boolean, reason: string) => {
     console.log(`[Auth] isLoading changing: ${!value} → ${value} (${reason})`);
     setIsLoading(value);
+  }, []);
+
+  // Called once when INITIAL_SESSION fires or the safety timer completes.
+  // Resolves any pending signIn() waiters so they can proceed.
+  const markInitialized = useCallback(() => {
+    if (!isInitializedRef.current) {
+      isInitializedRef.current = true;
+      initWaitersRef.current.splice(0).forEach(cb => cb());
+    }
   }, []);
 
   // Fetch user profile with organization and job site assignments
@@ -211,6 +226,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (err) {
         console.error('[Auth] Timeout fallback: getSession error:', err);
       } finally {
+        markInitialized();
         setIsLoadingWithLog(false, 'initial session safety timeout');
       }
     }, 5000);
@@ -247,6 +263,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (err) {
           console.error('[Auth] INITIAL_SESSION error:', err);
         } finally {
+          markInitialized();
           setIsLoadingWithLog(false, 'initial session resolved');
         }
 
@@ -311,12 +328,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
-  }, [fetchUserProfile, setIsAuthenticatedAndRef, setIsLoadingWithLog, setUserAndRef]);
+  }, [fetchUserProfile, markInitialized, setIsAuthenticatedAndRef, setIsLoadingWithLog, setUserAndRef]);
 
   // Sign in function
   const signIn = async (email: string, password: string): Promise<void> => {
     setIsLoadingWithLog(true, 'manual sign in');
     try {
+      // Wait for SDK initialization to complete before calling signInWithPassword.
+      // Both operations acquire the same internal Web Lock; waiting here prevents
+      // the 8-s timedFetch timeout for initialization from stacking with the
+      // actual sign-in latency, which could push total time past the UI timeout.
+      if (!isInitializedRef.current) {
+        console.log('[Auth] signIn: waiting for SDK initialization...');
+        await new Promise<void>((resolve, reject) => {
+          const t = setTimeout(
+            () => reject(new Error('Auth initialization timed out. Please refresh and try again.')),
+            12000
+          );
+          initWaitersRef.current.push(() => { clearTimeout(t); resolve(); });
+        });
+        console.log('[Auth] signIn: SDK initialized, proceeding');
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,

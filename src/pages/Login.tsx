@@ -111,18 +111,20 @@ export function Login() {
     try {
       console.log('[Login] Submit: starting sign-in');
 
-      // Stall detector: logs at 10s if sign-in hasn't resolved.
+      // Stall detector: logs at 18s if sign-in hasn't resolved.
+      // Threshold accounts for worst-case: up to 8s SDK init wait + actual
+      // sign-in network time (lock contention handled in AuthContext.signIn).
       const stallTimer = setTimeout(() => {
-        console.error('[Login] sign-in stalled after 10s — network, SDK lock, or DB issue');
-      }, 10000);
+        console.error('[Login] sign-in stalled after 18s — network or DB issue');
+      }, 18000);
 
-      // Hard timeout at 15s: rejects so the button always unfreezes.
+      // Hard timeout at 25s: rejects so the button always unfreezes.
       await Promise.race<void>([
         signIn(email, password),
         new Promise<never>((_, reject) =>
           setTimeout(
             () => reject(new Error('Sign-in timed out. Please refresh the page and try again.')),
-            15000
+            25000
           )
         ),
       ]).finally(() => clearTimeout(stallTimer));
