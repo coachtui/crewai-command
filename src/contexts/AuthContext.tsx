@@ -52,6 +52,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const isInitializedRef = useRef(false);
   const initWaitersRef = useRef<Array<() => void>>([]);
 
+  // Set to true while signIn() owns the login flow so the SIGNED_IN handler
+  // skips its duplicate profile fetch (signIn() handles it directly).
+  const isManualSignInRef = useRef(false);
+
   // Keep refs in sync so the onAuthStateChange callback (which closes over
   // the initial values) can always read current auth state without being in deps.
   const setIsAuthenticatedAndRef = useCallback((val: boolean) => {
@@ -193,6 +197,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // storage. If it does, recover the session without forcing a re-login.
     const safetyTimer = setTimeout(async () => {
       console.warn('[Auth] INITIAL_SESSION timeout fallback triggered');
+      // Unblock any pending signIn() waiters immediately — do NOT defer this
+      // until after getSession()/fetchUserProfile, which can take seconds and
+      // would cause signIn()'s 12-second init-wait timeout to fire first.
+      markInitialized();
       // Optional: log Web Locks state to diagnose SDK lock contention
       if (typeof navigator !== 'undefined' && 'locks' in navigator) {
         try {
@@ -226,7 +234,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (err) {
         console.error('[Auth] Timeout fallback: getSession error:', err);
       } finally {
-        markInitialized();
         setIsLoadingWithLog(false, 'initial session safety timeout');
       }
     }, 5000);
@@ -272,6 +279,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // The ref guard prevents a double-fetch when INITIAL_SESSION already
         // authenticated the user on this same page load.
         console.log('[Auth] SIGNED_IN received');
+        // signIn() sets this flag before calling signInWithPassword — skip
+        // the profile fetch here so we don't duplicate work and compete on
+        // isLoading state. signIn() loads the profile directly after returning.
+        if (isManualSignInRef.current) return;
         if (!isAuthenticatedRef.current || !currentUserRef.current) {
           // IMPORTANT: do NOT await profile work here.
           //
@@ -350,10 +361,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('[Auth] signIn: SDK initialized, proceeding');
       }
 
+      isManualSignInRef.current = true;
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      isManualSignInRef.current = false;
 
       if (error) {
         throw error;
