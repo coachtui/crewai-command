@@ -761,6 +761,285 @@ export function DailyHours() {
     }
   };
 
+  // Builds the worker weekly summary as a real PDF document (landscape, one row per job site).
+  const buildWorkerSummaryPDF = (): { doc: jsPDF; filename: string } | null => {
+    if (!workerSummaryWorker || workerSummaryDates.length !== 7 || workerSummaryRows.length === 0) {
+      return null;
+    }
+
+    const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const doc = new jsPDF({ orientation: 'landscape' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 14;
+    const contentWidth = pageWidth - margin * 2;
+
+    const parseDate = (d: string) => {
+      const [y, m, day] = d.split('-').map(Number);
+      return new Date(y, m - 1, day);
+    };
+    const fmtLong = (d: string) =>
+      parseDate(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const fmtShort = (d: string) =>
+      parseDate(d).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' });
+    const fmtHours = (h: number) => (h % 1 === 0 ? String(h) : h.toFixed(1));
+
+    const weekLabel = `${fmtLong(workerSummaryDates[0])} - ${fmtLong(workerSummaryDates[6])}`;
+    const colTotals = [0, 1, 2, 3, 4, 5, 6].map(i =>
+      workerSummaryRows.reduce((sum, row) => sum + (row.days[i] ?? 0), 0)
+    );
+    const colOtTotals = [0, 1, 2, 3, 4, 5, 6].map(i =>
+      workerSummaryRows.reduce((sum, row) => sum + (row.otDays[i] ?? 0), 0)
+    );
+    const grandTotal = workerSummaryRows.reduce((sum, row) => sum + row.total, 0);
+    const grandOtTotal = workerSummaryRows.reduce((sum, row) => sum + row.totalOt, 0);
+
+    // Column geometry
+    const siteColWidth = 58;
+    const totalColWidth = 24;
+    const dayColWidth = (contentWidth - siteColWidth - totalColWidth) / 7;
+    const dayX = (i: number) => margin + siteColWidth + dayColWidth * i;
+    const totalX = margin + siteColWidth + dayColWidth * 7;
+    const LINE_H = 4;
+
+    let y = 18;
+
+    // ── HEADER ───────────────────────────────────────────────────────────────
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(20, 20, 20);
+    doc.text(workerSummaryWorker.name, margin, y);
+
+    doc.setFontSize(16);
+    doc.text(`${fmtHours(grandTotal)}h`, pageWidth - margin, y, { align: 'right' });
+    y += 7;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(weekLabel, margin, y);
+    if (grandOtTotal > 0) {
+      doc.setFontSize(9);
+      doc.setTextColor(217, 119, 6);
+      doc.text(`+${grandOtTotal.toFixed(1)}h OT`, pageWidth - margin, y, { align: 'right' });
+      doc.setTextColor(20, 20, 20);
+      doc.setFontSize(11);
+    }
+    y += 5.5;
+
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text(
+      workerSummaryWorker.role.charAt(0).toUpperCase() + workerSummaryWorker.role.slice(1),
+      margin,
+      y
+    );
+    y += 4.5;
+
+    doc.setFontSize(7.5);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Generated ${new Date().toLocaleString()}`, margin, y);
+    doc.setTextColor(20, 20, 20);
+    y += 7;
+
+    doc.setDrawColor(210, 210, 210);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 8;
+
+    // ── TABLE HEADER (repeated on each page) ─────────────────────────────────
+    const drawTableHeader = (startY: number) => {
+      let hy = startY;
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(110, 110, 110);
+      doc.text('JOB SITE', margin, hy);
+      workerSummaryDates.forEach((_date, i) => {
+        doc.text(DAY_NAMES[i], dayX(i) + dayColWidth / 2, hy, { align: 'center' });
+      });
+      doc.text('TOTAL', totalX + totalColWidth, hy, { align: 'right' });
+      hy += 3.5;
+
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(150, 150, 150);
+      workerSummaryDates.forEach((date, i) => {
+        doc.text(fmtShort(date), dayX(i) + dayColWidth / 2, hy, { align: 'center' });
+      });
+      hy += 2.5;
+
+      doc.setDrawColor(180, 180, 180);
+      doc.line(margin, hy, pageWidth - margin, hy);
+      doc.setTextColor(20, 20, 20);
+      return hy + 5;
+    };
+
+    y = drawTableHeader(y);
+
+    // ── ROWS ─────────────────────────────────────────────────────────────────
+    const noteWidth = dayColWidth - 2;
+
+    workerSummaryRows.forEach((row, idx) => {
+      // Pre-wrap all cell content so the row height is known before drawing
+      const siteLines: string[] = doc.splitTextToSize(row.siteName, siteColWidth - 3);
+      const MAX_NOTE_LINES = 4;
+      const cells = row.days.map((h, i) => {
+        const ot = row.otDays[i] ?? 0;
+        const note = row.notesByDay[i];
+        const wrapped: string[] = note ? doc.splitTextToSize(note, noteWidth) : [];
+        const noteLines = wrapped.slice(0, MAX_NOTE_LINES);
+        if (wrapped.length > MAX_NOTE_LINES) {
+          noteLines[MAX_NOTE_LINES - 1] = `${noteLines[MAX_NOTE_LINES - 1]}...`;
+        }
+        return {
+          hours: h !== null && h > 0 ? `${fmtHours(h)}h` : '-',
+          ot: ot > 0 ? `${ot.toFixed(1)} OT` : null,
+          noteLines,
+        };
+      });
+
+      const cellLineCount = Math.max(
+        ...cells.map(c => 1 + (c.ot ? 1 : 0) + c.noteLines.length),
+        siteLines.length,
+        row.totalOt > 0 ? 2 : 1
+      );
+      const rowHeight = cellLineCount * LINE_H + 3;
+
+      if (y + rowHeight > pageHeight - 16) {
+        doc.addPage();
+        y = 18;
+        y = drawTableHeader(y);
+      }
+
+      if (idx % 2 === 0) {
+        doc.setFillColor(248, 249, 250);
+        doc.rect(margin, y - 3.5, contentWidth, rowHeight, 'F');
+      }
+
+      // Job site
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(20, 20, 20);
+      siteLines.forEach((line, i) => doc.text(line, margin, y + i * LINE_H));
+
+      // Day cells
+      cells.forEach((cell, i) => {
+        const cx = dayX(i) + dayColWidth / 2;
+        let cy = y;
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(cell.hours === '-' ? 190 : 20, cell.hours === '-' ? 190 : 20, cell.hours === '-' ? 190 : 20);
+        doc.text(cell.hours, cx, cy, { align: 'center' });
+        cy += LINE_H;
+
+        if (cell.ot) {
+          doc.setFontSize(6.5);
+          doc.setTextColor(217, 119, 6);
+          doc.text(cell.ot, cx, cy, { align: 'center' });
+          cy += LINE_H;
+        }
+
+        if (cell.noteLines.length > 0) {
+          doc.setFontSize(6);
+          doc.setTextColor(130, 130, 130);
+          cell.noteLines.forEach(line => {
+            doc.text(line, cx, cy, { align: 'center' });
+            cy += LINE_H;
+          });
+        }
+      });
+
+      // Row total
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(20, 20, 20);
+      doc.text(row.total > 0 ? `${fmtHours(row.total)}h` : '-', totalX + totalColWidth, y, { align: 'right' });
+      if (row.totalOt > 0) {
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(217, 119, 6);
+        doc.text(`${row.totalOt.toFixed(1)} OT`, totalX + totalColWidth, y + LINE_H, { align: 'right' });
+      }
+
+      y += rowHeight;
+    });
+
+    // ── TOTALS ───────────────────────────────────────────────────────────────
+    if (y + 12 > pageHeight - 16) {
+      doc.addPage();
+      y = 18;
+    }
+    doc.setDrawColor(80, 80, 80);
+    doc.line(margin, y - 2, pageWidth - margin, y - 2);
+    y += 3;
+
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(20, 20, 20);
+    doc.text('Total', margin, y);
+    colTotals.forEach((t, i) => {
+      const cx = dayX(i) + dayColWidth / 2;
+      doc.setFontSize(8.5);
+      doc.setTextColor(t > 0 ? 20 : 190, t > 0 ? 20 : 190, t > 0 ? 20 : 190);
+      doc.text(t > 0 ? `${fmtHours(t)}h` : '-', cx, y, { align: 'center' });
+      if (colOtTotals[i] > 0) {
+        doc.setFontSize(6.5);
+        doc.setTextColor(217, 119, 6);
+        doc.text(`${colOtTotals[i].toFixed(1)} OT`, cx, y + LINE_H, { align: 'center' });
+      }
+    });
+    doc.setFontSize(9);
+    doc.setTextColor(20, 20, 20);
+    doc.text(grandTotal > 0 ? `${fmtHours(grandTotal)}h` : '-', totalX + totalColWidth, y, { align: 'right' });
+    if (grandOtTotal > 0) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(217, 119, 6);
+      doc.text(`${grandOtTotal.toFixed(1)} OT`, totalX + totalColWidth, y + LINE_H, { align: 'right' });
+    }
+
+    // ── FOOTER on every page ─────────────────────────────────────────────────
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(160, 160, 160);
+      doc.text(
+        `${workerSummaryWorker.name} · Weekly Summary · ${weekLabel} · Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 7,
+        { align: 'center' }
+      );
+    }
+
+    const slug = workerSummaryWorker.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    return { doc, filename: `weekly_summary_${slug || 'worker'}_${workerSummaryDates[0]}.pdf` };
+  };
+
+  const downloadWorkerSummaryPDF = () => {
+    const built = buildWorkerSummaryPDF();
+    if (!built) {
+      toast.error('No hours to export');
+      return;
+    }
+    built.doc.save(built.filename);
+    toast.success('Weekly summary saved as PDF');
+  };
+
+  const openWorkerSummaryPDF = () => {
+    const built = buildWorkerSummaryPDF();
+    if (!built) {
+      toast.error('No hours to export');
+      return;
+    }
+    const blobUrl = built.doc.output('bloburl') as unknown as string;
+    const win = window.open(blobUrl, '_blank');
+    if (!win) {
+      // Popup blocked (common in installed PWAs) — fall back to downloading the file
+      built.doc.save(built.filename);
+      toast.success('Weekly summary saved as PDF');
+    }
+  };
+
   const exportToCSV = () => {
     if (weeklyData.length === 0) {
       toast.error('No data to export');
@@ -2276,16 +2555,6 @@ export function DailyHours() {
       </Modal>
 
       {/* Worker Weekly Summary Modal */}
-      {workerSummaryOpen && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            body > * { visibility: hidden !important; }
-            .worker-summary-printable, .worker-summary-printable * { visibility: visible !important; }
-            .worker-summary-printable { position: fixed; inset: 0; background: white; padding: 32px; z-index: 99999; }
-            .no-print { display: none !important; }
-          }
-        `}} />
-      )}
       <Modal
         isOpen={workerSummaryOpen}
         onClose={() => setWorkerSummaryOpen(false)}
@@ -2314,7 +2583,7 @@ export function DailyHours() {
 
           return (
             <div className="space-y-4">
-              <div className="worker-summary-printable bg-white text-gray-900 rounded border border-gray-200 p-6 font-sans">
+              <div className="bg-white text-gray-900 rounded border border-gray-200 p-6 font-sans">
                 {/* Header */}
                 <div className="mb-4 flex items-start justify-between gap-4">
                   <div>
@@ -2403,15 +2672,21 @@ export function DailyHours() {
                 )}
               </div>
 
-              <div className="no-print flex justify-end gap-2">
+              <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={() => setWorkerSummaryOpen(false)}>
                   Close
                 </Button>
                 {!workerSummaryLoading && workerSummaryRows.length > 0 && (
-                  <Button variant="primary" onClick={() => window.print()}>
-                    <Printer size={16} className="mr-2" />
-                    Print
-                  </Button>
+                  <>
+                    <Button variant="secondary" onClick={openWorkerSummaryPDF}>
+                      <Printer size={16} className="mr-2" />
+                      View PDF
+                    </Button>
+                    <Button variant="primary" onClick={downloadWorkerSummaryPDF}>
+                      <Download size={16} className="mr-2" />
+                      Download PDF
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
